@@ -1,5 +1,5 @@
 import pygame
-
+from inventory import *
 PINK=(234,54,128)
 
 
@@ -14,6 +14,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = 4
         self.direction = pygame.math.Vector2()
         self.obstacle_sprites = obstacle_sprites
+        self.inventory = Inventory()
 
 
 
@@ -44,12 +45,12 @@ class Player(pygame.sprite.Sprite):
         if self.direction.magnitude()!=0:
             self.direction=self.direction.normalize()
         self.hitbox.x += self.direction.x*self.speed
-        self.check_coulision("horizontal")
+        self.check_coalition("horizontal")
         self.hitbox.y += self.direction.y*self.speed
-        self.check_coulision("vertical")
+        self.check_coalition("vertical")
         self.rect.center=self.hitbox.center
 
-    def check_coullision(self,direction):
+    def check_coalition(self,direction):
         if direction=='horizontal':
             for sprite in self.obstacle_sprites:
                 if sprite.rect.colliderect(self.hitbox):
@@ -69,5 +70,6 @@ class Player(pygame.sprite.Sprite):
         self.input()
 
         self.move()
+        self.inventory.open()
 
 

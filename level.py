@@ -1,5 +1,5 @@
 import pygame
-import random
+
 from mapset import *
 from Player import *
 from Rock import Rock
