@@ -1,10 +1,9 @@
 #the main game loop
-#basic register and login loop
+#basic rejister and login loop
 import pygame,sys
 from mapset import *
-
+from level import *
 class Game:
-
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH,HEIGHT))
@@ -13,8 +12,8 @@ class Game:
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
 
-    def enter_screen(self):
-        pass#here will call the enter screen
+        self.level =level()
+
     def run(self):
         while True:
             for event in pygame.event.get():
@@ -23,7 +22,7 @@ class Game:
                     sys.exit()
 
             self.screen.blit(self.image,(0,0))
-
+            self.level.run()
             pygame.display.update()
             self.clock.tick(FPS)
 if __name__ == '__main__':
