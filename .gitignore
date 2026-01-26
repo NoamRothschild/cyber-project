@@ -1,3 +1,8 @@
+protobuf/*.py
+protobuf/*.pyi
+
+# ---- PYTHON DEFAULT GIT IGNORE ----
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
