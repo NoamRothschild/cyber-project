@@ -29,7 +29,7 @@ class level:
 
         self.visible_sprites.update()
 
-class Camera(pygame.sprite.Group):
+class Camera(pygame.sprite.Group):# a group that has every visible sprite that should be moved when the player does
     def __init__(self):
         super().__init__()
         self.display = pygame.display.get_surface()
