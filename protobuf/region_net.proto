@@ -14,8 +14,9 @@ message LocationBlock {
 }
 
 message HandshakeStart {
+  Kind kind = 1;
   oneof payload {
-    string session_id = 1;
+    int32 session_id = 2;
   }
 
   enum Kind {
@@ -30,6 +31,7 @@ message OtherPlayerData {
     int32 HP = 2;
     OtherState state = 3;
   }
+  int32 player_id = 4;
   enum OtherState {
     WALKING = 0;
     ATTACKING = 1;
@@ -37,8 +39,9 @@ message OtherPlayerData {
 }
 
 message ServerResponse {
+  int32 sender_id = 1;
   oneof payload {
-    LocationBlock move_self = 1; // force tp back - block invalid movements
-    OtherPlayerData other_data = 2;
+    LocationBlock move_self = 2; // force tp back - block invalid movements
+    OtherPlayerData other_data = 3;
   }
 }

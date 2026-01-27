@@ -1,11 +1,13 @@
 #the main game loop
 #basic rejister and login loop
+from Entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame,sys
 from mapset import *
 from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import ZoneConnection
+from random import randint
 
 class Game:
     def __init__(self, host: str, tcp_port: int, udp_port: int):
@@ -16,12 +18,13 @@ class Game:
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.zone = ZoneConnection(self, host, tcp_port, udp_port)
-
+        # randomized for now, will get generated from the auth server.
+        self.session_id = randint(0, 2 ** 31 - 1)
         self.level =level()
         self.is_running = False
 
     def run(self):
-        self.zone.open_reliable_conn()
+        self.zone.open_reliable_conn(self.session_id)
         self.is_running = True
 
         while self.is_running:

@@ -1,6 +1,7 @@
 # Provides utility functions for the client for easier communication with server
 from __future__ import annotations
 import asyncio
+from random import randint
 import socket
 import threading
 from typing import Tuple, Set, TYPE_CHECKING
@@ -18,8 +19,23 @@ class Client:
     @staticmethod
     async def client_handler_setup(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         print("new connection established")
+
+        handshake_raw = await reader.read(1024)
+        handshake = region_net.HandshakeStart()
+        handshake.ParseFromString(handshake_raw)
+        # TODO: verify the session id with the auth server && cache it
+        session_id = handshake.session_id
+        handshake.Clear()
+        handshake.CopyFrom(region_net.HandshakeStart(
+            kind=region_net.HandshakeStart.SERVER_OK,
+        ))
+        writer.write(handshake.SerializeToString())
+        await writer.drain()
+        # TODO: get this one from the auth server
+        user_id = randint(0, 2 ** 31 - 1)
+
         global clients
-        self = Client(reader, writer)
+        self = Client(reader, writer, session_id, user_id)
         clients.add(self)
 
         try:
@@ -27,10 +43,12 @@ class Client:
         finally:
             clients.remove(self)
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int, user_id: int) -> None:
         self.reader = reader
         self.writer = writer
         self.writer_lock = asyncio.Lock()
+        self.session_id = session_id
+        self.user_id = user_id
 
     async def handle(self):
         while True:
@@ -47,6 +65,7 @@ class Client:
                 pos = (update.location_block.x, update.location_block.y)
 
                 resp = region_net.ServerResponse()
+                resp.sender_id = self.user_id
                 resp.other_data.new_location.CopyFrom(region_net.LocationBlock(x=pos[0], y=pos[1]))
                 await self.broadcast(resp.SerializeToString())
 
@@ -60,9 +79,7 @@ class Client:
         for client in clients:
             if client == self:
                 continue
-            async with client.writer_lock:
-                self.writer.write(data)
-                await self.writer.drain()
+            await client.write(data)
         print(f"data broadcasted to {len(clients) - 1} clients")
 
 
@@ -90,8 +107,9 @@ def server_listener(game: Game, zone: ZoneConnection):
         elif payload_type == "other_data":
             payload_type = parsed.other_data.WhichOneof("payload")
             print(f"{payload_type=}")
-            # if payload_type == "new_location":
-            #     ...
+            if payload_type == "new_location":
+                pos = parsed.other_data.new_location
+                game.level.entities.add_or_update(parsed.sender_id, (pos.x, pos.y), [game.level.visible_sprites])
             # elif payload_type == "HP":
             #     ...
             # elif payload_type == "state":
@@ -113,11 +131,22 @@ class ZoneConnection:
 
         self.game = game
 
-    def open_reliable_conn(self) -> None:
+    def open_reliable_conn(self, session_id: int) -> None:
         """opens the TCP conn. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
         listener = threading.Thread(target=server_listener, args=(self.game, self,))
         listener.start()
+
+        handshake = region_net.HandshakeStart()
+        handshake.session_id = session_id
+        handshake.kind = handshake.LOGIN
+
+        self.reliable_conn.sendall(handshake.SerializeToString())
+        login_resp_raw = self.reliable_conn.recv(BUFF_SIZE)
+        login_resp = region_net.HandshakeStart()
+        login_resp.ParseFromString(login_resp_raw)
+        if login_resp.kind != login_resp.SERVER_OK:
+            raise RuntimeError("failed connecting to zone: invalid session id")
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
@@ -133,6 +162,7 @@ class ZoneConnection:
 
         self.server_known_pos = pos
         self.reliable_conn.sendall(update.SerializeToString())
+
 
 def should_update_location(old_pos: Tuple[int, int], new_pos: Tuple[int, int], min_dst=5) -> bool:
     """returns true when the distance between the two pos are above min_dst"""
