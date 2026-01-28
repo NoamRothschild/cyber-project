@@ -134,9 +134,6 @@ class ZoneConnection:
     def open_reliable_conn(self, session_id: int) -> None:
         """opens the TCP conn. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
-        listener = threading.Thread(target=server_listener, args=(self.game, self,))
-        listener.start()
-
         handshake = region_net.HandshakeStart()
         handshake.session_id = session_id
         handshake.kind = handshake.LOGIN
@@ -147,6 +144,9 @@ class ZoneConnection:
         login_resp.ParseFromString(login_resp_raw)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
+
+        listener = threading.Thread(target=server_listener, args=(self.game, self,))
+        listener.start()
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
