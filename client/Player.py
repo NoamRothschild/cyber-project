@@ -1,4 +1,4 @@
-from client.inventory import *
+from inventory import *
 PINK=(234,54,128)
 
 
@@ -43,9 +43,9 @@ class Player(pygame.sprite.Sprite):
     def move(self):#change x and y pos according to direction, speed
         if self.direction.magnitude()!=0:
             self.direction=self.direction.normalize()
-        self.hitbox.x += self.direction.x*self.speed
-        self.check_coalition("horizontal")# if th player collides with obstical
-        self.hitbox.y += self.direction.y*self.speed
+        self.hitbox.x += int(self.direction.x*self.speed)
+        self.check_coalition("horizontal")
+        self.hitbox.y += int(self.direction.y*self.speed)
         self.check_coalition("vertical")
         self.rect.center=self.hitbox.center
 

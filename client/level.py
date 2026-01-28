@@ -1,5 +1,6 @@
 import pygame
 
+from Entity import Entities
 from mapset import *
 from Player import *
 from Rock import Rock
@@ -10,9 +11,12 @@ class level:
         self.visible_sprites = Camera()
         self.obstacle_sprites = pygame.sprite.Group()
 
+        self.entities = Entities()
+
         self.draw_map()
 
     def draw_map(self):#crating a very basic map with small borders(need to be changed
+        self.visible_sprites.update()
         for i in range(WIDTH*40//size-size):
             Rock((i*size, 0), [self.visible_sprites, self.obstacle_sprites])
             Rock((i * size, 100*size), [self.visible_sprites, self.obstacle_sprites])

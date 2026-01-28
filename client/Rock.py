@@ -1,5 +1,5 @@
 import pygame
-from client.mapset import *
+from mapset import *
 class Rock(pygame.sprite.Sprite):#rock obstacle sprites
     def __init__(self,pos,groups):
         super().__init__(groups)

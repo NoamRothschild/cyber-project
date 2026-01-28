@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package game.region;
+
+message RegionUpdate {
+  oneof payload {
+    LocationBlock location_block = 1;
+  }
+}
+
+message LocationBlock {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message HandshakeStart {
+  Kind kind = 1;
+  oneof payload {
+    int32 session_id = 2;
+  }
+
+  enum Kind {
+    LOGIN = 0;
+    SERVER_OK = 1;
+  }
+}
+
+message OtherPlayerData {
+  oneof payload {
+    LocationBlock new_location = 1;
+    int32 HP = 2;
+    OtherState state = 3;
+  }
+  int32 player_id = 4;
+  enum OtherState {
+    WALKING = 0;
+    ATTACKING = 1;
+  }
+}
+
+message ServerResponse {
+  int32 sender_id = 1;
+  oneof payload {
+    LocationBlock move_self = 2; // force tp back - block invalid movements
+    OtherPlayerData other_data = 3;
+  }
+}
