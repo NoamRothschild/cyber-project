@@ -1,5 +1,4 @@
-import pygame
-from inventory import *
+from client.inventory import *
 PINK=(234,54,128)
 
 

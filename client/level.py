@@ -12,11 +12,17 @@ class level:
 
         self.draw_map()
 
-    def draw_map(self):
+    def draw_map(self):#crating a very basic map with small borders(need to be changed
+        for i in range(WIDTH*40//size-size):
+            Rock((i*size, 0), [self.visible_sprites, self.obstacle_sprites])
+            Rock((i * size, 100*size), [self.visible_sprites, self.obstacle_sprites])
+        for i in range(HEIGHT*40//size-size):
+            Rock((0, i * size), [self.visible_sprites, self.obstacle_sprites])
+            Rock((100*size,i * size ), [self.visible_sprites, self.obstacle_sprites])
         for rindex,row in enumerate(world_map):
             for cindex,col in enumerate(row):
-                x=cindex*size
-                y=rindex*size
+                x=cindex*size+2*size
+                y=rindex*size+2*size
                 if col=='x':
                     Rock((x,y),[self.visible_sprites,self.obstacle_sprites])
 
