@@ -4,5 +4,6 @@ class Rock(pygame.sprite.Sprite):#rock obstacle sprites
     def __init__(self,pos,groups,image):
         super().__init__(groups)
         self.image = image
+        self.image = pygame.transform.scale(self.image,(size,size))
         self.image.set_colorkey(PINK)
         self.rect = self.image.get_rect(topleft=pos)

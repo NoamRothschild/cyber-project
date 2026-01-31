@@ -9,6 +9,7 @@ from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from region_connection import *
 
+GREEN=(55,126,71)
 class Game:
     def __init__(self, host: str, tcp_port: int, udp_port: int):
         pygame.init()
@@ -17,10 +18,11 @@ class Game:
         self.image=pygame.transform.scale(self.image,(WIDTH,HEIGHT))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
+        self.font = pygame.font.SysFont('Arial', 30, bold=True)
         self.zone = ZoneConnection(self, host, tcp_port, udp_port)
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
-        self.level =level()
+        self.level =Level()
         self.is_running = False
 
     def run(self):
@@ -34,8 +36,12 @@ class Game:
                     break
             if not self.is_running: break
 
-            self.screen.blit(self.image,(0,0))#for now but we should add the background to visable sprite in level
+            self.screen.fill(GREEN)#for now but we should add the background to visable sprite in level
+            fps = str(int(self.clock.get_fps()))
+            fps_surface = self.font.render(fps, True, (255, 255, 255))
+
             self.level.run()
+            self.screen.blit(fps_surface, (10, 10))
             hb = self.level.player.hitbox
 
             self.zone.try_send_update_pos((hb.x, hb.y))

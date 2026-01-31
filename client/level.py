@@ -1,16 +1,17 @@
-import pygame
+
 
 from Entity import Entities
-from mapset import *
+
 from Player import *
 from Rock import Rock
 from PIL import Image
-class level:
+class Level:
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
 
         self.visible_sprites = Camera()
         self.obstacle_sprites = pygame.sprite.Group()
+        self.static_sprites = pygame.sprite.Group()
 
         self.image = [pygame.image.load('rock.png').convert_alpha(), pygame.image.load('tree.png').convert_alpha(),
                       pygame.image.load('water.png').convert_alpha()]
@@ -32,20 +33,20 @@ class level:
                 r, g, b = pixel[:3]
 
                 if r == 0 and g == 162 and b == 232:
-                    Rock((x * size, y * size), [self.visible_sprites, self.obstacle_sprites], self.image[2])
+                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[2])
                 elif r == 120 and g == 67 and b == 21:
-                    Rock((x * size, y * size), [self.visible_sprites, self.obstacle_sprites], self.image[0])
+                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[0])
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 7 == 0:
-                        Rock((x * size, y * size), [self.visible_sprites, self.obstacle_sprites], self.image[1])
+                        Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[1])
                     tree_count += 1
 
-        # השחקן נוצר פעם אחת בלבד - מחוץ ללולאה
-        self.player = Player((640 * size, 260 * size), [self.visible_sprites], self.obstacle_sprites)
+
+        self.player = Player((410 * size, 103 * size), [self.visible_sprites], self.obstacle_sprites)
 
 
     def run(self):
-        self.visible_sprites.custom_draw(self.player)
+        self.visible_sprites.custom_draw(self.player,self.static_sprites)
 
         self.visible_sprites.update()
 
@@ -57,12 +58,15 @@ class Camera(pygame.sprite.Group):# a group that has every visible sprite that s
         self.half_height = self.display.get_height()/2
         self.point=pygame.math.Vector2()
 
-    def custom_draw(self,player):
+    def custom_draw(self,player,static_sprites):
         self.point.x=player.rect.centerx-self.half_width
         self.point.y=player.rect.centery-self.half_height
         screen_rect = pygame.Rect(self.point.x, self.point.y, self.display.get_width(), self.display.get_height())
 
-        for sprite in self.sprites():
+        for sprite in static_sprites:
             if sprite.rect.colliderect(screen_rect):
-                point_pos= sprite.rect.topleft-self.point
-                self.display.blit(sprite.image,point_pos)
+                self.display.blit(sprite.image, sprite.rect.topleft - self.point)
+
+            # ציור השחקן וישויות אחרות
+        for sprite in self.sprites():
+            self.display.blit(sprite.image, sprite.rect.topleft - self.point)

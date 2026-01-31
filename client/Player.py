@@ -50,20 +50,23 @@ class Player(pygame.sprite.Sprite):
         self.rect.center=self.hitbox.center
 
     def check_coalition(self,direction):#if it collides it move the player to only tach the rock
-        if direction=='horizontal':
-            for sprite in self.obstacle_sprites:
+        collision_sprites = pygame.sprite.spritecollide(self, self.obstacle_sprites, False)
+
+        if collision_sprites:
+            for sprite in collision_sprites:
                 if sprite.rect.colliderect(self.hitbox):
-                    if self.direction.x>0:
-                        self.hitbox.right=sprite.rect.left
-                    elif self.direction.x<0:
-                        self.hitbox.left=sprite.rect.right
-        if direction=='vertical':
-            for sprite in self.obstacle_sprites:
-                if sprite.rect.colliderect(self.hitbox):
-                    if self.direction.y>0:
-                        self.hitbox.bottom=sprite.rect.top
-                    elif self.direction.y<0:
-                        self.hitbox.top=sprite.rect.bottom
+                    if direction=='horizontal':
+                        if sprite.rect.colliderect(self.hitbox):
+                            if self.direction.x>0:
+                                self.hitbox.right=sprite.rect.left
+                            elif self.direction.x<0:
+                                self.hitbox.left=sprite.rect.right
+                    if direction=='vertical':
+                        if sprite.rect.colliderect(self.hitbox):
+                            if self.direction.y>0:
+                                self.hitbox.bottom=sprite.rect.top
+                            elif self.direction.y<0:
+                                self.hitbox.top=sprite.rect.bottom
 
     def update(self):#call to all the player action
         self.input()
