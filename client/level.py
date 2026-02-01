@@ -13,8 +13,8 @@ class Level:
         self.obstacle_sprites = pygame.sprite.Group()
         self.static_sprites = pygame.sprite.Group()
 
-        self.image = [pygame.image.load('rock.png').convert_alpha(), pygame.image.load('tree.png').convert_alpha(),
-                      pygame.image.load('water.png').convert_alpha()]
+        self.image = [pygame.image.load('rock.png').convert(), pygame.image.load('tree.png').convert(),
+                      pygame.image.load('water.png').convert()]
 
         self.entities = Entities()
 
@@ -22,6 +22,7 @@ class Level:
 
     def draw_map(self):#crating a very basic map with small borders(need to be changed
         self.map_image = Image.open("map.png")
+
         pixels = self.map_image.load()
         width, height = self.map_image.size
         tree_count = 0
@@ -37,12 +38,12 @@ class Level:
                 elif r == 120 and g == 67 and b == 21:
                     Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[0])
                 elif r == 24 and g == 62 and b == 12:
-                    if tree_count % 7 == 0:
+                    if tree_count % 1 == 0:
                         Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[1])
                     tree_count += 1
 
 
-        self.player = Player((410 * size, 103 * size), [self.visible_sprites], self.obstacle_sprites)
+        self.player = Player((370 * size, 163 * size), [self.visible_sprites], self.obstacle_sprites)
 
 
     def run(self):
