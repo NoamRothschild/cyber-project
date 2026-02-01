@@ -3,7 +3,7 @@
 from Entity import Entities
 
 from Player import *
-from Rock import Rock
+from Tile import Rock
 from PIL import Image
 class Level:
     def __init__(self):
@@ -29,17 +29,17 @@ class Level:
 
         for x in range(width):
             for y in range(height):
-                # בדיקה אם יש ערוץ אלפא (RGBA) או רק RGB
+
                 pixel = pixels[x, y]
                 r, g, b = pixel[:3]
 
                 if r == 0 and g == 162 and b == 232:
-                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[2])
+                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[2],'water')
                 elif r == 120 and g == 67 and b == 21:
-                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[0])
+                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[0],"rock")
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 1 == 0:
-                        Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[1])
+                        Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[1],"tree")
                     tree_count += 1
 
 
@@ -68,6 +68,6 @@ class Camera(pygame.sprite.Group):# a group that has every visible sprite that s
             if sprite.rect.colliderect(screen_rect):
                 self.display.blit(sprite.image, sprite.rect.topleft - self.point)
 
-            # ציור השחקן וישויות אחרות
+
         for sprite in self.sprites():
             self.display.blit(sprite.image, sprite.rect.topleft - self.point)

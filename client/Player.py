@@ -54,19 +54,19 @@ class Player(pygame.sprite.Sprite):
 
         if collision_sprites:
             for sprite in collision_sprites:
-                if sprite.rect.colliderect(self.hitbox):
+                if sprite.hitbox.colliderect(self.hitbox):
                     if direction=='horizontal':
                         if sprite.rect.colliderect(self.hitbox):
                             if self.direction.x>0:
-                                self.hitbox.right=sprite.rect.left
+                                self.hitbox.right=sprite.hitbox.left
                             elif self.direction.x<0:
-                                self.hitbox.left=sprite.rect.right
+                                self.hitbox.left=sprite.hitbox.right
                     if direction=='vertical':
-                        if sprite.rect.colliderect(self.hitbox):
+                        if sprite.hitbox.colliderect(self.hitbox):
                             if self.direction.y>0:
-                                self.hitbox.bottom=sprite.rect.top
+                                self.hitbox.bottom=sprite.hitbox.top
                             elif self.direction.y<0:
-                                self.hitbox.top=sprite.rect.bottom
+                                self.hitbox.top=sprite.hitbox.bottom
 
     def update(self):#call to all the player action
         self.input()
