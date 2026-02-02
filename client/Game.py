@@ -18,7 +18,7 @@ class Game:
         self.image=pygame.transform.scale(self.image,(WIDTH,HEIGHT))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont('Arial', 30, bold=True)
+        self.font = pygame.font.SysFont(Font, 30, bold=True)
         self.zone = ZoneConnection(self, host, tcp_port, udp_port)
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
