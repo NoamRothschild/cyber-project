@@ -1,5 +1,9 @@
 import pygame
+from mapset import WIDTH,HEIGHT
+from Game import Game
 from mapset import *
+from  Arsenal import *
+from Game import *
 
 class Inventory(pygame.sprite.Sprite):
 
@@ -14,6 +18,19 @@ class Inventory(pygame.sprite.Sprite):
         self.display = pygame.display.get_surface()
         #self.unused_weapons=pygame.sprite.Group()
         #self.potions=pygame.sprite.Group()
+
+        self.inventory=["Ak-7"]
+        self.inventory_pointer = 0
+
+    def add_item_toThe_Inventory(self, item):
+        self.inventory.append(item)
+
+    def items_hendeling(self, player):
+        #for item in self.inventory:
+            #for keyGunType in Arsenal.Arsenal_gunType.keys():
+                #if item == keyGunType:
+        Arsenal("Ak-7").draw(WIDTH/2,HEIGHT/2)
+
     def open(self):
         self.display.blit(self.image, self.rect)
         self.use()
