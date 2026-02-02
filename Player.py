@@ -9,6 +9,8 @@ PINK=(234,54,128)
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups,obstacle_sprites):
         super().__init__(groups)
+        self.display_surface = pygame.display.get_surface()
+
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)
         self.rect = self.image.get_rect(topleft=pos)
@@ -39,16 +41,18 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x=0
 
-        for event in pygame.event.get():
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
-                Bullets.BulletLS.append(
-                    Bullets("AK-7_bullet",Game.SCREEN.get_width()/2 ,Game.SCREEN.get_height()/2, mouse_x, mouse_y)
+        mouse_buttons = pygame.mouse.get_pressed()
+        if mouse_buttons[0]:  # 0 = קליק שמאלי
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            Bullets.BulletLS.append(
+                Bullets(
+                    "AK-7_bullet",
+                    self.display_surface.get_width() / 2,
+                    self.display_surface.get_height() / 2,
+                    mouse_x,
+                    mouse_y
                 )
-            if event.type == pygame.QUIT:
-                Game.is_running = False
-
-                print("pl",self.hitbox.x," ", self.hitbox.y)
+            )
 
 
 
@@ -79,7 +83,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.input()
-        #draw_AND_update_Bullets()
+        draw_AND_update_Bullets()
 
         self.move()
         self.inventory.open()
