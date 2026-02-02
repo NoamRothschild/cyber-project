@@ -35,7 +35,6 @@ class Game:
 
             self.screen.blit(self.image,(0,0))
 
-            draw_AND_update_Bullets()
             self.level.run()
 
             hb = self.level.player.hitbox

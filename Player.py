@@ -45,6 +45,9 @@ class Player(pygame.sprite.Sprite):
                 Bullets.BulletLS.append(
                     Bullets("AK-7_bullet",Game.SCREEN.get_width()/2 ,Game.SCREEN.get_height()/2, mouse_x, mouse_y)
                 )
+            if event.type == pygame.QUIT:
+                Game.is_running = False
+
                 print("pl",self.hitbox.x," ", self.hitbox.y)
 
 
@@ -76,6 +79,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.input()
+        #draw_AND_update_Bullets()
 
         self.move()
         self.inventory.open()
