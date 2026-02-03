@@ -19,8 +19,9 @@ class Inventory(pygame.sprite.Sprite):
         #self.unused_weapons=pygame.sprite.Group()
         #self.potions=pygame.sprite.Group()
 
-        self.inventory=["Ak-7"]
-        self.inventory_pointer = 0
+
+        self.inventory=[]
+        self.current_weapon = 0
 
     def add_item_toThe_Inventory(self, item):
         self.inventory.append(item)
@@ -29,14 +30,26 @@ class Inventory(pygame.sprite.Sprite):
         #for item in self.inventory:
             #for keyGunType in Arsenal.Arsenal_gunType.keys():
                 #if item == keyGunType:
-        Arsenal("Ak-7").draw(WIDTH/2,HEIGHT/2)
+        if not self.is_empty():
+            self.inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
 
     def open(self):
         self.display.blit(self.image, self.rect)
-        self.use()
+        for i, wep in enumerate(self.inventory):
+            wep.draw_for_inventory(i, self.rect.x, self.rect.y)
 
+        self.use()
+    def is_empty(self):
+        return len(self.inventory)==0
     def use(self):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_p] and keys[pygame.K_1]:
-            print("P and 1 are being pressed together!")
+
+
+        for i in range(10):
+
+            key_constant = getattr(pygame, f"K_{i}")
+
+            if keys[key_constant] and i-1!=self.current_weapon and i-1<len(self.inventory):
+
+                self.current_weapon=i-1
 

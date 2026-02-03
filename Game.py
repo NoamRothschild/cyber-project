@@ -35,7 +35,7 @@ class Game:
 
             self.screen.blit(self.image,(0,0))
 
-            self.level.run()
+            self.level.run(event)
 
             hb = self.level.player.hitbox
             self.zone.try_send_update_pos((hb.x, hb.y))

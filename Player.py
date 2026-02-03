@@ -20,6 +20,8 @@ class Player(pygame.sprite.Sprite):
         self.direction = pygame.math.Vector2()
         self.obstacle_sprites = obstacle_sprites
         self.inventory = Inventory()
+        self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
+        self.inventory.add_item_toThe_Inventory(Arsenal("rock"))
 
 
 
@@ -47,7 +49,7 @@ class Player(pygame.sprite.Sprite):
             self.direction.x=0
 
         mouse_buttons = pygame.mouse.get_pressed()
-        if mouse_buttons[0]:  # 0 = קליק שמאלי
+        if mouse_buttons[0]and not self.inventory.is_empty():  # 0 = קליק שמאלי
             mouse_x, mouse_y = pygame.mouse.get_pos()
             Bullets.BulletLS.append(
                 Bullets(

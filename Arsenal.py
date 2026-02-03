@@ -13,6 +13,9 @@ class Arsenal:
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
         "Ak-7": (pygame.image.load("arsenal-images/guns/Ak1.png").convert_alpha(),
                  "AK-7_bullet",
+                 (15, 30)),  # relative offset from the player
+        "rock": (pygame.image.load("rock.png").convert_alpha(),
+                 "AK-7_bullet",
                  (15, 30))  # relative offset from the player
     }
 
@@ -25,8 +28,12 @@ class Arsenal:
 
         self.weapon,self.Bullet,coordinates =Arsenal.Arsenal_gunType[gun_type]
         self.weapon.set_colorkey((23, 130, 184))
-
+        self.smaller_v = pygame.transform.scale(self.weapon, (30, 30))
         self.offset_x, self.offset_y = coordinates
+
+    def draw_for_inventory(self, i, low_x, low_y):
+        if (i < 10):
+            Game.SCREEN.blit(self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
         #drowing the gun with angle
@@ -35,7 +42,7 @@ class Arsenal:
 
         scale = 0.1
         w,h = weapon.get_size()
-        weapon = pygame.transform.scale(weapon, (int(w * scale), int(h * scale)))
+        weapon = pygame.transform.scale(weapon, (70, int(h *(70/w) )))
 
         weapon = pygame.transform.flip(weapon, True, False)
         if mouse_x < player_x:
