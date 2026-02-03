@@ -10,6 +10,7 @@ class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups,obstacle_sprites):
         super().__init__(groups)
         self.display_surface = pygame.display.get_surface()
+        self.screen_scroll = [0, 0]
 
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)
@@ -27,17 +28,21 @@ class Player(pygame.sprite.Sprite):
 
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.direction.y = -1
+            self.screen_scroll[1] -= self.speed
 
         elif keys[pygame.K_DOWN]or keys[pygame.K_s]:
             self.direction.y = 1
+            self.screen_scroll[1] += self.speed
         else:
             self.direction.y=0
 
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.direction.x=-1
+            self.screen_scroll[0] -= self.speed
 
         elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.direction.x=1
+            self.screen_scroll[0] += self.speed
         else:
             self.direction.x=0
 
@@ -50,7 +55,8 @@ class Player(pygame.sprite.Sprite):
                     self.display_surface.get_width() / 2,
                     self.display_surface.get_height() / 2,
                     mouse_x,
-                    mouse_y
+                    mouse_y,
+                    self.screen_scroll
                 )
             )
 
@@ -83,7 +89,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.input()
-        draw_AND_update_Bullets()
+        draw_AND_update_Bullets(self)
 
         self.move()
         self.inventory.open()

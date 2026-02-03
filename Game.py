@@ -43,10 +43,12 @@ class Game:
             self.clock.tick(FPS)
 
         pygame.quit()
-        sys.exit()
+        #sys.exit()
+
 
 
 if __name__ == '__main__':
     game = Game(ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT)
     game.run()
 
+    print("finished-end")
