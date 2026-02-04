@@ -11,12 +11,26 @@ connection = sqlite3.connect(DB_NAME)
 def create_table():
     cursor = connection.cursor()
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS DATABASE
-        (user_ID INTEGER PRIMARY KEY AUTOINCREMENT, 
-         username TEXT UNIQUE NOT NULL, 
-         password TEXT NOT NULL)
-            """)
+                   CREATE TABLE IF NOT EXISTS DATABASE
+                   (
+                       user_ID
+                       INTEGER
+                       PRIMARY
+                       KEY
+                       AUTOINCREMENT,
+                       username
+                       TEXT
+                       UNIQUE
+                       NOT
+                       NULL,
+                       password
+                       TEXT
+                       NOT
+                       NULL
+                   )
+                   """)
     connection.commit()
+
 
 def add_user_to_db(username, password):
     try:
