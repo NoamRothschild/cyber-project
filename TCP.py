@@ -1,5 +1,6 @@
 import socket
 import sqlite3
+import hashlib
 
 DB_NAME = 'Auth.db'
 PORT = 9999
@@ -7,26 +8,20 @@ IP = '127.0.0.1'
 BYTES_TO_DECODE = 1024
 connection = sqlite3.connect(DB_NAME)
 
+def get_hashed_password(username, password):
+    hashed_object = hashlib.sha256((username + password).encode("utf-8"))
+    hashed_password = hashed_object.hexdigest()
+
+    return hashed_password
 
 def create_table():
     cursor = connection.cursor()
     cursor.execute("""
                    CREATE TABLE IF NOT EXISTS DATABASE
                    (
-                       user_ID
-                       INTEGER
-                       PRIMARY
-                       KEY
-                       AUTOINCREMENT,
-                       username
-                       TEXT
-                       UNIQUE
-                       NOT
-                       NULL,
-                       password
-                       TEXT
-                       NOT
-                       NULL
+                       user_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                       username TEXT UNIQUE NOT NULL,
+                       password TEXT NOT NULL
                    )
                    """)
     connection.commit()
@@ -35,7 +30,8 @@ def create_table():
 def add_user_to_db(username, password):
     try:
         cursor = connection.cursor()
-        cursor.execute("INSERT INTO DATABASE (username, password) VALUES (?, ?)", (username, str(password)))
+        cursor.execute("INSERT INTO DATABASE (username, password) VALUES (?, ?)",
+                       (username, get_hashed_password(username , str(password))))
         connection.commit()
         connection.close()
         return True
