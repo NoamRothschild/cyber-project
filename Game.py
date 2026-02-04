@@ -8,11 +8,13 @@ from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import ZoneConnection
 from random import randint
+from mapset import WIDTH,HEIGHT
 
 class Game:
+    SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
     def __init__(self, host: str, tcp_port: int, udp_port: int):
         pygame.init()
-        self.screen = pygame.display.set_mode((WIDTH,HEIGHT))
+        self.screen = Game.SCREEN
         self.image=pygame.image.load("grass.png")
         self.image=pygame.transform.scale(self.image,(WIDTH,HEIGHT))
         pygame.display.set_caption('Game')
@@ -35,18 +37,21 @@ class Game:
             if not self.is_running: break
 
             self.screen.blit(self.image,(0,0))
-            self.level.run()
-            hb = self.level.player.hitbox
 
+            self.level.run()
+
+            hb = self.level.player.hitbox
             self.zone.try_send_update_pos((hb.x, hb.y))
             pygame.display.update()
             self.clock.tick(FPS)
 
         pygame.quit()
-        sys.exit()
+        #sys.exit()
+
 
 
 if __name__ == '__main__':
     game = Game(ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT)
     game.run()
 
+    print("finished-end")

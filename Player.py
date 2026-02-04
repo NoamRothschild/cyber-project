@@ -1,5 +1,7 @@
 import pygame
-from inventory import *
+from Inventory import *
+from Bullets import *
+from Game import *
 PINK=(234,54,128)
 
 
@@ -7,6 +9,9 @@ PINK=(234,54,128)
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups,obstacle_sprites):
         super().__init__(groups)
+        self.display_surface = pygame.display.get_surface()
+        self.screen_scroll = [0, 0]
+
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)
         self.rect = self.image.get_rect(topleft=pos)
@@ -20,24 +25,40 @@ class Player(pygame.sprite.Sprite):
 
     def input(self):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_UP] or keys[pygame.K_w]:
 
+        if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.direction.y = -1
+            self.screen_scroll[1] -= self.speed
 
         elif keys[pygame.K_DOWN]or keys[pygame.K_s]:
             self.direction.y = 1
+            self.screen_scroll[1] += self.speed
         else:
             self.direction.y=0
 
-            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-                self.direction.x=-1
-            elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.direction.x=1
-            else:
-                self.direction.x=0
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+            self.direction.x=-1
+            self.screen_scroll[0] -= self.speed
 
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.direction.x=1
+            self.screen_scroll[0] += self.speed
+        else:
+            self.direction.x=0
 
-
+        mouse_buttons = pygame.mouse.get_pressed()
+        if mouse_buttons[0]:  # 0 = קליק שמאלי
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            Bullets.BulletLS.append(
+                Bullets(
+                    "AK-7_bullet",
+                    self.display_surface.get_width() / 2,
+                    self.display_surface.get_height() / 2,
+                    mouse_x,
+                    mouse_y,
+                    self.screen_scroll
+                )
+            )
 
 
 
@@ -68,8 +89,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self):
         self.input()
+        draw_AND_update_Bullets(self)
 
         self.move()
         self.inventory.open()
-
-

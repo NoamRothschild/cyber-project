@@ -1,9 +1,14 @@
 import pygame
 
 from Entity import Entities
+import Inventory
+from Inventory import *
 from mapset import *
 from Player import *
 from Rock import Rock
+
+pygame.init()
+
 class level:
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
@@ -31,6 +36,8 @@ class level:
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
+
+        self.player.inventory.items_hendeling(self.player)
 
         self.visible_sprites.update()
 
