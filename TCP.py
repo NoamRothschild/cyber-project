@@ -5,12 +5,22 @@ DB_NAME = 'Auth.db'
 PORT = 9999
 IP = '127.0.0.1'
 BYTES_TO_DECODE = 1024
+connection = sqlite3.connect(DB_NAME)
+
+
+def create_table():
+    cursor = connection.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS DATABASE
+        (user_ID INTEGER PRIMARY KEY AUTOINCREMENT, 
+         username TEXT UNIQUE NOT NULL, 
+         password TEXT NOT NULL)
+            """)
+    connection.commit()
 
 def add_user_to_db(username, password):
     try:
-        connection = sqlite3.connect(DB_NAME)
         cursor = connection.cursor()
-
         cursor.execute("INSERT INTO DATABASE (username, password) VALUES (?, ?)", (username, str(password)))
         connection.commit()
         connection.close()
@@ -27,6 +37,7 @@ def run_server():
     server_socket.listen()
     print("Server is running and waiting to register users...")
 
+    create_table()
     while True:
         (client_socket, client_address) = server_socket.accept()
         try:
