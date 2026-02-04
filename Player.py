@@ -1,4 +1,6 @@
 import pygame
+
+from Arsenal import Arsenal
 from Inventory import *
 from Bullets import *
 from Game import *
@@ -88,10 +90,16 @@ class Player(pygame.sprite.Sprite):
                         self.hitbox.bottom=sprite.rect.top
                     elif self.direction.y<0:
                         self.hitbox.top=sprite.rect.bottom
-
-    def update(self):
+    def check_if_collect(self,collecters):
+        for sprite in collecters:
+            if sprite.rect.colliderect(self.hitbox):
+                self.inventory.add_item_toThe_Inventory(sprite.weapon)
+                sprite.kill()
+                break
+    def update(self,collecters):
         self.input()
         draw_AND_update_Bullets(self)
 
         self.move()
+        self.check_if_collect(collecters)
         self.inventory.open()

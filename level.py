@@ -5,7 +5,7 @@ from Inventory import *
 from mapset import *
 from Player import *
 from Rock import Rock
-
+from colectibes import Colectible_sprite
 pygame.init()
 
 class level:
@@ -14,6 +14,7 @@ class level:
 
         self.visible_sprites = Camera()
         self.obstacle_sprites = pygame.sprite.Group()
+        self.colectible_sprite=pygame.sprite.Group()
 
         self.draw_map()
 
@@ -24,17 +25,18 @@ class level:
                 y=rindex*size
                 if col=='x':
                     Rock((x,y),[self.visible_sprites,self.obstacle_sprites])
-
+                if col == 't':
+                    Colectible_sprite((x,y),[self.visible_sprites,self.colectible_sprite],"Ak-7")
                 if col=='p':
                     self.player=Player((x,y),[self.visible_sprites],self.obstacle_sprites)
 
 
-    def run(self,event):
+    def run(self):
         self.visible_sprites.custom_draw(self.player)
 
         self.player.inventory.items_hendeling(self.player)
 
-        self.visible_sprites.update()
+        self.visible_sprites.update(self.colectible_sprite)
 
 class Camera(pygame.sprite.Group):
     def __init__(self):

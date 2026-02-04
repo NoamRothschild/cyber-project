@@ -4,7 +4,7 @@ from Game import Game
 from mapset import *
 from  Arsenal import *
 from Game import *
-
+import time
 class Inventory(pygame.sprite.Sprite):
 
     def __init__(self):
@@ -22,7 +22,8 @@ class Inventory(pygame.sprite.Sprite):
 
         self.inventory=[]
         self.current_weapon = 0
-
+        self.delete_interval = 4
+        self.delete_last_action_time = 0
     def add_item_toThe_Inventory(self, item):
         self.inventory.append(item)
 
@@ -43,13 +44,17 @@ class Inventory(pygame.sprite.Sprite):
         return len(self.inventory)==0
     def use(self):
         keys = pygame.key.get_pressed()
-
-
         for i in range(10):
-
             key_constant = getattr(pygame, f"K_{i}")
-
             if keys[key_constant] and i-1!=self.current_weapon and i-1<len(self.inventory):
-
                 self.current_weapon=i-1
+        if keys[pygame.K_DELETE]:
+            self.delete()
 
+    def delete(self):
+        current_time = time.time()
+        if current_time - self.delete_last_action_time >= self.delete_interval and self.is_empty()==False:
+            del self.inventory[self.current_weapon]
+            if self.current_weapon!=0:
+                self.current_weapon=self.current_weapon-1
+            self.delete_last_action_time = current_time

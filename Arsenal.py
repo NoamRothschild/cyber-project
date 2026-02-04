@@ -55,3 +55,5 @@ class Arsenal:
         #draw
         rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
         Game.SCREEN.blit(rotated, rect.topleft)
+    def get_image(self):
+        return self.weapon
