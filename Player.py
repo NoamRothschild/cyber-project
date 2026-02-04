@@ -102,4 +102,4 @@ class Player(pygame.sprite.Sprite):
 
         self.move()
         self.check_if_collect(collecters)
-        self.inventory.open()
+        self.inventory.open([self.groups()[0],collecters],self.rect)

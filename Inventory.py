@@ -5,7 +5,9 @@ from mapset import *
 from  Arsenal import *
 from Game import *
 import time
+from colectibes import Colectible_sprite
 class Inventory(pygame.sprite.Sprite):
+
 
     def __init__(self):
         super().__init__()
@@ -22,9 +24,10 @@ class Inventory(pygame.sprite.Sprite):
 
         self.inventory=[]
         self.current_weapon = 0
-        self.delete_interval = 4
+        self.delete_interval = 2
         self.delete_last_action_time = 0
     def add_item_toThe_Inventory(self, item):
+
         self.inventory.append(item)
 
     def items_hendeling(self, player):
@@ -34,26 +37,27 @@ class Inventory(pygame.sprite.Sprite):
         if not self.is_empty():
             self.inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
 
-    def open(self):
+    def open(self,group,prect):
         self.display.blit(self.image, self.rect)
         for i, wep in enumerate(self.inventory):
             wep.draw_for_inventory(i, self.rect.x, self.rect.y)
 
-        self.use()
+        self.use(group,prect)
     def is_empty(self):
         return len(self.inventory)==0
-    def use(self):
+    def use(self,group,prect):
         keys = pygame.key.get_pressed()
         for i in range(10):
             key_constant = getattr(pygame, f"K_{i}")
             if keys[key_constant] and i-1!=self.current_weapon and i-1<len(self.inventory):
                 self.current_weapon=i-1
         if keys[pygame.K_DELETE]:
-            self.delete()
+            self.delete(group,prect)
 
-    def delete(self):
+    def delete(self,group,prect):
         current_time = time.time()
         if current_time - self.delete_last_action_time >= self.delete_interval and self.is_empty()==False:
+            Colectible_sprite((prect.x+70,prect.y+70),group,self.inventory[self.current_weapon].get_name())
             del self.inventory[self.current_weapon]
             if self.current_weapon!=0:
                 self.current_weapon=self.current_weapon-1

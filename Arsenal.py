@@ -20,12 +20,12 @@ class Arsenal:
     }
 
     def GetBulletType(self):
-        self.weapon, self.Bullet, coordinates = Arsenal.Arsenal_gunType[self]
+        self.weapon, self.Bullet, coordinates = Arsenal.Arsenal_gunType[self.gun_type]
         return self.Bullet
 
     def __init__(self, gun_type):
         #gun type - type of the gun c:
-
+        self.gun_type=gun_type
         self.weapon,self.Bullet,coordinates =Arsenal.Arsenal_gunType[gun_type]
         self.weapon.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon, (30, 30))
@@ -57,3 +57,5 @@ class Arsenal:
         Game.SCREEN.blit(rotated, rect.topleft)
     def get_image(self):
         return self.weapon
+    def get_name(self):
+        return self.gun_type
