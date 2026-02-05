@@ -1,3 +1,4 @@
+from helth import HealthBar
 from inventory import *
 PINK=(234,54,128)
 
@@ -14,6 +15,7 @@ class Player(pygame.sprite.Sprite):
         self.direction = pygame.math.Vector2()#a vector that contains if you should move 1 to the right (1,0),left(-1,0), up(0,-1), down(0,1);
         self.obstacle_sprites = obstacle_sprites#rocks and such
         self.inventory = Inventory()
+        self.health=HealthBar()
 
 
 
@@ -59,8 +61,10 @@ class Player(pygame.sprite.Sprite):
                         if sprite.rect.colliderect(self.hitbox):
                             if self.direction.x>0:
                                 self.hitbox.right=sprite.hitbox.left
+                                self.health.sub_life(30)
                             elif self.direction.x<0:
                                 self.hitbox.left=sprite.hitbox.right
+                                self.health.sub_life(30)
                     if direction=='vertical':
                         if sprite.hitbox.colliderect(self.hitbox):
                             if self.direction.y>0:
@@ -69,9 +73,13 @@ class Player(pygame.sprite.Sprite):
                                 self.hitbox.top=sprite.hitbox.bottom
 
     def update(self):#call to all the player action
+
         self.input()
 
         self.move()
         self.inventory.open()
+        self.health.draw()
+        if self.health.is_alive():
+            self.kill()
 
 
