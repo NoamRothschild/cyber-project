@@ -11,7 +11,7 @@ class Level:
 
         self.visible_sprites = Camera()
         self.obstacle_sprites = pygame.sprite.Group()
-        self.static_sprites = pygame.sprite.Group()
+
 
         self.image = [pygame.image.load('rock.png').convert(), pygame.image.load('tree.png').convert(),
                       pygame.image.load('water.png').convert()]
@@ -34,12 +34,12 @@ class Level:
                 r, g, b = pixel[:3]
 
                 if r == 0 and g == 162 and b == 232:
-                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[2],'water')
+                    Rock((x * size, y * size), [self.visible_sprites, self.obstacle_sprites], self.image[2],'water')
                 elif r == 120 and g == 67 and b == 21:
-                    Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[0],"rock")
+                    Rock((x * size, y * size), [self.visible_sprites, self.obstacle_sprites], self.image[0],"rock")
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 1 == 0:
-                        Rock((x * size, y * size), [self.static_sprites, self.obstacle_sprites], self.image[1],"tree")
+                        Rock((x * size, y * size), [self.visible_sprites, self.obstacle_sprites], self.image[1],"tree")
                     tree_count += 1
 
 
@@ -47,7 +47,7 @@ class Level:
 
 
     def run(self):
-        self.visible_sprites.custom_draw(self.player,self.static_sprites)
+        self.visible_sprites.custom_draw(self.player)
 
         self.visible_sprites.update()
 
@@ -59,16 +59,12 @@ class Camera(pygame.sprite.Group):# a group that has every visible sprite that s
         self.half_height = self.display.get_height()/2
         self.point=pygame.math.Vector2()
 
-    def custom_draw(self,player,static_sprites):
+    def custom_draw(self,player):
         self.point.x=player.rect.centerx-self.half_width
         self.point.y=player.rect.centery-self.half_height
         screen_rect = pygame.Rect(self.point.x, self.point.y, self.display.get_width(), self.display.get_height())
+        visible_now = [s for s in self.sprites() if s.rect.colliderect(screen_rect)]
 
 
-
-
-        for sprite in self.sprites():
+        for sprite in sorted(visible_now, key=lambda s: s.rect.bottom):
             self.display.blit(sprite.image, sprite.rect.topleft - self.point)
-        for sprite in static_sprites:
-            if sprite.rect.colliderect(screen_rect):
-                self.display.blit(sprite.image, sprite.rect.topleft - self.point)

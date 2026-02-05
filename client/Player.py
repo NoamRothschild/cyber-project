@@ -51,26 +51,25 @@ class Player(pygame.sprite.Sprite):
         self.check_coalition("vertical")
         self.rect.center=self.hitbox.center
 
-    def check_coalition(self,direction):#if it collides it move the player to only tach the rock
+    def check_coalition(self, direction):
+
         collision_sprites = pygame.sprite.spritecollide(self, self.obstacle_sprites, False)
 
-        if collision_sprites:
-            for sprite in collision_sprites:
-                if sprite.hitbox.colliderect(self.hitbox):
-                    if direction=='horizontal':
-                        if sprite.rect.colliderect(self.hitbox):
-                            if self.direction.x>0:
-                                self.hitbox.right=sprite.hitbox.left
-                                self.health.sub_life(30)
-                            elif self.direction.x<0:
-                                self.hitbox.left=sprite.hitbox.right
-                                self.health.sub_life(30)
-                    if direction=='vertical':
-                        if sprite.hitbox.colliderect(self.hitbox):
-                            if self.direction.y>0:
-                                self.hitbox.bottom=sprite.hitbox.top
-                            elif self.direction.y<0:
-                                self.hitbox.top=sprite.hitbox.bottom
+        for sprite in collision_sprites:
+
+            if sprite.hitbox.colliderect(self.hitbox):
+                if direction == 'horizontal':
+                    if self.direction.x > 0:
+                        self.hitbox.right = sprite.hitbox.left
+                    elif self.direction.x < 0:
+                        self.hitbox.left = sprite.hitbox.right
+
+
+                elif direction == 'vertical':
+                    if self.direction.y > 0:  # נע למטה
+                        self.hitbox.bottom = sprite.hitbox.top
+                    elif self.direction.y < 0:  # נע למעלה
+                        self.hitbox.top = sprite.hitbox.bottom
 
     def update(self):#call to all the player action
 

@@ -10,6 +10,7 @@ class Rock(pygame.sprite.Sprite):#rock obstacle sprites
         if(name=="rock"):
             self.hitbox = self.rect.inflate(-size/8,-size/8)
         if (name == "tree"):
-            self.hitbox = self.rect.inflate(-size / 3, -size / 3)
+            self.hitbox = self.rect.inflate(-size / 1.2, -size / 1.5)
+            self.hitbox.y+=self.rect.height/3
         else:
             self.hitbox = self.rect.inflate(0,0)
