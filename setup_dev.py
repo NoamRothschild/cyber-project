@@ -19,6 +19,9 @@ import zipfile
 from pathlib import Path
 from typing import Iterable, Mapping, Any
 
+if os.name == "nt":
+    import winreg
+
 os.chdir(Path(__file__).parent)
 
 
@@ -187,6 +190,56 @@ def write_config_py(target_dir: Path, config: Mapping[str, Any]) -> None:
     success("[WRITE]", f"{_rel(config_py_path)}")
 
 
+def refresh_windows_path() -> None:
+    """
+    Refresh the PATH environment variable from the Windows registry.
+    This allows newly installed programs to be found without restarting the terminal.
+    """
+    if os.name != "nt":
+        return
+    
+    try:
+        # Read PATH from both user and system registry
+        user_path = ""
+        system_path = ""
+        
+        # User PATH
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Environment",
+                access=winreg.KEY_READ
+            ) as key:
+                user_path = winreg.QueryValueEx(key, "Path")[0]
+        except (FileNotFoundError, OSError):
+            pass
+        
+        # System PATH
+        try:
+            with winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
+                access=winreg.KEY_READ
+            ) as key:
+                system_path = winreg.QueryValueEx(key, "Path")[0]
+        except (FileNotFoundError, OSError):
+            pass
+        
+        # Combine and update os.environ (system PATH first, then user PATH)
+        path_parts = []
+        if system_path:
+            path_parts.append(system_path)
+        if user_path:
+            path_parts.append(user_path)
+        
+        if path_parts:
+            combined_path = os.pathsep.join(path_parts)
+            os.environ["PATH"] = combined_path
+            info("[INFO]", "Refreshed PATH from Windows registry")
+    except Exception as exc:
+        info("[INFO]", f"Could not refresh PATH from registry: {exc}")
+
+
 def ensure_protoc(source_protobuf_dir: Path) -> str:
     """
     Ensure the `protoc` compiler is available.
@@ -240,10 +293,10 @@ def ensure_protoc(source_protobuf_dir: Path) -> str:
     # Windows: follow README and use winget to install protobuf.
     info("[INFO]", "protoc not found. Attempting installation via winget on Windows...")
     try:
+        # Show output in real-time
         completed = subprocess.run(
-            ["winget", "install", "protobuf", "-e", "--id", "ProtocolBuffers.ProtoBuf"],
+            ["winget", "install", "protobuf", "-e"],
             check=False,
-            capture_output=True,
             text=True,
         )
     except OSError as exc:
@@ -251,16 +304,18 @@ def ensure_protoc(source_protobuf_dir: Path) -> str:
         raise SystemExit(1)
 
     if completed.returncode != 0:
-        msg = completed.stderr.strip() or completed.stdout.strip()
         error(
             "[FATAL]",
             "winget failed to install protobuf. Please install protoc manually "
-            "as described in protobuf/README.md.\n"
-            f"{msg}",
+            "as described in protobuf/README.md.",
         )
         raise SystemExit(completed.returncode)
 
-    # Re-check PATH after install.
+    # Refresh PATH from registry after installation
+    info("[INFO]", "Refreshing PATH to detect newly installed protoc...")
+    refresh_windows_path()
+
+    # Re-check PATH after install and refresh.
     new_path = shutil.which("protoc")
     if not new_path:
         error(
@@ -283,6 +338,7 @@ def ensure_python_protobuf() -> None:
     except ImportError:
         info("[INFO]", "Python package 'protobuf' not found; installing via pip...")
         try:
+            # Show output in real-time
             completed = subprocess.run(
                 [sys.executable, "-m", "pip", "install", "protobuf"],
                 check=False,
@@ -330,11 +386,11 @@ def compile_protobufs(source_protobuf_dir: Path) -> None:
     )
 
     try:
+        # Show output in real-time
         completed = subprocess.run(
             cmd,
             cwd=source_protobuf_dir,
             check=False,
-            capture_output=True,
             text=True,
         )
     except OSError as exc:
@@ -342,10 +398,9 @@ def compile_protobufs(source_protobuf_dir: Path) -> None:
         raise SystemExit(1)
 
     if completed.returncode != 0:
-        stderr = completed.stderr.strip()
         error(
             "[FATAL]",
-            f"protoc exited with status {completed.returncode}.\n{stderr}",
+            f"protoc exited with status {completed.returncode}.",
         )
         raise SystemExit(completed.returncode)
 
@@ -382,6 +437,8 @@ def main() -> None:
 
     if not any_processed:
         info("[INFO]", "No eligible subdirectories found; nothing to do.")
+    
+    info(f"{GREEN}[INFO]", f"Finished setup successfully!{RESET}")
 
 
 if __name__ == "__main__":
