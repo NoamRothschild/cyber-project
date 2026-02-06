@@ -55,6 +55,11 @@ class Game:
 
 
 if __name__ == '__main__':
+
+    YELLOW = '\033[33m'
+    RESET = '\033[0m'
+    print(YELLOW + f"connecting to server at {ZONE_HOST}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
+
     game = Game(ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT)
     game.run()
 

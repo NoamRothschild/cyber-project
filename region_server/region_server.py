@@ -12,4 +12,7 @@ async def main() -> None:
 
 
 if __name__ == "__main__":
+    YELLOW = '\033[33m'
+    RESET = '\033[0m'
+    print(YELLOW + f"region server running at {ZONE_HOST}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
     asyncio.run(main())
