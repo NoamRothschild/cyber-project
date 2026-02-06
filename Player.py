@@ -49,6 +49,7 @@ class Player(pygame.sprite.Sprite):
 
         mouse_buttons = pygame.mouse.get_pressed()
 
+
         if (mouse_buttons[0] # 0 = קליק שמאלי
                 and len(self.inventory.inventory)>0
                 and self.inventory.inventory[self.inventory.current_weapon].Bullet =="AK-7_bullet"):
