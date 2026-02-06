@@ -34,7 +34,7 @@ class level:
                     self.player=Player((x,y),[self.visible_sprites],self.obstacle_sprites)
 
 
-    def run(self):
+    def run(self, zone: ZoneConnection):
         self.visible_sprites.custom_draw(self.player)
 
         self.player.inventory.items_hendeling(self.player)

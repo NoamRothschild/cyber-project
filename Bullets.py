@@ -1,57 +1,111 @@
 import pygame, math
-from Game import *
-
+from game import *
 
 
 def draw_AND_update_Bullets(player):
-    for bullet in Bullets.BulletLS:
+    scroll = player.screen_scroll
+
+    # Iterate over a copy so we can safely remove expired bullets
+    for bullet in list(Bullets.BulletLS):
         if bullet.ttl <= 0:
             Bullets.BulletLS.remove(bullet)
+            continue
+
         bullet.update()
-        bullet.draw(player.screen_scroll)
+        bullet.draw(scroll)
+
 
 class Bullets:
-    BulletLS=[]
-    def __init__(self, bullet_type, player_x, player_y, mouse_x, mouse_y,scroll):
+    BulletLS = []
+
+    # Static configuration for all bullet types
+    BULLET_TYPES = {
+        "Ak-7_bullet": (
+            pygame.image.load("arsenal-images/bullets/bullet-AK7.png").convert_alpha(),
+            (-15, 5),  # relative offset from the player (screen space)
+            50,        # ttl (frames to live)
+            20,        # speed (world units per frame)
+            0.1        # scale factor
+        )
+    }
+
+    def __init__(self, bullet_type, player_x, player_y, mouse_x=None, mouse_y=None, angle=0.0, scroll=None):
         self.display_surface = pygame.display.get_surface()
 
-        self.bullet_types = {
-            "AK-7_bullet": (
-                pygame.image.load("arsenal-images/bullets/bullet-AK7.png").convert_alpha(),
-                (-15,5),  # relative offset from the player
-                50,  # ttl
-                20,    # speed
-                4,     # damage
-                0.1 #scale
-            )
-        }
+        # When bullets are created from server updates (no scroll passed),
+        # default to no camera offset.
+        if scroll is None or len(scroll) < 2:
+            scroll = [0, 0]
 
-        self.image_bullet,coordinates, self.ttl, self.speed,self.damage,self.scale = self.bullet_types[bullet_type]
+        # Unpack configuration for this bullet type
+        (
+            self.image_bullet,
+            coordinates,
+            self.ttl,
+            self.speed,
+            self.scale,
+        ) = Bullets.BULLET_TYPES[bullet_type]
         self.offset_x, self.offset_y = coordinates
 
-
+        # Scale and set transparency
         w, h = self.image_bullet.get_size()
-        self.image_bullet = pygame.transform.scale(self.image_bullet, (int(w * self.scale), int(h * self.scale)))
+        self.image_bullet = pygame.transform.scale(
+            self.image_bullet, (int(w * self.scale), int(h * self.scale))
+        )
         self.image_bullet.set_colorkey((23, 130, 184))
 
-        if mouse_x > player_x:
-            self.offset_x+=60
+        # If the mouse is to the right of the player, we shift the bullet sprite so it
+        # appears to come out of the right side of the weapon.
+        if mouse_x and mouse_x > player_x:
+            self.offset_x += 60
 
-        self.x = float(player_x + scroll[0])
-        self.y = float(player_y + scroll[1])
-        world_mx = mouse_x + scroll[0]
-        world_my = mouse_y + scroll[1]
+        # Player position is provided in screen-space (center of the screen).
+        player_screen_x = float(player_x)
+        player_screen_y = float(player_y)
 
-        self.angle = math.atan2(world_my - self.y, world_mx - self.x)
-        self.x_v = math.cos(self.angle) * self.speed
-        self.y_v = math.sin(self.angle) * self.speed
+        # Convert player position to world-space by applying the current scroll.
+        player_world_x = player_screen_x + scroll[0]
+        player_world_y = player_screen_y + scroll[1]
+        self.x = player_world_x
+        self.y = player_world_y
+
+        if mouse_x and mouse_y:
+            # Mouse position is also in screen-space; convert it to world-space.
+            mouse_world_x = float(mouse_x + scroll[0])
+            mouse_world_y = float(mouse_y + scroll[1])
+
+            # The bullet starts at the player's world position.
+            
+
+            # Direction vector from bullet start to the mouse position in world-space.
+            dx = mouse_world_x - self.x
+            dy = mouse_world_y - self.y
+
+            # Angle and velocity components.
+            self.angle = math.atan2(dy, dx)
+        else:
+            self.angle = angle
+
+        self.velocity_x = math.cos(self.angle) * self.speed
+        self.velocity_y = math.sin(self.angle) * self.speed
 
     def update(self):
-        self.x += self.x_v
-        self.y += self.y_v
+        # Move bullet in world-space according to its velocity.
+        self.x += self.velocity_x
+        self.y += self.velocity_y
         self.ttl -= 1
 
-    def draw(self,scroll):
-        rotated = pygame.transform.rotate(self.image_bullet, -math.degrees(self.angle))
-        rect = rotated.get_rect(center=(self.x - scroll[0]+self.offset_x, self.y - scroll[1]+ self.offset_y))
+    def draw(self, scroll):
+        # Convert world-space bullet position to screen-space.
+        screen_x = self.x - scroll[0]
+        screen_y = self.y - scroll[1]
+
+        # Apply the sprite offset so the bullet appears relative to the weapon.
+        bullet_center_x = screen_x + self.offset_x
+        bullet_center_y = screen_y + self.offset_y
+
+        rotated = pygame.transform.rotate(
+            self.image_bullet, -math.degrees(self.angle)
+        )
+        rect = rotated.get_rect(center=(bullet_center_x, bullet_center_y))
         self.display_surface.blit(rotated, rect.topleft)

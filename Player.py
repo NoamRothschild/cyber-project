@@ -1,7 +1,10 @@
 import pygame
 from Inventory import *
 from Bullets import *
-from Game import *
+from Bullets import Bullets
+from game import *
+from region_server_extras import ZoneConnectionSingleton
+
 PINK=(234,54,128)
 
 
@@ -49,18 +52,21 @@ class Player(pygame.sprite.Sprite):
         mouse_buttons = pygame.mouse.get_pressed()
         if mouse_buttons[0]:  # 0 = קליק שמאלי
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            Bullets.BulletLS.append(
-                Bullets(
-                    "AK-7_bullet",
-                    self.display_surface.get_width() / 2,
-                    self.display_surface.get_height() / 2,
-                    mouse_x,
-                    mouse_y,
-                    self.screen_scroll
-                )
+
+            gun_type = "Ak-7" # NOTE: REPLACE ME
+            count = 1 # NOTE: REPLACE ME
+
+            bullet = Bullets(
+                "Ak-7_bullet",
+                self.display_surface.get_width() / 2,
+                self.display_surface.get_height() / 2,
+                mouse_x,
+                mouse_y,
+                scroll=self.screen_scroll
             )
 
-
+            ZoneConnectionSingleton().zone.try_send_bullet(gun_type, bullet.angle, count)
+            Bullets.BulletLS.append(bullet)
 
     def move(self):
         if self.direction.magnitude()!=0:

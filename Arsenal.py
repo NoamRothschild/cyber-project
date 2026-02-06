@@ -1,7 +1,6 @@
 import pygame
 import math
-from Game import *
-from Game import Game
+from game import *
 
 
 #need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
@@ -12,7 +11,7 @@ class Arsenal:
     #     weapon.draw(SCREEN, player.x, player.y)
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
         "Ak-7": (pygame.image.load("arsenal-images/guns/Ak1.png").convert_alpha(),
-                 "AK-7_bullet",
+                 "Ak-7_bullet",
                  (15, 30))  # relative offset from the player
     }
 

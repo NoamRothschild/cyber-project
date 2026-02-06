@@ -6,23 +6,27 @@ import pygame,sys
 from mapset import *
 from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
-from region_server_extras import ZoneConnection
+from region_server_extras import ZoneConnection, ZoneConnectionSingleton
 from random import randint
 from mapset import WIDTH,HEIGHT
 
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
     def __init__(self, host: str, tcp_port: int, udp_port: int):
+        ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
         pygame.init()
+
         self.screen = Game.SCREEN
         self.image=pygame.image.load("grass.png")
         self.image=pygame.transform.scale(self.image,(WIDTH,HEIGHT))
+
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
-        self.zone = ZoneConnection(self, host, tcp_port, udp_port)
+        self.zone = ZoneConnectionSingleton().zone
+
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
-        self.level =level()
+        self.level = level()
         self.is_running = False
 
     def run(self):
@@ -38,7 +42,7 @@ class Game:
 
             self.screen.blit(self.image,(0,0))
 
-            self.level.run()
+            self.level.run(self.zone)
 
             hb = self.level.player.hitbox
             self.zone.try_send_update_pos((hb.x, hb.y))

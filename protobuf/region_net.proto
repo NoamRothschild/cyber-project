@@ -5,12 +5,23 @@ package game.region;
 message RegionUpdate {
   oneof payload {
     LocationBlock location_block = 1;
+    BulletShot bullet_shot = 2;
   }
 }
 
 message LocationBlock {
   int32 x = 1;
   int32 y = 2;
+}
+
+message BulletShot {
+  string gun_type = 1;
+  float angle = 2;
+  int32 count = 3;
+  optional int32 x = 4;     // only set from server -> client
+  optional int32 y = 5;     // only set from server -> client
+  optional int32 ttl =  6;  // only set from server -> client
+  optional int32 speed = 7; // only set from server -> client
 }
 
 message HandshakeStart {
@@ -44,4 +55,5 @@ message ServerResponse {
     LocationBlock move_self = 2; // force tp back - block invalid movements
     OtherPlayerData other_data = 3;
   }
+  repeated BulletShot bullet_shot = 4;
 }
