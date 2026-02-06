@@ -84,7 +84,6 @@ class Player(pygame.sprite.Sprite):
         self.inventory.open()
         self.health.draw()
 
-        if self.health.is_alive():
-            self.kill()
+
 
 

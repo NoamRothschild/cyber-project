@@ -20,6 +20,8 @@ class HealthBar(pygame.sprite.Sprite):
          current_time = time.time()
 
          if current_time - self.last_sub_life >= self.shield_time:
+            if num>self.plus_rect.width:
+                 num = abs(0 - self.plus_rect.width)
             self.plus_rect.width -= num
             self.minus_rect.width += num
             self.minus_rect.x=self.plus_rect.x+self.plus_rect.width
@@ -34,4 +36,4 @@ class HealthBar(pygame.sprite.Sprite):
          self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
 
      def is_alive(self):
-         return self.plus_rect.width<=0
+         return self.plus_rect.width>0
