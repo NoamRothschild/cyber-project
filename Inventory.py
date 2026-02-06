@@ -21,13 +21,12 @@ class Inventory(pygame.sprite.Sprite):
         #self.unused_weapons=pygame.sprite.Group()
         #self.potions=pygame.sprite.Group()
 
-
         self.inventory=[]
         self.current_weapon = 0
         self.delete_interval = 2
         self.delete_last_action_time = 0
-    def add_item_toThe_Inventory(self, item):
 
+    def add_item_toThe_Inventory(self, item):
         self.inventory.append(item)
 
     def items_hendeling(self, player):

@@ -7,7 +7,6 @@ from Game import *
 PINK=(234,54,128)
 
 
-
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups,obstacle_sprites):
         super().__init__(groups)
@@ -24,8 +23,6 @@ class Player(pygame.sprite.Sprite):
         self.inventory = Inventory()
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"))
-
-
 
     def input(self):
         keys = pygame.key.get_pressed()
@@ -51,7 +48,12 @@ class Player(pygame.sprite.Sprite):
             self.direction.x=0
 
         mouse_buttons = pygame.mouse.get_pressed()
-        if mouse_buttons[0]and not self.inventory.is_empty():  # 0 = קליק שמאלי
+
+        if (mouse_buttons[0] # 0 = קליק שמאלי
+                and len(self.inventory.inventory)>0
+                and self.inventory.inventory[self.inventory.current_weapon].Bullet =="AK-7_bullet"):
+
+            print(self.inventory.inventory[self.inventory.current_weapon])
             mouse_x, mouse_y = pygame.mouse.get_pos()
             Bullets.BulletLS.append(
                 Bullets(
@@ -90,6 +92,7 @@ class Player(pygame.sprite.Sprite):
                         self.hitbox.bottom=sprite.rect.top
                     elif self.direction.y<0:
                         self.hitbox.top=sprite.rect.bottom
+
     def check_if_collect(self,collecters):
         for sprite in collecters:
             if sprite.rect.colliderect(self.hitbox):

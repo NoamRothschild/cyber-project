@@ -15,7 +15,7 @@ class Arsenal:
                  "AK-7_bullet",
                  (15, 30)),  # relative offset from the player
         "rock": (pygame.image.load("rock.png").convert_alpha(),
-                 "AK-7_bullet",
+                 "null",
                  (15, 30))  # relative offset from the player
     }
 
