@@ -6,7 +6,7 @@ import pygame
 class Entity(pygame.sprite.Sprite):
     def __init__(self, groups: Any, pos: Tuple[int, int]) -> None:
         super().__init__(groups)
-        self.image = pygame.image.load('player.png')
+        self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)
         self.rect = self.image.get_rect()
         # pos is the hitbox position (matching what Player sends)

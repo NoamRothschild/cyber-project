@@ -2,11 +2,11 @@
 #basic rejister and login loop
 from Entity import Entities
 import protobuf.region_net_pb2 as region_net
-import pygame,sys
+import pygame
 from mapset import *
 from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
-from region_server_extras import ZoneConnection, ZoneConnectionSingleton
+from zone_connection import *
 from random import randint
 from mapset import WIDTH,HEIGHT
 

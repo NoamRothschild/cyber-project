@@ -53,5 +53,7 @@ class Camera(pygame.sprite.Group):
         self.point.x=player.rect.centerx-self.half_width
         self.point.y=player.rect.centery-self.half_height
         for sprite in self.sprites():
-            point_pos= sprite.rect.topleft-self.point
-            self.display.blit(sprite.image,point_pos)
+            # Only draw sprites that have both image and rect attributes
+            if hasattr(sprite, 'rect') and hasattr(sprite, 'image'):
+                point_pos= sprite.rect.topleft-self.point
+                self.display.blit(sprite.image,point_pos)

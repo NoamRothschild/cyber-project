@@ -1,8 +1,7 @@
 import pygame
 from mapset import WIDTH,HEIGHT
 from mapset import *
-from  Arsenal import *
-from game import *
+from Arsenal import *
 
 class Inventory(pygame.sprite.Sprite):
 

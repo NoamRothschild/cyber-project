@@ -3,7 +3,7 @@ from Inventory import *
 from Bullets import *
 from Bullets import Bullets
 from game import *
-from region_server_extras import ZoneConnectionSingleton
+from zone_connection import ZoneConnectionSingleton
 
 PINK=(234,54,128)
 
