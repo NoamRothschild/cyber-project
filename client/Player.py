@@ -5,7 +5,7 @@ PINK=(234,54,128)
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos, groups,obstacle_sprites):
+    def __init__(self, pos, groups,other_groups):
         super().__init__(groups)#the groups for now is only visable sprite
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)#background
@@ -13,7 +13,7 @@ class Player(pygame.sprite.Sprite):
         self.hitbox = self.rect.inflate(-20,-10)#where it gets hit by rocks
         self.speed = 4#for every move to x or right he moves 4 pixels
         self.direction = pygame.math.Vector2()#a vector that contains if you should move 1 to the right (1,0),left(-1,0), up(0,-1), down(0,1);
-        self.obstacle_sprites = obstacle_sprites#rocks and such
+        self.obstacle_sprites,self.harmfull_sprites = other_groups#rocks and such
         self.inventory = Inventory()
         self.health=HealthBar()
 
@@ -58,6 +58,7 @@ class Player(pygame.sprite.Sprite):
         for sprite in collision_sprites:
 
             if sprite.hitbox.colliderect(self.hitbox):
+                self.check_harm_done(sprite)
                 if direction == 'horizontal':
                     if self.direction.x > 0:
                         self.hitbox.right = sprite.hitbox.left
@@ -70,6 +71,10 @@ class Player(pygame.sprite.Sprite):
                         self.hitbox.bottom = sprite.hitbox.top
                     elif self.direction.y < 0:  # נע למעלה
                         self.hitbox.top = sprite.hitbox.bottom
+    def check_harm_done(self,sprite):
+        if sprite in self.harmfull_sprites:
+            self.health.sub_life(30)
+
 
     def update(self):#call to all the player action
 
@@ -78,6 +83,7 @@ class Player(pygame.sprite.Sprite):
         self.move()
         self.inventory.open()
         self.health.draw()
+
         if self.health.is_alive():
             self.kill()
 
