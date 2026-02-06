@@ -53,7 +53,6 @@ class Player(pygame.sprite.Sprite):
                 and len(self.inventory.inventory)>0
                 and self.inventory.inventory[self.inventory.current_weapon].Bullet =="AK-7_bullet"):
 
-            print(self.inventory.inventory[self.inventory.current_weapon])
             mouse_x, mouse_y = pygame.mouse.get_pos()
             Bullets.BulletLS.append(
                 Bullets(
