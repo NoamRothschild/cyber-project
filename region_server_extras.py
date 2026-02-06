@@ -74,8 +74,6 @@ class ProjectileHandler:
                 blt["x"] += i * blt["velocity_x"]
                 blt["y"] += i * blt["velocity_y"]
                 self.projectiles.append(blt)
-                # Cast numeric fields to ints to satisfy the proto schema
-                # (x, y, ttl, speed are all int32 in region_net.proto).
                 update.bullet_shot.add(
                     gun_type=bullet_shot.gun_type,
                     angle=bullet_shot.angle,
@@ -210,7 +208,8 @@ def server_listener(game: Game, zone: ZoneConnection):
                 Bullets.BulletLS.append(Bullets(
                     bullet.gun_type + '_bullet',
                     bullet.x, bullet.y,
-                    angle=bullet.angle)
+                    angle=bullet.angle,
+                    from_network=True)
                 )
 
 
