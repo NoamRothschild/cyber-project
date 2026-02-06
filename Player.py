@@ -20,9 +20,17 @@ class Player(pygame.sprite.Sprite):
         self.speed = 4
         self.direction = pygame.math.Vector2()
         self.obstacle_sprites = obstacle_sprites
+
+        self.last_r_press = 0
+        self.last_shoot = 0
+
         self.inventory = Inventory()
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"))
+        self.inventory.add_item_toThe_Inventory(Arsenal("bow"))
+
+    def current_Weapon(self):
+        return self.inventory.inventory[self.inventory.current_weapon]
 
     def input(self):
         keys = pygame.key.get_pressed()
@@ -47,26 +55,39 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x=0
 
+        if keys[pygame.K_r]:
+            now = pygame.time.get_ticks()
+            if now - self.last_r_press >= self.current_Weapon().fire_cooldown:
+                self.last_r_press = now
+
+                self.current_Weapon().refill_mag()
+
         mouse_buttons = pygame.mouse.get_pressed()
 
 
-        if (mouse_buttons[0] # 0 = קליק שמאלי
-                and len(self.inventory.inventory)>0
-                and self.inventory.inventory[self.inventory.current_weapon].Bullet =="AK-7_bullet"):
+        if mouse_buttons[0] and len(self.inventory.inventory)>0:
+            try:
+                if self.current_Weapon().mag>0:
 
-            mouse_x, mouse_y = pygame.mouse.get_pos()
-            Bullets.BulletLS.append(
-                Bullets(
-                    "AK-7_bullet",
-                    self.display_surface.get_width() / 2,
-                    self.display_surface.get_height() / 2,
-                    mouse_x,
-                    mouse_y,
-                    self.screen_scroll
-                )
-            )
+                    now = pygame.time.get_ticks()
+                    if now - self.last_shoot >= self.current_Weapon().fire_cooldown:
+                        self.last_shoot = now
 
-
+                        mouse_x, mouse_y = pygame.mouse.get_pos()
+                        Bullets.BulletLS.append(
+                            Bullets(
+                                        self.current_Weapon(),
+                                        self.display_surface.get_width() / 2,
+                                        self.display_surface.get_height() / 2,
+                                        mouse_x,
+                                        mouse_y,
+                                        self.screen_scroll
+                                        )
+                                    )
+                        self.current_Weapon().mag-=1
+            except:
+                print("error")
+                pass
 
     def move(self):
         if self.direction.magnitude()!=0:

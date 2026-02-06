@@ -13,23 +13,40 @@ class Arsenal:
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
         "Ak-7": (pygame.image.load("arsenal-images/guns/Ak1.png").convert_alpha(),
                  "AK-7_bullet",
-                 (15, 30)),  # relative offset from the player
+                 (15, 30), # relative offset from the player
+                 70, #scale
+                 15, #magzin
+                 250 #fire_cooldown in ms (0.25s)
+                 ),
+
         "rock": (pygame.image.load("rock.png").convert_alpha(),
                  "null",
-                 (15, 30))  # relative offset from the player
-    }
+                 (4, 32), # relative offset from the player
+                 20, #scale
+                 0,#magzin
+                 -1 #fire_cooldown
+                 ),
 
-    def GetBulletType(self):
-        self.weapon, self.Bullet, coordinates = Arsenal.Arsenal_gunType[self.gun_type]
-        return self.Bullet
+        "bow": (pygame.image.load("arsenal-images/guns/bow.png").convert_alpha(),
+                "arrow",
+                (15, 30),  # relative offset from the player
+                15, #scale
+                5, #magzin
+                1000 #fire_cooldown
+                )
+        }
 
     def __init__(self, gun_type):
         #gun type - type of the gun c:
         self.gun_type=gun_type
-        self.weapon,self.Bullet,coordinates =Arsenal.Arsenal_gunType[gun_type]
+        self.weapon,self.bullet,coordinates,self.scale,self.mag,self.fire_cooldown =Arsenal.Arsenal_gunType[gun_type]
         self.weapon.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon, (30, 30))
         self.offset_x, self.offset_y = coordinates
+
+    def refill_mag(self):
+        weapon,bullet,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
+        self.mag=mag
 
     def draw_for_inventory(self, i, low_x, low_y):
         if (i < 10):
@@ -40,9 +57,8 @@ class Arsenal:
         mouse_x, mouse_y = pygame.mouse.get_pos()
         weapon = self.weapon
 
-        scale = 0.1
         w,h = weapon.get_size()
-        weapon = pygame.transform.scale(weapon, (70, int(h *(70/w) )))
+        weapon = pygame.transform.scale(weapon, (self.scale, int(h *(self.scale/w) )))
 
         weapon = pygame.transform.flip(weapon, True, False)
         if mouse_x < player_x:
@@ -55,6 +71,7 @@ class Arsenal:
         #draw
         rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
         Game.SCREEN.blit(rotated, rect.topleft)
+
     def get_image(self):
         return self.weapon
     def get_name(self):
