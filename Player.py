@@ -85,6 +85,7 @@ class Player(pygame.sprite.Sprite):
                                         )
                                     )
                         self.current_Weapon().mag-=1
+                        self.current_Weapon().draw_mag_stat()
             except:
                 print("error")
                 pass

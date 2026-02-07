@@ -74,5 +74,27 @@ class Arsenal:
 
     def get_image(self):
         return self.weapon
+
     def get_name(self):
         return self.gun_type
+
+    def draw_mag_stat(self):
+        bullet_left=self.mag
+        numLs=[]
+        while bullet_left>0:
+            numLs.append(bullet_left%10)
+            bullet_left//=10
+
+        numLs.reverse()
+        if len(numLs) == 0:
+            numLs = [0]
+
+        numLs.reverse()
+
+        offset_x = 0
+        x=750
+        y=10
+        for num in numLs:
+            img = pygame.image.load("numbers-image/"+f"{num}.png").convert_alpha()
+            Game.SCREEN.blit(img,(x + offset_x, y))
+            offset_x += img.get_width()
