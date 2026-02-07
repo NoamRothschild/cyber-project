@@ -8,7 +8,9 @@ from Rock import Rock
 from colectibes import Colectible_sprite
 pygame.init()
 
-class level:
+class Level:
+    Domain_Expansion_ls=[]
+
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
 
