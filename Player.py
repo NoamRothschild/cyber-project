@@ -22,8 +22,8 @@ class Player(pygame.sprite.Sprite):
         self.direction = pygame.math.Vector2()
         self.obstacle_sprites = obstacle_sprites
         self.inventory = Inventory()
-        self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
-        self.inventory.add_item_toThe_Inventory(Arsenal("rock"))
+        self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"),"weapon")
+        self.inventory.add_item_toThe_Inventory(Arsenal("rock"),"weapon")
 
 
 
@@ -51,7 +51,7 @@ class Player(pygame.sprite.Sprite):
             self.direction.x=0
 
         mouse_buttons = pygame.mouse.get_pressed()
-        if mouse_buttons[0]and not self.inventory.is_empty():  # 0 = קליק שמאלי
+        if mouse_buttons[0]and not self.inventory.is_wep_empty():  # 0 = קליק שמאלי
             mouse_x, mouse_y = pygame.mouse.get_pos()
             Bullets.BulletLS.append(
                 Bullets(
@@ -93,7 +93,10 @@ class Player(pygame.sprite.Sprite):
     def check_if_collect(self,collecters):
         for sprite in collecters:
             if sprite.rect.colliderect(self.hitbox):
-                self.inventory.add_item_toThe_Inventory(sprite.weapon)
+                if sprite.kind=="weapon":
+                    self.inventory.add_item_toThe_Inventory(sprite.obj,"weapon")
+                elif sprite.kind=="potion":
+                    self.inventory.add_item_toThe_Inventory(sprite.obj,"potion")
                 sprite.kill()
                 break
     def update(self,collecters):
@@ -102,4 +105,4 @@ class Player(pygame.sprite.Sprite):
 
         self.move()
         self.check_if_collect(collecters)
-        self.inventory.open([self.groups()[0],collecters],self.rect)
+        self.inventory.open([self.groups()[0],collecters],self.rect,self)

@@ -26,7 +26,9 @@ class level:
                 if col=='x':
                     Rock((x,y),[self.visible_sprites,self.obstacle_sprites])
                 if col == 't':
-                    Colectible_sprite((x,y),[self.visible_sprites,self.colectible_sprite],"Ak-7")
+                    Colectible_sprite((x,y),[self.visible_sprites,self.colectible_sprite],"Ak-7","weapon")
+                if col == 't':
+                    Colectible_sprite((x, y), [self.visible_sprites, self.colectible_sprite], "speed", "potion")
                 if col=='p':
                     self.player=Player((x,y),[self.visible_sprites],self.obstacle_sprites)
 

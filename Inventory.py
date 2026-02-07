@@ -6,6 +6,7 @@ from  Arsenal import *
 from Game import *
 import time
 from colectibes import Colectible_sprite
+from potion import Potion
 class Inventory(pygame.sprite.Sprite):
 
 
@@ -21,44 +22,67 @@ class Inventory(pygame.sprite.Sprite):
         #self.unused_weapons=pygame.sprite.Group()
         #self.potions=pygame.sprite.Group()
 
-
-        self.inventory=[]
+        self.potion_inventory = []
+        self.wep_inventory=[]
         self.current_weapon = 0
         self.delete_interval = 2
         self.delete_last_action_time = 0
-    def add_item_toThe_Inventory(self, item):
+    def add_item_toThe_Inventory(self, item,kind):
+        if kind == "potion":
+            self.potion_inventory.append(item)
+        elif kind == "weapon":
+            self.wep_inventory.append(item)
 
-        self.inventory.append(item)
 
     def items_hendeling(self, player):
         #for item in self.inventory:
             #for keyGunType in Arsenal.Arsenal_gunType.keys():
                 #if item == keyGunType:
-        if not self.is_empty():
-            self.inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
+        if not self.is_wep_empty():
+            self.wep_inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
 
-    def open(self,group,prect):
+    def open(self,group,prect,player):
         self.display.blit(self.image, self.rect)
-        for i, wep in enumerate(self.inventory):
+        for i, wep in enumerate(self.wep_inventory):
             wep.draw_for_inventory(i, self.rect.x, self.rect.y)
+        for i, potion in enumerate(self.potion_inventory):
+            potion.draw_for_inventory(i,self.rect.x, self.rect.y,)
 
         self.use(group,prect)
-    def is_empty(self):
-        return len(self.inventory)==0
+        self.use_potion(player)
+
+    def is_wep_empty(self):
+        return len(self.wep_inventory)==0
+    def is_potion_empty(self):
+        return len(self.potion_inventory)==0
     def use(self,group,prect):
         keys = pygame.key.get_pressed()
         for i in range(10):
             key_constant = getattr(pygame, f"K_{i}")
-            if keys[key_constant] and i-1!=self.current_weapon and i-1<len(self.inventory):
+            if keys[key_constant] and i-1!=self.current_weapon and i-1<len(self.wep_inventory):
                 self.current_weapon=i-1
         if keys[pygame.K_DELETE]:
-            self.delete(group,prect)
+            self.delete_w(group,prect)
 
-    def delete(self,group,prect):
+    def delete_w(self,group,prect):
         current_time = time.time()
-        if current_time - self.delete_last_action_time >= self.delete_interval and self.is_empty()==False:
-            Colectible_sprite((prect.x+70,prect.y+70),group,self.inventory[self.current_weapon].get_name())
-            del self.inventory[self.current_weapon]
+        if current_time - self.delete_last_action_time >= self.delete_interval and self.is_wep_empty()==False:
+            Colectible_sprite((prect.x+70,prect.y+70),group,self.wep_inventory[self.current_weapon].get_name(),"weapon")
+            del self.wep_inventory[self.current_weapon]
             if self.current_weapon!=0:
                 self.current_weapon=self.current_weapon-1
             self.delete_last_action_time = current_time
+    def use_potion(self,player):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_p]:
+            for i in range(10) :
+                key_constant = getattr(pygame, f"K_{i}")
+                if keys[key_constant] and i - 1 < len(self.potion_inventory) and self.potion_inventory[i-1].is_potion_is==False:
+                    print("hii")
+                    self.potion_inventory[i-1].perpose(player)
+        for i in range(10):
+            if i  < len(self.potion_inventory) and not self.is_potion_empty():
+                if self.potion_inventory[i].should_it_stop(player):
+                    del self.potion_inventory[i]
+
+
