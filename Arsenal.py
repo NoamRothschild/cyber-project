@@ -36,7 +36,7 @@ class Arsenal:
             Game.SCREEN.blit(self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
-        # drowing the gun with angle
+        """drawing the gun with angle"""
         mouse_x, mouse_y = pygame.mouse.get_pos()
         weapon = self.weapon
 

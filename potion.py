@@ -7,9 +7,9 @@ class Potion(pygame.sprite.Sprite):
                            "health_bar",
                            30, None),
                "speed": (pygame.image.load("speed.png").convert_alpha(),
-                         "speed",
-                         10,
-                         6),
+                         "speed", # on what the potion has effect
+                         10, #how much it does
+                         6),# for how much time
                "super_speed": (pygame.image.load("super_speed.png").convert_alpha(),
                                "speed",
                                40,
@@ -34,7 +34,8 @@ class Potion(pygame.sprite.Sprite):
     def get_name(self):
         return self.potion_type
 
-    def perpose(self, player):
+    def purpose(self, player):
+        """doing the potion purpose"""
         if self.potion_type == "healing":
             pass
         if self.what == "speed":
@@ -44,6 +45,7 @@ class Potion(pygame.sprite.Sprite):
             self.delete_last_action_time = time.time()
 
     def should_it_stop(self, player):
+        """checking if the potion should stop its purpose"""
         if self.is_potion_is == True and self.ttl != None:
             current_time = time.time()
             if current_time - self.delete_last_action_time > self.ttl:

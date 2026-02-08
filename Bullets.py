@@ -9,7 +9,7 @@ def draw_AND_update_Bullets(player):
         bullet.update()
         bullet.draw(player.screen_scroll)
 
-
+blue=(23, 130, 184)
 class Bullets:
     BulletLS = []
 
@@ -32,7 +32,7 @@ class Bullets:
 
         w, h = self.image_bullet.get_size()
         self.image_bullet = pygame.transform.scale(self.image_bullet, (int(w * self.scale), int(h * self.scale)))
-        self.image_bullet.set_colorkey((23, 130, 184))
+        self.image_bullet.set_colorkey(blue)
 
         if mouse_x > player_x:
             self.offset_x += 60

@@ -1,9 +1,6 @@
 import pygame
-from mapset import WIDTH, HEIGHT
-from Game import Game
 from mapset import *
 from Arsenal import *
-from Game import *
 import time
 from colectibes import Colectible_sprite
 from potion import Potion
@@ -82,7 +79,7 @@ class Inventory(pygame.sprite.Sprite):
                 if keys[key_constant] and i - 1 < len(self.potion_inventory) and self.potion_inventory[
                     i - 1].is_potion_is == False:
                     print("hii")
-                    self.potion_inventory[i - 1].perpose(player)
+                    self.potion_inventory[i - 1].purpose(player)
         for i in range(10):
             if i < len(self.potion_inventory) and not self.is_potion_empty():
                 if self.potion_inventory[i].should_it_stop(player):
