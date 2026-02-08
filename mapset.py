@@ -1,8 +1,8 @@
 WIDTH = 1500
-HEIGHT =750# size of the screen
-FPS = 60#frame per second
-size=100#size of each tile
-PINK=(234,54,128)#color mostly for background
+HEIGHT = 750  # size of the screen
+FPS = 60  # frame per second
+size = 100  # size of each tile
+PINK = (234, 54, 128)  # color mostly for background
 world_map = [
     [" ", " ", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x"],
     ["x", "p", " ", "c", " ", "t", "x", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "x"],
@@ -24,5 +24,5 @@ world_map = [
     ["x", " ", "x", " ", " ", " ", " ", " ", " ", " ", " ", " ", " ", "x", " ", "x", " ", " ", " ", "x"],
     ["x", " ", " ", " ", "x", "x", "x", "x", "x", "x", "x", "x", " ", " ", " ", "x", "x", "x", " ", " "],
     ["x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x", "x"]
-]#very basic world map by tile x=rock p=player
-#we need to change it
+]  # very basic world map by tile x=rock p=player
+# we need to change it

@@ -1,25 +1,27 @@
-#the main game loop
-#basic rejister and login loop
+# the main game loop
+# basic rejister and login loop
 import protobuf.region_net_pb2 as region_net
-import pygame,sys
+import pygame, sys
 from mapset import *
 from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import ZoneConnection
-from mapset import WIDTH,HEIGHT
+from mapset import WIDTH, HEIGHT
+
 
 class Game:
-    SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
+    SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
+
     def __init__(self, host: str, tcp_port: int, udp_port: int):
         pygame.init()
         self.screen = Game.SCREEN
-        self.image=pygame.image.load("grass.png")
-        self.image=pygame.transform.scale(self.image,(WIDTH,HEIGHT))
+        self.image = pygame.image.load("grass.png")
+        self.image = pygame.transform.scale(self.image, (WIDTH, HEIGHT))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.zone = ZoneConnection(self, host, tcp_port, udp_port)
 
-        self.level =level()
+        self.level = level()
         self.is_running = False
 
     def run(self):
@@ -33,7 +35,7 @@ class Game:
                     break
             if not self.is_running: break
 
-            self.screen.blit(self.image,(0,0))
+            self.screen.blit(self.image, (0, 0))
 
             self.level.run()
 
@@ -43,8 +45,7 @@ class Game:
             self.clock.tick(FPS)
 
         pygame.quit()
-        #sys.exit()
-
+        # sys.exit()
 
 
 if __name__ == '__main__':
