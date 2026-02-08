@@ -23,6 +23,7 @@ class Player(pygame.sprite.Sprite):
         self.obstacle_sprites = obstacle_sprites
         self.inventory = Inventory()
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"),"weapon")
+        self.inventory.add_item_toThe_Inventory(Potion("super_speed"), "potion")
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"),"weapon")
 
 

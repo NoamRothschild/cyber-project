@@ -7,7 +7,11 @@ class Potion(pygame.sprite.Sprite):
              "speed": (pygame.image.load("speed.png").convert_alpha(),
                          "speed",
                          10,
-                       6)
+                       6),
+             "super_speed": (pygame.image.load("super_speed.png").convert_alpha(),
+                       "speed",
+                       40,
+                       10)
              }
     def __init__(self,potion_type):
         self.potion_type=potion_type
@@ -28,7 +32,7 @@ class Potion(pygame.sprite.Sprite):
     def perpose(self,player):
         if self.potion_type == "healing":
             pass
-        if self.potion_type == "speed":
+        if self.what == "speed":
             player.speed+=self.how_much
             self.old_speed = player.speed
             self.is_potion_is = True
@@ -38,8 +42,8 @@ class Potion(pygame.sprite.Sprite):
         if self.is_potion_is==True and self.ttl!=None:
             current_time=time.time()
             if current_time-self.delete_last_action_time>self.ttl:
-                if self.potion_type == "speed":
-                    player.speed=4
+                if self.what == "speed":
+                    player.speed-=self.how_much
                 self.delete_last_action_time=current_time
                 return True
         return False
