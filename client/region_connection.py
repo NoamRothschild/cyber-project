@@ -5,7 +5,7 @@ from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
 
 if TYPE_CHECKING:
-    from Game import Game
+    from game import Game
 
 BUFF_SIZE = 1024
 
