@@ -21,7 +21,9 @@ def connect(username, password, command):
         answer.password = password
 
         client.sendall(answer.SerializeToString())
-        response = client.recv(BYTES_TO_DECODE).decode()
+        raw_response = client.recv(BYTES_TO_DECODE)
+        response = auth_net.SendAnswer()
+        response.ParseFromString(raw_response)
 
         return response
 

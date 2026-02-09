@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package game.auth;
+
+message RequestLogin {
+  Mode mode = 1;
+  string username = 2;
+  string password = 3;
+}
+
+enum Mode {
+ LOGIN = 0;
+ REGISTER = 1;
+}
+
+message SendAnswer {
+ Mode mode = 2;
+ Status status = 1;
+ optional string session_id = 3;
+}
+
+enum Status {
+ SUCCESS = 0;
+ FAILURE = 1;
+ TAKEN = 2;
+}
+
+

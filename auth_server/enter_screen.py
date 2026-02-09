@@ -1,6 +1,7 @@
 import pygame, sys
 from auth_server import client_auth
 from login import LogIn
+import protobuf.auth_net_pb2 as auth_net
 
 # --- Modern Color Palette ---
 BLACK = (10, 10, 20)  # Deep dark blue-black
@@ -93,25 +94,23 @@ class EnterScreen:
                 self.status_color = ACCENT
                 self.draw_screen(mouse_pos)  # Force a redraw so user sees "Connecting"
 
+
                 # Call the modified client_auth which now returns a string!
                 response = client_auth.connect(user_name, password, command)
 
-                # Handle Response
-                if response.startswith("LOGIN_SUCCESS"):
+
+                if response.status == auth_net.Status.SUCCESS:
                     print("Game Starting...")
                     self.is_running = False  # Break loop to start game
-                elif response == "AUTH_SUCCESS":
-                    print("Registration complete. Logging in...")
-                    self.is_running = False
-                elif response == "LOGIN_FAILED":
+                elif response.status == auth_net.Status.FAILURE:
                     self.status_message = "Login Failed: Incorrect credentials."
                     self.status_color = ERROR_RED
-                elif response == "AUTH_TAKEN":
+                elif response.status == auth_net.Status.TAKEN:
                     self.status_message = "Registration Failed: Username taken."
                     self.status_color = ERROR_RED
-                elif response == "SERVER_OFFLINE":
-                    self.status_message = "Error: Server is unreachable."
-                    self.status_color = ERROR_RED
+                # elif response == "SERVER_OFFLINE":
+                #     self.status_message = "Error: Server is unreachable."
+                #     self.status_color = ERROR_RED
                 else:
                     self.status_message = f"Unknown Error: {response}"
                     self.status_color = ERROR_RED

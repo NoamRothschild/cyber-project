@@ -120,23 +120,34 @@ def run_server():
              if command == auth_net.Mode.REGISTER:
                 result = handle_register(data.username, data.password)
                 if result == "REGISTER_SUCCESS":
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.SUCCESS
                     print(f"User {data.username} successfully registered/pushed!")
-                    client_socket.send("AUTH_SUCCESS".encode())
+                    client_socket.send(answer.SerializeToString())
                 elif result == "REGISTER_TAKEN":
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.TAKEN
                     print(f"User {data.username} tried to register but already exists.")
-                    client_socket.send("AUTH_TAKEN".encode())
+                    client_socket.send(answer.SerializeToString())
                 else:
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.FAILURE
                     print("Database error occurred.")
-                    client_socket.send("AUTH_FAILED".encode())
+                    client_socket.send(answer.SerializeToString())
 
              elif command == auth_net.Mode.LOGIN:
                 result = handle_login(data.username, data.password)
 
                 if result.startswith("LOGIN_SUCCESS"):
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.SUCCESS
+                    answer.session_id = result.split(":")[1]
                     print(f"User {data.username} logged in.")
-                    client_socket.send(result.encode())  # Send back the full string with session ID
+                    client_socket.send(answer.SerializeToString())
                 elif result == "LOGIN_FAILED":
-                    client_socket.send("LOGIN_FAILED".encode())
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.FAILURE
+                    client_socket.send(answer.SerializeToString())
          finally:
             client_socket.close()
 
