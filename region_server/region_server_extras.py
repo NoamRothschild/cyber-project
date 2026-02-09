@@ -2,23 +2,27 @@
 from __future__ import annotations
 import asyncio
 from random import randint
-from typing import Tuple, Set
+from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import math
 
 BUFF_SIZE = 1024
 
+# 60Hz tick rate
+TICK_INTERVAL_SEC = 1.0 / 60
+
 # TODO: might parse this from a bullets config json file
-BULLET_TYPES = {
+BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
     "Ak-7": {
         "ttl": 50,
         "speed": 20,
-        "damage": 10.0,
+        "damage": 1,
+        "range": 50,
     }
 }
 
 class ProjectileHandler:
-    def __init__(self, tick_intervals: float = 0.1) -> None:
+    def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.lock = asyncio.Lock()
         self.projectiles = []
         self.tick_intervals = tick_intervals
@@ -30,34 +34,53 @@ class ProjectileHandler:
             start_time = loop.time()
             await self.tick()
             sleep_time = self.tick_intervals - (loop.time() - start_time)
-            await asyncio.sleep(sleep_time)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
 
-    async def create_background_task(self):
-        # asyncio.create_task()
-        pass
+    def create_background_task(self) -> None:
+        """Start the ticker so bullets move every tick. Call once at server startup."""
+        asyncio.create_task(self.ticker())
+
+    def bullet_hit(self, proj: dict, client: Client) -> bool:
+        dst_squared = (client.pos[0] - proj["x"]) ** 2 + (client.pos[1] - proj["y"]) ** 2
+        return dst_squared < proj["range"] ** 2
 
     async def tick(self) -> None:
-        to_remove = set()
+        to_remove: list[dict] = []
+        global clients
         async with self.lock:
             for proj in self.projectiles:
                 proj["ttl"] -= 1
                 if proj["ttl"] <= 0:
-                    to_remove.add(proj)
+                    to_remove.append(proj)
                     continue
                 proj["x"] += proj["velocity_x"]
                 proj["y"] += proj["velocity_y"]
             for e in to_remove:
                 self.projectiles.remove(e)
 
+            for client in clients:
+                for proj in self.projectiles:
+                    if proj['owner_uuid'] == client.user_id:
+                        continue
+                    if client.user_id in proj["already_hit"]:
+                        continue
+
+                    if self.bullet_hit(proj, client):
+                        await client.hit(proj["damage"], proj["owner_uuid"])
+                        proj["already_hit"].add(client.user_id)
+
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
-        bullet = BULLET_TYPES.get(bullet_shot.gun_type)
-        if not bullet:
+        template = BULLET_TYPES.get(bullet_shot.gun_type)
+        if not template:
             print(f"Warn: unknown bullet type fired: {bullet_shot.gun_type} by user with id {client.user_id}")
             return b''
 
+        bullet = template.copy()
         bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
         bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
         bullet["owner_uuid"] = client.user_id
+        bullet["already_hit"] = set[int]() # client ids that have been hit by this bullet
         bullet["x"] = client.pos[0]
         bullet["y"] = client.pos[1]
 
@@ -126,7 +149,16 @@ class Client:
         self.writer_lock = asyncio.Lock()
         self.session_id = session_id
         self.user_id = user_id
+        self.hp = 400
         self.pos: Tuple[int, int] = (0, 0) # TODO: fetch this from the DB
+
+    async def hit(self, count, hitter_id: int):
+        self.hp -= count
+        update = region_net.ServerResponse()
+        update.sender_id = hitter_id
+        update.other_data.CopyFrom(region_net.OtherPlayerData(HP=self.hp, player_id=self.user_id))
+        await self.broadcast(update.SerializeToString())
+        await self.write(update.SerializeToString())
 
     async def handle(self):
         while True:

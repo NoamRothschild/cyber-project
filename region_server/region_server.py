@@ -6,6 +6,7 @@ from config import ZONE_HOST, ZONE_TCP_PORT
 
 async def main() -> None:
     server = await asyncio.start_server(Client.client_handler_setup, ZONE_HOST, ZONE_TCP_PORT)
+    projectile_handler.create_background_task()
 
     async with server:
         await server.serve_forever()
