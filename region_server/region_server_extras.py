@@ -97,14 +97,19 @@ class Client:
         handshake.ParseFromString(handshake_raw)
         # TODO: verify the session id with the auth server && cache it
         session_id = handshake.session_id
+
+        # TODO: get this one from the auth server
+        user_id = randint(0, 2 ** 31 - 1)
+
         handshake.Clear()
         handshake.CopyFrom(region_net.HandshakeStart(
             kind=region_net.HandshakeStart.SERVER_OK,
+            user_id=user_id,
         ))
+        
+
         writer.write(handshake.SerializeToString())
         await writer.drain()
-        # TODO: get this one from the auth server
-        user_id = randint(0, 2 ** 31 - 1)
 
         global clients
         self = Client(reader, writer, session_id, user_id)

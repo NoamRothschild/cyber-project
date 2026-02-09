@@ -24,8 +24,8 @@ class ZoneConnection:
 
         self.game = game
 
-    def open_reliable_conn(self, session_id: int) -> None:
-        """opens the TCP conn. can throw"""
+    def open_reliable_conn(self, session_id: int) -> int:
+        """opens the TCP conn and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
         handshake = region_net.HandshakeStart()
         handshake.session_id = session_id
@@ -40,6 +40,7 @@ class ZoneConnection:
 
         listener = threading.Thread(target=server_listener, args=(self.game, self,))
         listener.start()
+        return login_resp.user_id
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""

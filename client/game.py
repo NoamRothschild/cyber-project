@@ -30,7 +30,7 @@ class Game:
         self.is_running = False
 
     def run(self):
-        self.zone.open_reliable_conn(self.session_id)
+        self.user_id = self.zone.open_reliable_conn(self.session_id)
         self.is_running = True
 
         while self.is_running:
