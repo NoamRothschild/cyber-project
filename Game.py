@@ -2,8 +2,9 @@
 #basic rejister and login loop
 import protobuf.region_net_pb2 as region_net
 import pygame,sys
+
 from mapset import *
-from level import *
+from Level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import ZoneConnection
 from mapset import WIDTH,HEIGHT
@@ -19,7 +20,7 @@ class Game:
         self.clock = pygame.time.Clock()
         self.zone = ZoneConnection(self, host, tcp_port, udp_port)
 
-        self.level =level()
+        self.level =Level()
         self.is_running = False
 
     def run(self):

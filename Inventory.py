@@ -42,8 +42,10 @@ class Inventory(pygame.sprite.Sprite):
             wep.draw_for_inventory(i, self.rect.x, self.rect.y)
 
         self.use(group,prect)
+
     def is_empty(self):
         return len(self.inventory)==0
+
     def use(self,group,prect):
         keys = pygame.key.get_pressed()
         for i in range(10):

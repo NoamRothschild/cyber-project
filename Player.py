@@ -1,9 +1,13 @@
 import pygame
 
-from Arsenal import Arsenal
+import Domain_Expansion
+from Arsenal import *
 from Inventory import *
 from Bullets import *
+from Level import *
 from Game import *
+from Domain_Expansion import *
+
 PINK=(234,54,128)
 
 
@@ -28,6 +32,7 @@ class Player(pygame.sprite.Sprite):
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"))
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"))
+        self.inventory.add_item_toThe_Inventory(Arsenal("domain_expansion"))
 
     def current_Weapon(self):
         return self.inventory.inventory[self.inventory.current_weapon]
@@ -88,6 +93,9 @@ class Player(pygame.sprite.Sprite):
             except:
                 print("error")
                 pass
+            if self.current_Weapon().gun_type=="domain_expansion":
+                Level.Domain_Expansion_ls.append("h")
+                #self.inventory.delete() delet from inventory when it used
 
     def move(self):
         if self.direction.magnitude()!=0:

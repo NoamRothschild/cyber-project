@@ -13,6 +13,7 @@ class Arsenal:
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
         "Ak-7": (pygame.image.load("arsenal-images/guns/Ak1.png").convert_alpha(),
                  "AK-7_bullet",
+                 "not fixed",
                  (15, 30), # relative offset from the player
                  70, #scale
                  15, #magzin
@@ -21,6 +22,7 @@ class Arsenal:
 
         "rock": (pygame.image.load("rock.png").convert_alpha(),
                  "null",
+                 "not fixed",
                  (4, 32), # relative offset from the player
                  20, #scale
                  0,#magzin
@@ -29,6 +31,7 @@ class Arsenal:
 
         "bow": (pygame.image.load("arsenal-images/guns/bow.png").convert_alpha(),
                 "arrow",
+                "not fixed",
                 (15, 30),  # relative offset from the player
                 15, #scale
                 5, #magzin
@@ -77,49 +80,3 @@ class Arsenal:
 
     def get_name(self):
         return self.gun_type
-
-    def draw_mag_stat(self):
-
-        x = 300
-        y = 705
-
-        if not self.bullet == "null":
-            bullet_left=self.mag
-            numLs=[]
-            while bullet_left>0:
-                numLs.append(bullet_left%10)
-                bullet_left//=10
-
-            if len(numLs) == 0:
-                numLs = [0]
-
-            offset_x = 0
-
-            for num in numLs:
-                img_num= pygame.image.load("numbers-image/"+f"{num}.png").convert_alpha()
-                img_num.set_colorkey((23, 130, 184))
-                img_num= pygame.transform.scale(img_num, (17, 18))
-
-                Game.SCREEN.blit(img_num,(x + offset_x, y))
-                offset_x -= img_num.get_width()
-
-            offset_x-=10
-
-            img_bullet = pygame.image.load("arsenal-images/bullets/"+f"{self.bullet}.png").convert_alpha()
-            img_bullet.set_colorkey((23, 130, 184))
-
-            img_bullet = pygame.transform.rotate(img_bullet, 90 * 3)
-
-            w, h = img_bullet.get_size()
-            scale=15
-            img_bullet = pygame.transform.scale(img_bullet, (scale, int(h * (scale / w))))
-
-            Game.SCREEN.blit(img_bullet, (x+offset_x, y - 15))
-            return
-        else:
-            weapon_img = self.weapon_img
-            w, h = weapon_img.get_size()
-            scale =35
-            weapon_img = pygame.transform.scale(weapon_img, (scale, int(h * (scale / w))))
-
-            Game.SCREEN.blit(weapon_img, (x-w/2, y))
