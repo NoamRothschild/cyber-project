@@ -1,98 +1,157 @@
-import pygame,sys
+import pygame
+import sys
 
-BLACK = (0,0,0)
+# --- Fortnite / Cyber Aesthetics ---
+BG_COLOR = (15, 23, 42)  # Dark Navy
+INPUT_BG = (30, 41, 59)  # Slate lighter
+INPUT_BORDER = (56, 189, 248)  # Neon Sky Blue
+TEXT_COLOR = (241, 245, 249)  # Off-white
+GLOW_COLOR = (0, 255, 255)  # Cyan Glow
+
+WIDTH, HEIGHT = 800, 600
 
 
-FPS=60
-WHITE = (255,255,255)
-GRAY = (150,150,150)
-side_txt="push Enter for ok \n push tub for moving from a to b"
-
-
-
-class LogIn(pygame.sprite.Sprite):
-
+class LogIn:
     def __init__(self):
-        pygame.init()
+        # We grab the screen created in EnterScreen
         self.screen = pygame.display.get_surface()
-        self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont("arial", 30, bold=True)
 
-        # הגדרת המיקומים של התיבות והכפתורים
-        self.user_rect = pygame.Rect(50, 150, 300, 45)
-        self.pass_rect = pygame.Rect(50, 250, 300, 45)
+        # Modern Fonts
+        self.font_header = pygame.font.SysFont("verdana", 40, bold=True)
+        self.font_label = pygame.font.SysFont("arial", 14, bold=True)
+        self.font_input = pygame.font.SysFont("consolas", 24)
 
+        # Input Boxes (Centered)
+        cx, cy = WIDTH // 2, HEIGHT // 2
+        self.user_rect = pygame.Rect(cx - 150, cy - 60, 300, 50)
+        self.pass_rect = pygame.Rect(cx - 150, cy + 40, 300, 50)
+        self.btn_rect = pygame.Rect(cx - 100, cy + 130, 200, 50)
+
+        self.user_text = ""
+        self.pass_text = ""
+        self.active_field = "user"  # 'user' or 'pass'
+
+    def draw_glow(self, rect, color):
+        """Creates a neon glow effect around a rectangle."""
+        # Draw multiple rects with decreasing alpha to simulate glow
+        for i in range(10):
+            alpha = 100 - (i * 10)
+            glow_surf = pygame.Surface((rect.width + i * 4, rect.height + i * 4), pygame.SRCALPHA)
+            pygame.draw.rect(glow_surf, (*color, alpha), glow_surf.get_rect(), border_radius=15)
+            self.screen.blit(glow_surf, (rect.x - i * 2, rect.y - i * 2))
 
     def run(self):
+        running = True
+        clock = pygame.time.Clock()
 
-        user_text = ""
-        pass_text = ""
-        active_field = "user"  # שדה ברירת מחדל
-        is_running = True
-        self.screen.blit(self.font.render(side_txt, True, WHITE), (70, 110))
-        while is_running:
-            self.screen.fill(BLACK)  # ניקוי המסך בכל פריים
+        # Cursor blinking
+        cursor_visible = True
+        cursor_timer = 0
 
+        while running:
+            mouse_pos = pygame.mouse.get_pos()
+
+            # --- Event Handling ---
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
-                    # בחירת שדה להקלדה
                     if self.user_rect.collidepoint(event.pos):
-                        active_field = "user"
+                        self.active_field = "user"
                     elif self.pass_rect.collidepoint(event.pos):
-                        active_field = "pass"
-
-                    # לחיצה על כפתורים
-
+                        self.active_field = "pass"
+                    elif self.btn_rect.collidepoint(event.pos):
+                        # SUBMIT BUTTON CLICKED
+                        return self.user_text, self.pass_text
 
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN:
-                        is_running = False
+                    if event.key == pygame.K_TAB:
+                        self.active_field = "pass" if self.active_field == "user" else "user"
+                    elif event.key == pygame.K_RETURN:
+                        # ENTER KEY PRESSED
+                        return self.user_text, self.pass_text
                     elif event.key == pygame.K_BACKSPACE:
-                        if active_field == "user":
-                            user_text = user_text[:-1]
+                        if self.active_field == "user":
+                            self.user_text = self.user_text[:-1]
                         else:
-                            pass_text = pass_text[:-1]
-                    elif event.key == pygame.K_TAB:  # מעבר נוח בין שדות
-                        active_field = "pass" if active_field == "user" else "user"
+                            self.pass_text = self.pass_text[:-1]
                     else:
-                        if active_field == "user":
-                            user_text += event.unicode
-                        else:
-                            pass_text += event.unicode
+                        # Typing limit (15 chars)
+                        if self.active_field == "user" and len(self.user_text) < 15:
+                            self.user_text += event.unicode
+                        elif self.active_field == "pass" and len(self.pass_text) < 15:
+                            self.pass_text += event.unicode
 
-            # --- פקודות הציור (Text & Boxes) ---
+            # --- Drawing ---
 
-            # ציור תוויות (Labels)
-            self.screen.blit(self.font.render(side_txt, True, WHITE), (400, 20))
-            self.screen.blit(self.font.render("Username:", True, WHITE), (50, 110))
-            self.screen.blit(self.font.render("Password:", True, WHITE), (50, 210))
+            # 1. Background with Grid pattern
+            self.screen.fill(BG_COLOR)
+            self.draw_grid()
 
-            # ציור מסגרות לתיבות (צבע משתנה אם השדה פעיל)
-            u_color = WHITE if active_field == "user" else GRAY
-            p_color = WHITE if active_field == "pass" else GRAY
-            pygame.draw.rect(self.screen, u_color, self.user_rect, 2)
-            pygame.draw.rect(self.screen, p_color, self.pass_rect, 2)
+            # 2. Header Title
+            title = self.font_header.render("AUTHENTICATION", True, TEXT_COLOR)
+            # Simple shadow for 3D effect
+            shadow = self.font_header.render("AUTHENTICATION", True, (0, 0, 0))
+            self.screen.blit(shadow, (WIDTH // 2 - title.get_width() // 2 + 4, 104))
+            self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
 
-            # רינדור והצגת הטקסט בתוך התיבות (סיסמה מוצגת ככוכביות)
-            user_surface = self.font.render(user_text, True, WHITE)
-            pass_surface = self.font.render(pass_text , True, WHITE)
+            # 3. Input Fields
+            self.draw_input(self.user_rect, "USERNAME", self.user_text, self.active_field == "user", False,
+                            cursor_visible)
+            self.draw_input(self.pass_rect, "PASSWORD", self.pass_text, self.active_field == "pass", True,
+                            cursor_visible)
 
-            self.screen.blit(user_surface, (self.user_rect.x + 5, self.user_rect.y + 5))
-            self.screen.blit(pass_surface, (self.pass_rect.x + 5, self.pass_rect.y + 5))
+            # 4. Submit Button
+            is_hover = self.btn_rect.collidepoint(mouse_pos)
+            btn_color = (0, 255, 150) if is_hover else (0, 200, 100)  # Greenish Cyan
 
-            # ציור כפתורי Login ו-Register
+            if is_hover:
+                self.draw_glow(self.btn_rect, btn_color)
 
+            pygame.draw.rect(self.screen, btn_color, self.btn_rect, border_radius=10)
+            btn_text = self.font_label.render("ACCESS TERMINAL", True, (10, 20, 30))
+            self.screen.blit(btn_text, (self.btn_rect.centerx - btn_text.get_width() // 2,
+                                        self.btn_rect.centery - btn_text.get_height() // 2))
+
+            # Cursor Blinking Logic
+            cursor_timer += 1
+            if cursor_timer >= 30:
+                cursor_visible = not cursor_visible
+                cursor_timer = 0
 
             pygame.display.flip()
-            self.clock.tick(FPS)
+            clock.tick(60)
 
-        return user_text, pass_text
+    def draw_grid(self):
+        """Draws a faint tech-grid background."""
+        for x in range(0, WIDTH, 40):
+            pygame.draw.line(self.screen, (30, 40, 60), (x, 0), (x, HEIGHT))
+        for y in range(0, HEIGHT, 40):
+            pygame.draw.line(self.screen, (30, 40, 60), (0, y), (WIDTH, y))
 
+    def draw_input(self, rect, label, text, is_active, is_password, show_cursor):
+        # Label above box
+        lbl_surf = self.font_label.render(label, True, INPUT_BORDER)
+        self.screen.blit(lbl_surf, (rect.x, rect.y - 20))
 
+        # Box Glow
+        if is_active:
+            self.draw_glow(rect, INPUT_BORDER)
+            border_col = INPUT_BORDER
+        else:
+            border_col = (100, 100, 120)
 
+        # Draw Box
+        pygame.draw.rect(self.screen, INPUT_BG, rect, border_radius=8)
+        pygame.draw.rect(self.screen, border_col, rect, 2, border_radius=8)
 
+        # Draw Text
+        display_text = "*" * len(text) if is_password else text
+        if is_active and show_cursor:
+            display_text += "|"
 
+        txt_surf = self.font_input.render(display_text, True, TEXT_COLOR)
+        # Center text vertically in the box
+        self.screen.blit(txt_surf, (rect.x + 10, rect.y + 12))
