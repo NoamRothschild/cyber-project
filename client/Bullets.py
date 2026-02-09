@@ -4,7 +4,7 @@ from game import *
 
 def draw_AND_update_Bullets(player):
     # Derive camera scroll exactly like Camera.custom_draw does:
-    display = player.display_surface
+    display = pygame.display.get_surface()
     scroll = [
         player.rect.centerx - display.get_width() / 2,
         player.rect.centery - display.get_height() / 2,
