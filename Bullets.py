@@ -15,12 +15,12 @@ class Bullets:
 
         self.bullet_types = {
             "AK-7_bullet": (
-                pygame.image.load("arsenal-images/bullets/bullet-AK7.png").convert_alpha(),
-                (-15,5),  # relative offset from the player
+                pygame.image.load("arsenal-images/bullets/AK-7_bullet.png").convert_alpha(),
+                (-15,15),  # relative offset from the player
                 20,  # ttl
-                20,    # speed
+                25,    # speed
                 2,     # damage
-                0.15 #scale
+                0.2 #scale
             ),
             "arrow":(
                 pygame.image.load("arsenal-images/bullets/arrow.png").convert_alpha(),
@@ -40,6 +40,8 @@ class Bullets:
         self.image_bullet=pygame.transform.flip(self.image_bullet, True, False)
         self.image_bullet = pygame.transform.scale(self.image_bullet, (int(w * self.scale), int(h * self.scale)))
         self.image_bullet.set_colorkey((23, 130, 184))
+
+        self.rect=self.image_bullet.get_rect()
 
         if mouse_x > player_x:
             self.offset_x+=60

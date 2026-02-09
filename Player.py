@@ -85,7 +85,6 @@ class Player(pygame.sprite.Sprite):
                                         )
                                     )
                         self.current_Weapon().mag-=1
-                        self.current_Weapon().draw_mag_stat()
             except:
                 print("error")
                 pass
@@ -121,9 +120,11 @@ class Player(pygame.sprite.Sprite):
                 self.inventory.add_item_toThe_Inventory(sprite.weapon)
                 sprite.kill()
                 break
+
     def update(self,collecters):
         self.input()
         draw_AND_update_Bullets(self)
+        self.current_Weapon().draw_mag_stat()
 
         self.move()
         self.check_if_collect(collecters)

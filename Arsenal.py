@@ -89,12 +89,12 @@ class Arsenal:
         if len(numLs) == 0:
             numLs = [0]
 
-        numLs.reverse()
-
         offset_x = 0
         x=750
         y=10
         for num in numLs:
             img = pygame.image.load("numbers-image/"+f"{num}.png").convert_alpha()
+            img.set_colorkey((23, 130, 184))
+
             Game.SCREEN.blit(img,(x + offset_x, y))
             offset_x += img.get_width()
