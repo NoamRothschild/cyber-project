@@ -19,7 +19,11 @@ class HealthBar(pygame.sprite.Sprite):
         pygame.draw.rect(self.screen, (0, 255, 0), self.plus_rect)
         pygame.draw.rect(self.screen, (255, 0, 0), self.minus_rect)
 
+    def get_life(self):
+        return self.plus_rect.width
+
     def sub_life(self, num):
+        # TODO: add a red flash effect when getting hit
         current_time = time.time()
 
         if current_time - self.last_sub_life >= self.shield_time:

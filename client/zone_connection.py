@@ -133,9 +133,21 @@ def server_listener(game: Game, zone: ZoneConnection):
             print(f"{payload_type=}")
             if payload_type == "new_location":
                 pos = parsed.other_data.new_location
-                game.level.entities.add_or_update(parsed.sender_id, (pos.x, pos.y), [game.level.visible_sprites])
-            # elif payload_type == "HP":
-            #     ...
+                game.level.entities.add_or_update([game.level.visible_sprites], parsed.sender_id, pos=(pos.x, pos.y))
+            elif payload_type == "HP":
+                health_elem = game.level.player.health
+                new_hp = parsed.other_data.HP
+                print(f"{parsed.other_data.player_id=}")
+                if parsed.other_data.player_id != game.user_id:
+                    game.level.entities.add_or_update([game.level.visible_sprites], parsed.other_data.player_id, hp=new_hp)
+                else:
+                    old_hp = health_elem.get_life()
+                    diff = new_hp - old_hp
+                    print(f"player hp changed")
+                    if diff > 0:
+                        health_elem.add_life(diff)
+                    elif diff < 0:
+                        health_elem.sub_life(abs(diff))
             # elif payload_type == "state":
             #     ...
         elif len(parsed.bullet_shot) > 0:
