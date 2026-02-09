@@ -1,7 +1,7 @@
 import pygame
 import sys
 
-# --- Fortnite / Cyber Aesthetics ---
+
 BG_COLOR = (15, 23, 42)  # Dark Navy
 INPUT_BG = (30, 41, 59)  # Slate lighter
 INPUT_BORDER = (56, 189, 248)  # Neon Sky Blue

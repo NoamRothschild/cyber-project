@@ -1,5 +1,5 @@
 import pygame, sys
-import client_auth2
+from auth_server import client_auth
 from login import LogIn
 
 # --- Modern Color Palette ---
@@ -94,7 +94,7 @@ class EnterScreen:
                 self.draw_screen(mouse_pos)  # Force a redraw so user sees "Connecting"
 
                 # Call the modified client_auth which now returns a string!
-                response = client_auth2.connect(user_name, password, command)
+                response = client_auth.connect(user_name, password, command)
 
                 # Handle Response
                 if response.startswith("LOGIN_SUCCESS"):
