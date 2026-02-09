@@ -1,8 +1,5 @@
-#the main game loop
-#basic rejister and login loop
 import protobuf.region_net_pb2 as region_net
 import pygame,sys
-
 from mapset import *
 from Level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
@@ -11,6 +8,7 @@ from mapset import WIDTH,HEIGHT
 
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
+
     def __init__(self, host: str, tcp_port: int, udp_port: int):
         pygame.init()
         self.screen = Game.SCREEN

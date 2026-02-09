@@ -64,6 +64,8 @@ class Arsenal:
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
         self.offset_x, self.offset_y = coordinates
 
+        self.rect=self.weapon_img.get_rect()
+
     def refill_mag(self):
         weapon_img,bullet,movement,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
         self.mag=mag
