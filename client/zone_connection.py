@@ -110,7 +110,7 @@ def server_listener(game: Game, zone: ZoneConnection):
     Start this one in another thread
     Assumes a connection has already been established in `game.region_conn`
     """
-    from Bullets import Bullets
+    from bullets import Bullets
 
     while True:
         server_raw = zone.reliable_conn.recv(BUFF_SIZE)
