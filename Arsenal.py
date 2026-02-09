@@ -22,11 +22,20 @@ class Arsenal:
 
         "rock": (pygame.image.load("rock.png").convert_alpha(),
                  "null",
-                 "not fixed",
+                 "fixed",
                  (4, 32), # relative offset from the player
                  20, #scale
                  0,#magzin
                  -1 #fire_cooldown
+                 ),
+
+        "domain_expansion": (pygame.image.load("arsenal-images/guns/domainExp.png").convert_alpha(),
+                 "null",
+                 "fixed",
+                             (4, 32),  # relative offset from the player
+                             20,  # scale
+                             0,  # magzin
+                             -1  # fire_cooldown
                  ),
 
         "bow": (pygame.image.load("arsenal-images/guns/bow.png").convert_alpha(),
@@ -36,19 +45,27 @@ class Arsenal:
                 15, #scale
                 5, #magzin
                 1000 #fire_cooldown
-                )
+                ),
+        "sword": (pygame.image.load("arsenal-images/guns/sword.png").convert_alpha(),
+                 "null",
+                  "fixed",
+                  (4, 32),  # relative offset from the player
+                  1,  # scale
+                  0,  # magzin
+                  -1  # fire_cooldown
+                 )
         }
 
     def __init__(self, gun_type):
         #gun type - type of the gun c:
         self.gun_type=gun_type
-        self.weapon_img,self.bullet,coordinates,self.scale,self.mag,self.fire_cooldown =Arsenal.Arsenal_gunType[gun_type]
+        self.weapon_img,self.bullet,self.stat,coordinates,self.scale,self.mag,self.fire_cooldown =Arsenal.Arsenal_gunType[gun_type]
         self.weapon_img.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
         self.offset_x, self.offset_y = coordinates
 
     def refill_mag(self):
-        weapon_img,bullet,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
+        weapon_img,bullet,stat,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
         self.mag=mag
 
     def draw_for_inventory(self, i, low_x, low_y):
@@ -57,26 +74,81 @@ class Arsenal:
 
     def draw(self, player_x, player_y):
         #drowing the gun with angle
-        mouse_x, mouse_y = pygame.mouse.get_pos()
-        weapon_img = self.weapon_img
+        if self.stat=="not fixed":
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            weapon_img = self.weapon_img
 
-        w,h = weapon_img.get_size()
-        weapon_img = pygame.transform.scale(weapon_img, (self.scale, int(h *(self.scale/w) )))
+            w,h = weapon_img.get_size()
+            weapon_img = pygame.transform.scale(weapon_img, (self.scale, int(h *(self.scale/w) )))
 
-        weapon_img = pygame.transform.flip(weapon_img, True, False)
-        if mouse_x < player_x:
-            weapon_img = pygame.transform.flip(weapon_img, False, True)
+            weapon_img = pygame.transform.flip(weapon_img, True, False)
+            if mouse_x < player_x:
+                weapon_img = pygame.transform.flip(weapon_img, False, True)
 
-        x_r,y_r = mouse_x - player_x, mouse_y - player_y
-        angle = -math.degrees(math.atan2(y_r, x_r))
-        rotated = pygame.transform.rotate(weapon_img, angle)
+            x_r,y_r = mouse_x - player_x, mouse_y - player_y
+            angle = -math.degrees(math.atan2(y_r, x_r))
+            rotated = pygame.transform.rotate(weapon_img, angle)
 
-        #draw
-        rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
-        Game.SCREEN.blit(rotated, rect.topleft)
+            #draw
+            rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
+            Game.SCREEN.blit(rotated, rect.topleft)
+
+        else:
+            weapon_img=self.weapon_img
+            w, h = self.weapon_img.get_size()
+            weapon_img = pygame.transform.scale(weapon_img, (self.scale, int(h * (self.scale / w))))
+            Game.SCREEN.blit(self.weapon_img, (player_x-w/2, player_y-h/2))
+
 
     def get_image(self):
         return self.weapon_img
 
+
     def get_name(self):
         return self.gun_type
+
+
+    def draw_mag_stat(self):
+        x = 300
+        y = 705
+
+        if not self.bullet == "null":
+            bullet_left = self.mag
+            numLs = []
+            while bullet_left > 0:
+                numLs.append(bullet_left % 10)
+                bullet_left //= 10
+
+            if len(numLs) == 0:
+                numLs = [0]
+
+            offset_x = 0
+
+            for num in numLs:
+                img_num = pygame.image.load("numbers-image/" + f"{num}.png").convert_alpha()
+                img_num.set_colorkey((23, 130, 184))
+                img_num = pygame.transform.scale(img_num, (17, 18))
+
+                Game.SCREEN.blit(img_num, (x + offset_x, y))
+                offset_x -= img_num.get_width()
+
+            offset_x -= 10
+
+            img_bullet = pygame.image.load("arsenal-images/bullets/" + f"{self.bullet}.png").convert_alpha()
+            img_bullet.set_colorkey((23, 130, 184))
+
+            img_bullet = pygame.transform.rotate(img_bullet, 90 * 3)
+
+            w, h = img_bullet.get_size()
+            scale = 15
+            img_bullet = pygame.transform.scale(img_bullet, (scale, int(h * (scale / w))))
+
+            Game.SCREEN.blit(img_bullet, (x + offset_x, y - 15))
+            return
+        else:
+            weapon_img = self.weapon_img
+            w, h = weapon_img.get_size()
+            scale = 35
+            weapon_img = pygame.transform.scale(weapon_img, (scale, int(h * (scale / w))))
+
+            Game.SCREEN.blit(weapon_img, (x - w / 2, y))
