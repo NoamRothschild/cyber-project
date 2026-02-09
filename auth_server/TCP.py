@@ -2,6 +2,8 @@ import socket
 import sqlite3
 import hashlib
 import uuid
+import protobuf.auth_net_pb2 as auth_net
+
 
 DB_NAME = 'Auth.db'
 PORT = 9999
@@ -109,32 +111,34 @@ def run_server():
      while True:
          (client_socket, client_address) = server_socket.accept()
          try:
-             data = client_socket.recv(BYTES_TO_DECODE).decode('utf-8')
-             if ":" in data:
-                 command,username, password = data.split(":", 2)
+             raw_data = client_socket.recv(BYTES_TO_DECODE)
+             data = auth_net.RequestLogin()
+             data.ParseFromString(raw_data)
 
-                 if command == "REG":
-                    result = handle_register(username, password)
-                    if result == "REGISTER_SUCCESS":
-                        print(f"User {username} successfully registered/pushed!")
-                        client_socket.send("AUTH_SUCCESS".encode())
-                    elif result == "REGISTER_TAKEN":
-                        print(f"User {username} tried to register but already exists.")
-                        client_socket.send("AUTH_TAKEN".encode())
-                    else:
-                        print("Database error occurred.")
-                        client_socket.send("AUTH_FAILED".encode())
+             command = data.mode
 
-                 elif command == "LOG":
-                    result = handle_login(username, password)
+             if command == auth_net.Mode.REGISTER:
+                result = handle_register(data.username, data.password)
+                if result == "REGISTER_SUCCESS":
+                    print(f"User {data.username} successfully registered/pushed!")
+                    client_socket.send("AUTH_SUCCESS".encode())
+                elif result == "REGISTER_TAKEN":
+                    print(f"User {data.username} tried to register but already exists.")
+                    client_socket.send("AUTH_TAKEN".encode())
+                else:
+                    print("Database error occurred.")
+                    client_socket.send("AUTH_FAILED".encode())
 
-                    if result.startswith("LOGIN_SUCCESS"):
-                        print(f"User {username} logged in.")
-                        client_socket.send(result.encode())  # Send back the full string with session ID
-                    elif result == "LOGIN_FAILED":
-                        client_socket.send("LOGIN_FAILED".encode())
+             elif command == auth_net.Mode.LOGIN:
+                result = handle_login(data.username, data.password)
+
+                if result.startswith("LOGIN_SUCCESS"):
+                    print(f"User {data.username} logged in.")
+                    client_socket.send(result.encode())  # Send back the full string with session ID
+                elif result == "LOGIN_FAILED":
+                    client_socket.send("LOGIN_FAILED".encode())
          finally:
-             client_socket.close()
+            client_socket.close()
 
 
 if __name__ == "__main__":

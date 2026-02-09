@@ -1,4 +1,5 @@
 import socket
+import protobuf.auth_net_pb2 as auth_net
 
 IP = '127.0.0.1'
 PORT = 9999
@@ -10,9 +11,16 @@ def connect(username, password, command):
     try:
         client.connect((IP, PORT))
 
-        credentials = f"{command}:{username}:{password}"
-        client.send(credentials.encode())
+        answer = auth_net.RequestLogin()
+        if command == "REG":
+            answer.mode = auth_net.Mode.REGISTER
+        elif command == "LOG":
+            answer.mode = auth_net.Mode.LOGIN
 
+        answer.username = username
+        answer.password = password
+
+        client.sendall(answer.SerializeToString())
         response = client.recv(BYTES_TO_DECODE).decode()
 
         return response
