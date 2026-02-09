@@ -32,10 +32,10 @@ class Arsenal:
         "domain_expansion": (pygame.image.load("arsenal-images/guns/domainExp.png").convert_alpha(),
                  "null",
                  "fixed",
-                             (4, 32),  # relative offset from the player
-                             20,  # scale
-                             0,  # magzin
-                             -1  # fire_cooldown
+                (4, 32),  # relative offset from the player
+                20,  # scale
+                0,  # magzin
+                -1  # fire_cooldown
                  ),
 
         "bow": (pygame.image.load("arsenal-images/guns/bow.png").convert_alpha(),
@@ -49,8 +49,8 @@ class Arsenal:
         "sword": (pygame.image.load("arsenal-images/guns/sword.png").convert_alpha(),
                  "null",
                   "fixed",
-                  (4, 32),  # relative offset from the player
-                  1,  # scale
+                  (-5, 12),  # relative offset from the player
+                  100,  # scale
                   0,  # magzin
                   -1  # fire_cooldown
                  )
@@ -59,13 +59,13 @@ class Arsenal:
     def __init__(self, gun_type):
         #gun type - type of the gun c:
         self.gun_type=gun_type
-        self.weapon_img,self.bullet,self.stat,coordinates,self.scale,self.mag,self.fire_cooldown =Arsenal.Arsenal_gunType[gun_type]
+        self.weapon_img,self.bullet,self.movement,coordinates,self.scale,self.mag,self.fire_cooldown =Arsenal.Arsenal_gunType[gun_type]
         self.weapon_img.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
         self.offset_x, self.offset_y = coordinates
 
     def refill_mag(self):
-        weapon_img,bullet,stat,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
+        weapon_img,bullet,movement,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
         self.mag=mag
 
     def draw_for_inventory(self, i, low_x, low_y):
@@ -73,32 +73,36 @@ class Arsenal:
             Game.SCREEN.blit(self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
-        #drowing the gun with angle
-        if self.stat=="not fixed":
+        # drowing the gun with angle
+        if self.movement == "not fixed":
             mouse_x, mouse_y = pygame.mouse.get_pos()
             weapon_img = self.weapon_img
 
-            w,h = weapon_img.get_size()
-            weapon_img = pygame.transform.scale(weapon_img, (self.scale, int(h *(self.scale/w) )))
+            w, h = weapon_img.get_size()
+            weapon_img = pygame.transform.scale(weapon_img, (self.scale, int(h * (self.scale / w))))
 
             weapon_img = pygame.transform.flip(weapon_img, True, False)
+
             if mouse_x < player_x:
                 weapon_img = pygame.transform.flip(weapon_img, False, True)
 
-            x_r,y_r = mouse_x - player_x, mouse_y - player_y
+            x_r, y_r = mouse_x - player_x, mouse_y - player_y
             angle = -math.degrees(math.atan2(y_r, x_r))
-            rotated = pygame.transform.rotate(weapon_img, angle)
-
-            #draw
-            rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
-            Game.SCREEN.blit(rotated, rect.topleft)
 
         else:
-            weapon_img=self.weapon_img
             w, h = self.weapon_img.get_size()
-            weapon_img = pygame.transform.scale(weapon_img, (self.scale, int(h * (self.scale / w))))
-            Game.SCREEN.blit(self.weapon_img, (player_x-w/2, player_y-h/2))
+            weapon_img = pygame.transform.scale(self.weapon_img, (self.scale, int(h * (self.scale / w))))
 
+            if self.gun_type=="sword":
+                angle = 360-45
+            else:
+                angle = 0
+
+        rotated = pygame.transform.rotate(weapon_img, angle)
+
+        # draw
+        rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
+        Game.SCREEN.blit(rotated, rect.topleft)
 
     def get_image(self):
         return self.weapon_img
