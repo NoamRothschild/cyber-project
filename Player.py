@@ -1,5 +1,4 @@
 import pygame
-
 import Domain_Expansion
 from Arsenal import *
 from Arsenal import Arsenal
@@ -30,6 +29,7 @@ class Player(pygame.sprite.Sprite):
         self.last_r_press = 0
         self.last_shoot = 0
 
+
         self.shop_open = False
         self.last_b_press = 0
 
@@ -48,6 +48,19 @@ class Player(pygame.sprite.Sprite):
 
     def input(self):
         keys = pygame.key.get_pressed()
+
+        if self.shop_ui.open:
+            self.direction.x = 0
+            self.direction.y = 0
+
+            if keys[pygame.K_b]:
+                now = pygame.time.get_ticks()
+                if now - self.last_b_press > 300:
+                    self.last_b_press = now
+                    self.shop_ui.toggle()
+            return
+
+
 
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.direction.y = -1
@@ -121,6 +134,8 @@ class Player(pygame.sprite.Sprite):
         self.hitbox.y += int(self.direction.y*self.speed)
         self.check_coalition("vertical")
         self.rect.center=self.hitbox.center
+
+
 
     def check_coalition(self,direction):
         if direction=='horizontal':
