@@ -44,7 +44,7 @@ class Arsenal:
                 (15, 30),  # relative offset from the player
                 15, #scale
                 5, #magzin
-                1000 #fire_cooldown
+                500 #fire_cooldown
                 ),
         "sword": (pygame.image.load("arsenal-images/guns/sword.png").convert_alpha(),
                  "null",

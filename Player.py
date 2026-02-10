@@ -2,6 +2,7 @@ import pygame
 
 import Domain_Expansion
 from Arsenal import *
+from Arsenal import Arsenal
 from Inventory import *
 from Bullets import *
 from Level import *
@@ -27,6 +28,9 @@ class Player(pygame.sprite.Sprite):
 
         self.last_r_press = 0
         self.last_shoot = 0
+
+        self.shop_open = False
+        self.last_b_press = 0
 
         self.inventory = Inventory()
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
@@ -61,6 +65,13 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x=0
 
+        if keys[pygame.K_b]:
+            now = pygame.time.get_ticks()
+            if now - self.last_b_press > 300:  # מונע פתיחה 100 פעמים בלחיצה אחת
+                self.last_b_press = now
+                self.shop_open = not self.shop_open
+
+
         if keys[pygame.K_r]:
             now = pygame.time.get_ticks()
             if now - self.last_r_press >= self.current_Weapon().fire_cooldown:
@@ -93,9 +104,10 @@ class Player(pygame.sprite.Sprite):
                         self.current_Weapon().mag-=1
             except:
                 print("error")
-                pass
+
             if self.current_Weapon().gun_type=="domain_expansion":
-                Level.Domain_Expansion_ls.append("h")
+                Domain_Expansion.run(self)
+                #Level.Domain_Expansion_ls.append("h")
                 #self.inventory.delete() delet from inventory when it used
 
     def move(self):

@@ -13,5 +13,5 @@ class Domain_Expansion:
         self.domainType = domain_type
         self.domain_image, self.effects_ls_player_activate, = Domain_Expansion.Domain_types[domain_type]
 
-    def run(self):
+    def run(player):
         return
