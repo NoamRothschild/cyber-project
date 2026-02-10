@@ -68,4 +68,7 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
         visible_now = [s for s in self.sprites() if s.rect.colliderect(screen_rect)]
 
         for sprite in sorted(visible_now, key=lambda s: s.rect.bottom):
-            self.display.blit(sprite.image, sprite.rect.topleft - self.point)
+            if sprite.image is not None:
+                self.display.blit(sprite.image, sprite.rect.topleft - self.point)
+            elif sprite.plus_rect is not None:
+                sprite.draw(self.point.x, self.point.y)

@@ -7,8 +7,8 @@ from zone_connection import ZoneConnectionSingleton
 from mapset import *
 
 PINK = (234, 54, 128)
-
-
+HEALTH_BAR_SCALE=400
+HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
@@ -20,7 +20,7 @@ class Player(pygame.sprite.Sprite):
         self.direction = pygame.math.Vector2()  # a vector that contains if you should move 1 to the right (1,0),left(-1,0), up(0,-1), down(0,1);
         self.obstacle_sprites, self.harmfull_sprites = other_groups  # rocks and such
         self.inventory = Inventory()
-        self.health = HealthBar()
+        self.health = HealthBar(HEALTH_BAR_POS,HEALTH_BAR_SCALE)
 
     def input(self):  # check if you want to move with your player
         keys = pygame.key.get_pressed()
