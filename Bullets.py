@@ -10,27 +10,28 @@ def draw_AND_update_Bullets(player):
 
 class Bullets:
     BulletLS=[]
+
+    bullet_types = {
+        "AK-7_bullet": (
+            pygame.image.load("arsenal-images/bullets/AK-7_bullet.png").convert_alpha(),
+            (-15, 15),  # relative offset from the player
+            20,  # ttl
+            25,  # speed
+            2,  # damage
+            0.2  # scale
+        ),
+        "arrow": (
+            pygame.image.load("arsenal-images/bullets/arrow.png").convert_alpha(),
+            (-15, 5),  # relative offset from the player
+            50,  # ttl
+            20,  # speed
+            5,  # damage
+            1  # scale
+        )
+    }
+
     def __init__(self, weapon, player_x, player_y, mouse_x, mouse_y,scroll):
         self.display_surface = pygame.display.get_surface()
-
-        self.bullet_types = {
-            "AK-7_bullet": (
-                pygame.image.load("arsenal-images/bullets/AK-7_bullet.png").convert_alpha(),
-                (-15,15),  # relative offset from the player
-                20,  # ttl
-                25,    # speed
-                2,     # damage
-                0.2 #scale
-            ),
-            "arrow":(
-                pygame.image.load("arsenal-images/bullets/arrow.png").convert_alpha(),
-                (-15, 5),  # relative offset from the player
-                50,  # ttl
-                20,  # speed
-                5,  # damage
-                1  # scale
-            )
-        }
 
         self.image_bullet,coordinates, self.ttl, self.speed,self.damage,self.scale = self.bullet_types[weapon.bullet]
         self.offset_x, self.offset_y = coordinates
