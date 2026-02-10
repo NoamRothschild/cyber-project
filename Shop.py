@@ -17,7 +17,7 @@ class ShopUI:
             "domain_expansion": 500
         }
 
-        #  bullet_name -> (price, amount)
+        #  bullet_name -- (price, amount)
         self.ammo_packs = {
             "AK-7_bullet": (15, 5),
             "arrow": (10, 10)
