@@ -19,7 +19,7 @@ class ShopUI:
 
         #  bullet_name -> (price, amount)
         self.ammo_packs = {
-            "AK-7_bullet": (15, 30),
+            "AK-7_bullet": (15, 5),
             "arrow": (10, 10)
         }
 
@@ -116,10 +116,12 @@ class ShopUI:
         if kind == "weapon":
             player.inventory.add_item_toThe_Inventory(Arsenal(name))
         else:
-            if not hasattr(player, "ammo_reserve"):
-                player.ammo_reserve = {}
+            if not hasattr(player, "ammo_collection"):
+                player.ammo_collection = {}
             _, amount = self.ammo_packs[name]
-            player.ammo_reserve[name] = player.ammo_reserve.get(name, 0) + amount  #ᓚᘏᗢ
+            player.ammo_collection[name] = player.ammo_collection.get(name, 0) + amount
+
+    #ᓚᘏᗢ
 
 
 

@@ -36,9 +36,9 @@ class Player(pygame.sprite.Sprite):
         self.money = 200
         self.shop_ui = ShopUI()
 
-        self.ammo_reserve={
-            "AK-7_bullet":90,
-            "arrow":30
+        self.ammo_collection={
+            "AK-7_bullet":1,
+            "arrow":1
         }
 
         self.inventory = Inventory()
@@ -99,18 +99,16 @@ class Player(pygame.sprite.Sprite):
             if now - self.last_r_press >= w.fire_cooldown:
                 self.last_r_press = now
 
-                # נשקי melee / בלי קליע
                 if w.bullet == "null":
                     w.refill_mag()
                 else:
-                    # קיבולת מחסנית מה-Arsenal_gunType (index 5 = mag)
-                    cap = Arsenal.Arsenal_gunType[w.gun_type][5]
-                    need = max(0, cap - w.mag)
-                    have = self.ammo_reserve.get(w.bullet, 0)
+                    capability = Arsenal.Arsenal_gunType[w.gun_type][5]
+                    need = max(0, capability - w.mag)
+                    have = self.ammo_collection.get(w.bullet, 0)
                     take = min(need, have)
 
                     w.mag += take
-                    self.ammo_reserve[w.bullet] = have - take
+                    self.ammo_collection[w.bullet] = have - take
 
         mouse_buttons = pygame.mouse.get_pressed()
 
