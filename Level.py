@@ -20,6 +20,9 @@ class Level:
 
         self.draw_map()
 
+    def handle_event(self, event):
+        self.player.shop_ui.handle_event(event, self.player)
+
     def draw_map(self):
         for rindex,row in enumerate(world_map):
             for cindex,col in enumerate(row):

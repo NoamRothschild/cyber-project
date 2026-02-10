@@ -8,6 +8,7 @@ from Bullets import *
 from Level import *
 from Game import *
 from Domain_Expansion import *
+from Shop import ShopUI
 
 PINK=(234,54,128)
 
@@ -31,6 +32,9 @@ class Player(pygame.sprite.Sprite):
 
         self.shop_open = False
         self.last_b_press = 0
+
+        self.money = 200
+        self.shop_ui = ShopUI()
 
         self.inventory = Inventory()
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"))
@@ -67,10 +71,9 @@ class Player(pygame.sprite.Sprite):
 
         if keys[pygame.K_b]:
             now = pygame.time.get_ticks()
-            if now - self.last_b_press > 300:  # מונע פתיחה 100 פעמים בלחיצה אחת
+            if now - self.last_b_press > 300:
                 self.last_b_press = now
-                self.shop_open = not self.shop_open
-
+                self.shop_ui.toggle()
 
         if keys[pygame.K_r]:
             now = pygame.time.get_ticks()
@@ -146,6 +149,7 @@ class Player(pygame.sprite.Sprite):
         self.input()
         draw_AND_update_Bullets(self)
         self.current_Weapon().draw_mag_stat()
+        self.shop_ui.draw(self.display_surface, self)
 
         self.move()
         self.check_if_collect(collecters)

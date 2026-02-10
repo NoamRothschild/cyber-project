@@ -32,6 +32,8 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.is_running = False
                     break
+                self.level.handle_event(event)
+
             if not self.is_running: break
 
             self.screen.blit(self.image,(0,0))
