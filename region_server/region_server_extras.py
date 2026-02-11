@@ -105,7 +105,7 @@ class ProjectileHandler:
         return update.SerializeToString()
 
 
-# TODO: sorround with a lock as well
+# TODO: surround with a lock as well
 clients: Set[Client] = set()
 
 projectile_handler = ProjectileHandler()
