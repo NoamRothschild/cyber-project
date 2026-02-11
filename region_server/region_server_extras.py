@@ -21,6 +21,7 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
     }
 }
 
+
 class ProjectileHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.lock = asyncio.Lock()
@@ -80,7 +81,7 @@ class ProjectileHandler:
         bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
         bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
         bullet["owner_uuid"] = client.user_id
-        bullet["already_hit"] = set[int]() # client ids that have been hit by this bullet
+        bullet["already_hit"] = set[int]()  # client ids that have been hit by this bullet
         bullet["x"] = client.pos[0]
         bullet["y"] = client.pos[1]
 
@@ -110,6 +111,7 @@ clients: Set[Client] = set()
 
 projectile_handler = ProjectileHandler()
 
+
 class Client:
     @staticmethod
     async def client_handler_setup(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -129,7 +131,6 @@ class Client:
             kind=region_net.HandshakeStart.SERVER_OK,
             user_id=user_id,
         ))
-        
 
         writer.write(handshake.SerializeToString())
         await writer.drain()
@@ -143,14 +144,15 @@ class Client:
         finally:
             clients.remove(self)
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int, user_id: int) -> None:
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int,
+                 user_id: int) -> None:
         self.reader = reader
         self.writer = writer
         self.writer_lock = asyncio.Lock()
         self.session_id = session_id
         self.user_id = user_id
         self.hp = 400
-        self.pos: Tuple[int, int] = (0, 0) # TODO: fetch this from the DB
+        self.pos: Tuple[int, int] = (0, 0)  # TODO: fetch this from the DB
 
     async def hit(self, count, hitter_id: int):
         self.hp -= count
@@ -197,4 +199,3 @@ class Client:
                 continue
             await client.write(data)
         print(f"data broadcasted to {len(clients) - 1} clients")
-
