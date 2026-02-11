@@ -65,7 +65,7 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
         self.point.x = player.rect.centerx - self.half_width
         self.point.y = player.rect.centery - self.half_height
         screen_rect = pygame.Rect(self.point.x, self.point.y, self.display.get_width(), self.display.get_height())
-        visible_now = [s for s in self.sprites() if s.rect.colliderect(screen_rect)]
+        visible_now = [s for s in self.sprites() if hasattr(s.rect, 'colliderect') and s.rect.colliderect(screen_rect)]
 
         for sprite in sorted(visible_now, key=lambda s: s.rect.bottom):
             if sprite.image is not None:
