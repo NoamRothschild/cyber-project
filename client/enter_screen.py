@@ -67,6 +67,10 @@ class EnterScreen:
         self.screen.blit(text_surf, text_rect)
 
     def run(self):
+        """
+        Main Loop.
+        Returns: session_id (str) if login success, None if closed.
+        """
         self.is_running = True
 
         while self.is_running:
@@ -78,6 +82,8 @@ class EnterScreen:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.is_running = False
+                    pygame.quit()
+                    return None  # <--- RETURN NONE IF USER CLOSES WINDOW
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if self.login_rect.collidepoint(event.pos):
@@ -87,41 +93,48 @@ class EnterScreen:
                         command = "REG"
                         user_name, password = self.log_in.run()
 
-            # --- Logic Handling (Connecting) ---
+            # --- Logic Handling ---
             if user_name and password:
-                # Update UI to show we are working
-                self.status_message = "Connecting to server..."
+                self.status_message = "Connecting..."
                 self.status_color = ACCENT
-                self.draw_screen(mouse_pos)  # Force a redraw so user sees "Connecting"
+                self.draw_screen(mouse_pos)
 
-
-                # Call the modified client_auth which now returns a string!
+                # 1. Connect
                 response = client_auth.connect(user_name, password, command)
 
+                # 2. Check if response is an error string (e.g. "SERVER_OFFLINE")
+                if isinstance(response, str):
+                    self.status_message = f"Error: {response}"
+                    self.status_color = ERROR_RED
 
-                if response.status == auth_net.Status.SUCCESS:
-                    print("Game Starting...")
-                    self.is_running = False  # Break loop to start game
-                elif response.status == auth_net.Status.FAILURE:
-                    self.status_message = "Login Failed: Incorrect credentials."
-                    self.status_color = ERROR_RED
-                elif response.status == auth_net.Status.TAKEN:
-                    self.status_message = "Registration Failed: Username taken."
-                    self.status_color = ERROR_RED
-                # elif response == "SERVER_OFFLINE":
-                #     self.status_message = "Error: Server is unreachable."
-                #     self.status_color = ERROR_RED
+                # 3. If not string, it's a Protobuf object
                 else:
-                    self.status_message = f"Unknown Error: {response}"
-                    self.status_color = ERROR_RED
+                    if response.status == auth_net.Status.SUCCESS:
+                        if command == "LOG":
+                            print(f"Login Success! Session: {response.session_id}")
+                            self.is_running = False
+                            pygame.display.quit()  # Close the login window
+                            return response.session_id  # <--- RETURN THE SESSION ID
+                        else:
+                            # Registration Success: Stay on screen
+                            self.status_message = "Registered! Please Login."
+                            self.status_color = SUCCESS_GREEN
+
+                    elif response.status == auth_net.Status.FAILURE:
+                        self.status_message = "Invalid Credentials."
+                        self.status_color = ERROR_RED
+                    elif response.status == auth_net.Status.TAKEN:
+                        self.status_message = "Username Taken."
+                        self.status_color = ERROR_RED
+                    else:
+                        self.status_message = "Unknown Server Response."
+                        self.status_color = ERROR_RED
 
             # --- Drawing ---
             self.draw_screen(mouse_pos)
             self.clock.tick(FPS)
 
-        pygame.quit()
-        sys.exit()
-
+        return None
     def draw_screen(self, mouse_pos):
         self.draw_gradient_bg()
 
