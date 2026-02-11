@@ -10,6 +10,7 @@ PINK = (234, 54, 128)
 HEALTH_BAR_SCALE = 400
 HEALTH_BAR_POS = [WIDTH - HEALTH_BAR_SCALE - 10, 10]
 HIT_BOX = -20, -10
+BASE_SPRITE_SPEED = 4
 
 
 class Player(pygame.sprite.Sprite):
@@ -19,7 +20,7 @@ class Player(pygame.sprite.Sprite):
         self.image.set_colorkey(PINK)  # background
         self.rect = self.image.get_rect(topleft=pos)
         self.hitbox = self.rect.inflate(HIT_BOX)  # where it gets hit by rocks
-        self.speed = 4  # for every move to x or right he moves 4 pixels
+        self.speed = BASE_SPRITE_SPEED  # for every move to x or right he moves 4 pixels
         self.direction = pygame.math.Vector2()  # a vector that contains if you should move 1 to the right (1,0),left(-1,0), up(0,-1), down(0,1);
         self.obstacle_sprites, self.harmful_sprites = other_groups  # rocks and such
         self.inventory = Inventory()
