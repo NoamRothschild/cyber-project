@@ -11,7 +11,7 @@ class Level:
 
         self.visible_sprites = Camera()
         self.obstacle_sprites = pygame.sprite.Group()
-        self.harmfull_sprites = pygame.sprite.Group()
+        self.harmful_sprites = pygame.sprite.Group()
 
         self.image = [pygame.image.load('rock.png').convert(), pygame.image.load('tree.png').convert(),
                       pygame.image.load('water.png').convert()]
@@ -44,7 +44,7 @@ class Level:
                     tree_count += 1
 
         self.player = Player((370 * SIZE, 163 * SIZE), [self.visible_sprites],
-                             [self.obstacle_sprites, self.harmfull_sprites])
+                             [self.obstacle_sprites, self.harmful_sprites])
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
