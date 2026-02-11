@@ -11,7 +11,7 @@ HEALTH_BAR_SCALE=400
 HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups, other_groups):
-        super().__init__(groups)  # the groups for now is only visable sprite
+        super().__init__(groups)  # the groups for now is only visible sprite
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)  # background
         self.rect = self.image.get_rect(topleft=pos)
