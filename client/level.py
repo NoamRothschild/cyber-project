@@ -39,7 +39,7 @@ class Level:
                     Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites], self.image[0], "rock")
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 1 == 0:
-                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites, self.harmfull_sprites],
+                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites],
                              self.image[1], "tree")
                     tree_count += 1
 

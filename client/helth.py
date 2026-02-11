@@ -21,8 +21,6 @@ class HealthBar(pygame.sprite.Sprite):
     def draw(self,x=None,y=None):
 
         if x is not None and y is not None:
-
-            print (" hii alon ")
             plus_draw_rect = self.plus_rect.move(-x, -y)
             minus_draw_rect = self.minus_rect.move(-x, -y)
 
