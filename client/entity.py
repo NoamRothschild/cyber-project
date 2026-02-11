@@ -6,7 +6,7 @@ from helth import HealthBar
 
 # TODO: display entity's hp bar above them
 SCALE_FROM_LIFE = 5
-
+BASE_HP = 400
 
 class Entity(pygame.sprite.Sprite):
     def __init__(self, groups: Any, pos: Tuple[int, int]) -> None:
@@ -17,7 +17,7 @@ class Entity(pygame.sprite.Sprite):
         # pos is the hitbox position (matching what Player sends)
         self.hitbox = pygame.Rect(pos[0], pos[1], self.rect.width - 20, self.rect.height - 10)
         self.rect.center = self.hitbox.center
-        self.hp = 400  # TODO: fetch from config
+        self.hp = BASE_HP  # TODO: fetch from config
         self.hp_b = HealthBar((self.hitbox.x, self.hitbox.y - 10), self.hp // SCALE_FROM_LIFE, groups[0])
 
     def move(self, new_pos: None | Tuple[int, int]):
