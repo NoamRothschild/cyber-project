@@ -20,7 +20,7 @@ class Player(pygame.sprite.Sprite):
         self.hitbox = self.rect.inflate(-20, -10)  # where it gets hit by rocks
         self.speed = 4  # for every move to x or right he moves 4 pixels
         self.direction = pygame.math.Vector2()  # a vector that contains if you should move 1 to the right (1,0),left(-1,0), up(0,-1), down(0,1);
-        self.obstacle_sprites, self.harmfull_sprites = other_groups  # rocks and such
+        self.obstacle_sprites, self.harmful_sprites = other_groups  # rocks and such
         self.inventory = Inventory()
         self.health = HealthBar(HEALTH_BAR_POS, HEALTH_BAR_SCALE)
 
@@ -101,7 +101,7 @@ class Player(pygame.sprite.Sprite):
                         self.hitbox.top = sprite.hitbox.bottom
 
     def check_harm_done(self, sprite):
-        if sprite in self.harmfull_sprites:
+        if sprite in self.harmful_sprites:
             self.health.sub_life(30)
 
     def update(self):  # call to all the player action
