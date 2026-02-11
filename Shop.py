@@ -1,4 +1,4 @@
-#Fixler the pro ᓚᘏᗢ
+# Fixler the pro ᓚᘏᗢ
 import pygame
 from Arsenal import Arsenal
 from Bullets import Bullets
@@ -31,8 +31,6 @@ class ShopUI:
         self.buy_button_rect = None
         self.bg_alpha = 180
 
-
-
     def all_items(self):
         items = []
         for w in self.weapon_prices:
@@ -41,15 +39,11 @@ class ShopUI:
             items.append(("ammo", b))
         return items
 
-
-
     def item_price(self, item):
         kind, name = item
         if kind == "weapon":
             return self.weapon_prices[name]
         return self.ammo_packs[name][0]
-
-
 
     def item_title(self, item):
         kind, name = item
@@ -57,9 +51,7 @@ class ShopUI:
             return name
         return f"{name} x{self.ammo_packs[name][1]}"
 
-
-
-    def item_icon(self, item): #ᓚᘏᗢ
+    def item_icon(self, item):  # ᓚᘏᗢ
         kind, name = item
 
         if kind == "weapon":
@@ -71,8 +63,6 @@ class ShopUI:
         img.set_colorkey(key)
         return img
 
-
-
     def toggle(self):
         self.open = not self.open
         self.item_rects = []
@@ -82,8 +72,6 @@ class ShopUI:
             items = self.all_items()
             if items:
                 self.selected = items[0]
-
-
 
     def handle_event(self, event, player):
         if not self.open:
@@ -100,8 +88,6 @@ class ShopUI:
             if self.buy_button_rect and self.buy_button_rect.collidepoint(mx, my):
                 self.buy(player)
 
-
-
     def buy(self, player):
         if not self.selected:
             return
@@ -109,7 +95,7 @@ class ShopUI:
         price = self.item_price(self.selected)
         if player.money < price:
             return
-                                            # ᓚᘏᗢ
+            # ᓚᘏᗢ
         kind, name = self.selected
         player.money -= price
 
@@ -121,9 +107,7 @@ class ShopUI:
             _, amount = self.ammo_packs[name]
             player.ammo_collection[name] = player.ammo_collection.get(name, 0) + amount
 
-    #ᓚᘏᗢ
-
-
+    # ᓚᘏᗢ
 
     def build_grid(self, left):
         if self.item_rects:
@@ -134,9 +118,9 @@ class ShopUI:
         card_h = 104
         icon_size = 80
         cols = 3
-                                             # ᓚᘏᗢ
+        # ᓚᘏᗢ
         x0 = left.x + padding
-        y0 = left.y + 78 #lower then titel
+        y0 = left.y + 78  # lower then titel
 
         items = self.all_items()
         for i, item in enumerate(items):
@@ -173,8 +157,6 @@ class ShopUI:
 
             self.item_rects.append((item, card_rect, icon, icon_rect))
 
-
-
     def get_item_stats(self, item):
         kind, name = item
 
@@ -197,14 +179,12 @@ class ShopUI:
         price, amount = self.ammo_packs[name]
         bullet_damage = Bullets.bullet_types[name][4]
 
-        return [                               #ᓚᘏᗢ
-            "Type: Ammo",                      #ᓚᘏᗢ
-            f"Bullet: {name}",                 #ᓚᘏᗢ
-            f"Adds: {amount}",                 #ᓚᘏᗢ
-            f"Bullet damage: {bullet_damage}", #ᓚᘏᗢ
+        return [  # ᓚᘏᗢ
+            "Type: Ammo",  # ᓚᘏᗢ
+            f"Bullet: {name}",  # ᓚᘏᗢ
+            f"Adds: {amount}",  # ᓚᘏᗢ
+            f"Bullet damage: {bullet_damage}",  # ᓚᘏᗢ
         ]
-
-
 
     # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-#
     # -=-=-=-=-=-=-=-=-draw=-=-=-=-=-=-=-=-=-=-#
@@ -212,13 +192,13 @@ class ShopUI:
     def draw(self, screen, player):
         if not self.open:
             return
-# ᓚᘏᗢ
+        # ᓚᘏᗢ
         w, h = screen.get_size()
 
         overlay = pygame.Surface((w, h), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, self.bg_alpha))
         screen.blit(overlay, (0, 0))
-                                                                         # ᓚᘏᗢ
+        # ᓚᘏᗢ
         panel = pygame.Rect(80, 60, w - 160, h - 120)
         pygame.draw.rect(screen, (25, 25, 25), panel, border_radius=16)
         pygame.draw.rect(screen, (80, 80, 80), panel, 2, border_radius=16)
@@ -236,15 +216,15 @@ class ShopUI:
         screen.blit(title, (left.x + 12, left.y + 12))
         screen.blit(money, (left.x + 12, left.y + 38))
 
-        #-=-=-=-=-=-=-GREED-=-=-=-=-=-#
-        self.build_grid(left)   #ᓚᘏᗢ
+        # -=-=-=-=-=-=-GREED-=-=-=-=-=-#
+        self.build_grid(left)  # ᓚᘏᗢ
         mx, my = pygame.mouse.get_pos()
 
         for item, rect, icon, icon_rect in self.item_rects:
             hovered = rect.collidepoint(mx, my)
             selected = (item == self.selected)
 
-            #-=-=-=-=-=-=-card bg-=-=-=-=-=-#
+            # -=-=-=-=-=-=-card bg-=-=-=-=-=-#
             bg = (44, 44, 44) if (hovered or selected) else (36, 36, 36)
             border = (255, 255, 255) if selected else ((170, 170, 170) if hovered else (90, 90, 90))
 
@@ -253,7 +233,7 @@ class ShopUI:
 
             screen.blit(icon, icon_rect.topleft)
 
-            #-=-=-=-=-=-=-price-=-=-=-=-=-#
+            # -=-=-=-=-=-=-price-=-=-=-=-=-#
             price = self.item_price(item)
             badge_txt = self.font.render(f"{price}$", True, (245, 245, 245))
             badge_pad_x = 8
@@ -266,7 +246,7 @@ class ShopUI:
             pygame.draw.rect(screen, (120, 120, 120), badge_rect, 1, border_radius=10)
             screen.blit(badge_txt, badge_txt.get_rect(center=badge_rect.center))
 
-            #-----name-----#
+            # -----name-----#
             kind, name = item
             label = name if kind == "weapon" else "AMMO"
             label_txt = self.font.render(label, True, (210, 210, 210))
@@ -295,7 +275,7 @@ class ShopUI:
         pygame.draw.rect(screen, (90, 90, 90), bg, 2, border_radius=14)
         screen.blit(img, img_rect.topleft)
 
-        #------------stats--------------#
+        # ------------stats--------------#
         stats = self.get_item_stats(self.selected)
 
         gap = 26

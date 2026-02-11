@@ -4,7 +4,7 @@ from Game import *
 from Game import Game
 
 
-#need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
+# need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
 
 class Arsenal:
     #     USE example
@@ -14,61 +14,62 @@ class Arsenal:
         "Ak-7": (pygame.image.load("arsenal-images/guns/Ak1.png").convert_alpha(),
                  "AK-7_bullet",
                  "not fixed",
-                 (15, 30), # relative offset from the player
-                 70, #scale
-                 15, #magzin
-                 250 #fire_cooldown in ms (0.25s)
+                 (15, 30),  # relative offset from the player
+                 70,  # scale
+                 15,  # magzin
+                 250  # fire_cooldown in ms (0.25s)
                  ),
 
         "rock": (pygame.image.load("rock.png").convert_alpha(),
                  "null",
                  "fixed",
-                 (4, 32), # relative offset from the player
-                 20, #scale
-                 0,#magzin
-                 -1 #fire_cooldown
+                 (4, 32),  # relative offset from the player
+                 20,  # scale
+                 0,  # magzin
+                 -1  # fire_cooldown
                  ),
 
         "domain_expansion": (pygame.image.load("arsenal-images/guns/domainExp.png").convert_alpha(),
-                 "null",
-                 "fixed",
-                (4, 32),  # relative offset from the player
-                20,  # scale
-                0,  # magzin
-                -1  # fire_cooldown
-                 ),
+                             "null",
+                             "fixed",
+                             (4, 32),  # relative offset from the player
+                             20,  # scale
+                             0,  # magzin
+                             -1  # fire_cooldown
+                             ),
 
         "bow": (pygame.image.load("arsenal-images/guns/bow.png").convert_alpha(),
                 "arrow",
                 "not fixed",
                 (15, 30),  # relative offset from the player
-                15, #scale
-                5, #magzin
-                500 #fire_cooldown
+                15,  # scale
+                5,  # magzin
+                500  # fire_cooldown
                 ),
         "sword": (pygame.image.load("arsenal-images/guns/sword.png").convert_alpha(),
-                 "null",
+                  "null",
                   "fixed",
                   (-5, 12),  # relative offset from the player
                   100,  # scale
                   0,  # magzin
                   -1  # fire_cooldown
-                 )
-        }
+                  )
+    }
 
     def __init__(self, gun_type):
-        #gun type - type of the gun c:
-        self.gun_type=gun_type
-        self.weapon_img,self.bullet,self.movement,coordinates,self.scale,self.mag,self.fire_cooldown =Arsenal.Arsenal_gunType[gun_type]
+        # gun type - type of the gun c:
+        self.gun_type = gun_type
+        self.weapon_img, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown = \
+        Arsenal.Arsenal_gunType[gun_type]
         self.weapon_img.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
         self.offset_x, self.offset_y = coordinates
 
-        self.rect=self.weapon_img.get_rect()
+        self.rect = self.weapon_img.get_rect()
 
     def refill_mag(self):
-        weapon_img,bullet,movement,coordinates,scale,mag,fire_cooldown =Arsenal.Arsenal_gunType[self.gun_type]
-        self.mag=mag
+        weapon_img, bullet, movement, coordinates, scale, mag, fire_cooldown = Arsenal.Arsenal_gunType[self.gun_type]
+        self.mag = mag
 
     def draw_for_inventory(self, i, low_x, low_y):
         if (i < 10):
@@ -95,8 +96,8 @@ class Arsenal:
             w, h = self.weapon_img.get_size()
             weapon_img = pygame.transform.scale(self.weapon_img, (self.scale, int(h * (self.scale / w))))
 
-            if self.gun_type=="sword":
-                angle = 360-45
+            if self.gun_type == "sword":
+                angle = 360 - 45
             else:
                 angle = 0
 
@@ -109,10 +110,8 @@ class Arsenal:
     def get_image(self):
         return self.weapon_img
 
-
     def get_name(self):
         return self.gun_type
-
 
     def draw_mag_stat(self):
         x = 300
