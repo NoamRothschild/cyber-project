@@ -27,7 +27,7 @@ message BulletShot {
 message HandshakeStart {
   Kind kind = 1;
   oneof payload {
-    int32 session_id = 2;
+    string session_id = 2;
   }
   optional int32 user_id = 3; // only set from server -> client
 
