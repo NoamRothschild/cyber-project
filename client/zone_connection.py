@@ -50,17 +50,33 @@ class ZoneConnection:
         return login_resp.user_id
 
     def open_fast_conn(self, session_id: int) -> None:
-        # TODO: IMPORTANT! retry after set timeout if no resp in case packet got lost
         handshake = region_net.HandshakeStart()
         handshake.session_id = session_id
         handshake.kind = handshake.LOGIN
+        handshake_bytes = handshake.SerializeToString()
 
-        self.fast_conn.sendto(handshake.SerializeToString(), (self.host, self.fast_port))
-        login_resp_raw = self.fast_conn.recv(BUFF_SIZE)
-        login_resp = region_net.HandshakeStart()
-        login_resp.ParseFromString(login_resp_raw)
-        if login_resp.kind != login_resp.SERVER_OK:
-            raise RuntimeError("failed connecting to udp zone: invalid session id")
+        udp_timeout_sec = 3.0
+        max_retries = 5
+        old_timeout = self.fast_conn.gettimeout()
+        self.fast_conn.settimeout(udp_timeout_sec)
+        try:
+            for attempt in range(max_retries):
+                self.fast_conn.sendto(handshake_bytes, (self.host, self.fast_port))
+                try:
+                    login_resp_raw = self.fast_conn.recv(BUFF_SIZE)
+                except socket.timeout:
+                    if attempt == max_retries - 1:
+                        raise RuntimeError("failed connecting to udp zone: no response after retries (packet loss?)")
+                    continue
+                if not login_resp_raw:
+                    continue
+                login_resp = region_net.HandshakeStart()
+                login_resp.ParseFromString(login_resp_raw)
+                if login_resp.kind != login_resp.SERVER_OK:
+                    raise RuntimeError("failed connecting to udp zone: invalid session id")
+                return
+        finally:
+            self.fast_conn.settimeout(old_timeout)
 
     def start_event_handler(self):
         listener = threading.Thread(target=event_handler, args=(self.game, self.message_queue,))
