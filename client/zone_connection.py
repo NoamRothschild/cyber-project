@@ -66,8 +66,16 @@ class ZoneConnection:
         listener = threading.Thread(target=event_handler, args=(self.game, self.message_queue,))
         listener.start()
 
+    def send_udp(self, update: region_net.RegionUpdate) -> None:
+        try:
+            update.seq_num = self.last_sent_seq
+            self.fast_conn.sendto(update.SerializeToString(), (self.host, self.fast_port))
+            self.last_sent_seq += 1
+        except Exception as e:
+            print(f"[WARN]: failed sending UDP update: {e}, falling back to TCP")
+            self.reliable_conn.sendall(update.SerializeToString())
+
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
-        """NOTE: currently uses TCP. TODO: move to udp"""
         if not should_update_location(self.server_known_pos, pos):
             return
 
@@ -77,9 +85,8 @@ class ZoneConnection:
                 x=pos[0], y=pos[1]
             )
         )
-
         self.server_known_pos = pos
-        self.fast_conn.sendto(update.SerializeToString(), (self.host, self.fast_port))
+        self.send_udp(update)
 
     def try_send_bullet(self, gun_type: str, angle: float, count: int) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
@@ -157,6 +164,8 @@ def server_listener(zone: ZoneConnection):
             if is_udp and parsed.seq_num and parsed.seq_num < zone.last_recevied_seq:
                 print(f"[INFO]: ignoring packet with {parsed.seq_num=} since max seq={zone.last_recevied_seq}")
                 continue
+            if is_udp:
+                zone.last_recevied_seq = max(zone.last_recevied_seq, parsed.seq_num)
 
             zone.message_queue.put(parsed)
 
