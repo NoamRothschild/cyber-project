@@ -8,6 +8,7 @@ import os
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
+BUSH_FRIQWENTY=30
 def preload_all_trees():
     folder_path = "Pixel Trees"
     if not os.path.exists(folder_path):
@@ -88,7 +89,7 @@ class Level:
                     ground_count = 0
                 else:
                     ground_count += 1
-                    if random.randint(0,10) == 1 and ground_count < 30:
+                    if random.randint(0,BUSH_FRIQWENTY) == 1 :
                         Rock((x * SIZE+SIZE/2, y * SIZE+SIZE/2), [self.visible_sprites],get_bushes(), " "," ")
 
 
