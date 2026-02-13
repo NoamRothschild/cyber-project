@@ -1,8 +1,5 @@
 # the main game loop
 # basic rejister and login loop
-from os import chdir
-chdir('/home/noamr/proj/cyber-project/client')
-
 from entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
@@ -11,6 +8,7 @@ from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
+import traceback
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
@@ -57,6 +55,7 @@ class Game:
             pygame.display.update()
             self.clock.tick(FPS)
 
+        self.zone.stop()
         pygame.quit()
         #sys.exit()
 
@@ -68,7 +67,14 @@ if __name__ == '__main__':
     RESET = '\033[0m'
     print(YELLOW + f"connecting to server at {ZONE_HOST}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
 
-    game = Game(ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT)
-    game.run()
+    try:
+        game = Game(ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT)
+        game.run()
+    except Exception as e:
+        print(f"[FATAL]: {e}")
+        game.zone.stop()
+        pygame.quit()
+        print(f"[TRACEBACK]: {traceback.format_exc()}")
+        sys.exit(1)
 
     print("finished-end")

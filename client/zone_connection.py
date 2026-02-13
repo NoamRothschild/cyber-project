@@ -1,5 +1,5 @@
 from __future__ import annotations
-from queue import Queue
+from queue import Empty, Queue
 import select
 import socket
 import threading
@@ -27,6 +27,9 @@ class ZoneConnection:
         self.message_queue: Queue[region_net.ServerResponse] = Queue()
         self.last_recevied_seq = 0
         self.last_sent_seq = 0
+        self._stop_event = threading.Event()
+        self._listener_thread: threading.Thread | None = None
+        self._event_handler_thread: threading.Thread | None = None
 
         self.game = game
 
@@ -45,8 +48,8 @@ class ZoneConnection:
             raise RuntimeError("failed connecting to zone: invalid session id")
         self.open_fast_conn(session_id)
 
-        listener = threading.Thread(target=server_listener, args=(self,))
-        listener.start()
+        self._listener_thread = threading.Thread(target=server_listener, args=(self,), daemon=True)
+        self._listener_thread.start()
         return login_resp.user_id
 
     def open_fast_conn(self, session_id: int) -> None:
@@ -79,8 +82,19 @@ class ZoneConnection:
             self.fast_conn.settimeout(old_timeout)
 
     def start_event_handler(self):
-        listener = threading.Thread(target=event_handler, args=(self.game, self.message_queue,))
-        listener.start()
+        self._event_handler_thread = threading.Thread(
+            target=event_handler, args=(self.game, self.message_queue, self._stop_event), daemon=True
+        )
+        self._event_handler_thread.start()
+
+    def stop(self) -> None:
+        """Signal listener and event_handler threads to exit, then join them. Call when client exits."""
+        self._stop_event.set()
+        self.message_queue.put(None)  # unblock event_handler
+        if self._listener_thread is not None:
+            self._listener_thread.join(timeout=2.0)
+        if self._event_handler_thread is not None:
+            self._event_handler_thread.join(timeout=2.0)
 
     def send_udp(self, update: region_net.RegionUpdate) -> None:
         update.seq_num = self.last_sent_seq
@@ -160,9 +174,12 @@ def server_listener(zone: ZoneConnection):
     sock_list = [zone.reliable_conn, zone.fast_conn]
     tcp_recv = lambda: zone.reliable_conn.recv(BUFF_SIZE)
     udp_recv = lambda: zone.fast_conn.recvfrom(BUFF_SIZE)[0]
+    select_timeout = 0.5
 
-    while True:
-        readable, _, _ = select.select(sock_list, [], [])
+    while not zone._stop_event.is_set():
+        readable, _, _ = select.select(sock_list, [], [], select_timeout)
+        if not readable:
+            continue
         for s in readable:
             receiver = tcp_recv
             is_udp = False
@@ -185,16 +202,21 @@ def server_listener(zone: ZoneConnection):
 
             zone.message_queue.put(parsed)
 
-def event_handler(game: Game, zone_queue: Queue[region_net.ServerResponse]):
+def event_handler(
+    game: Game, zone_queue: Queue[region_net.ServerResponse], stop_event: threading.Event
+):
     """
     Start this one in another thread
     Continiously polls queue events and updates acordingly
     """
     from bullets import Bullets
 
-    while True:
-        update = zone_queue.get()
-        if not update:
+    while not stop_event.is_set():
+        try:
+            update = zone_queue.get(timeout=0.5)
+        except Empty:
+            continue
+        if update is None:
             break
         print(f"received: {update}")
 
