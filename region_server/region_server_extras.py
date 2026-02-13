@@ -213,7 +213,7 @@ class Client:
             resp = region_net.ServerResponse()
             resp.sender_id = self.user_id
             resp.other_data.new_location.CopyFrom(region_net.LocationBlock(x=pos[0], y=pos[1]))
-            await self.broadcast(resp.SerializeToString())
+            await self.broadcast_udp(resp)
         elif payload_type == "bullet_shot":
             global projectile_handler
             update_bytes = await projectile_handler.add(update.bullet_shot, self)
