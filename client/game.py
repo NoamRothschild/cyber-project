@@ -1,5 +1,8 @@
 # the main game loop
 # basic rejister and login loop
+from os import chdir
+chdir('/home/noamr/proj/cyber-project/client')
+
 from entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
@@ -30,7 +33,8 @@ class Game:
         self.is_running = False
 
     def run(self):
-        self.user_id = self.zone.open_reliable_conn(self.session_id)
+        self.user_id = self.zone.open_connections(self.session_id)
+        self.zone.start_event_handler()
         self.is_running = True
 
         while self.is_running:

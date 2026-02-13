@@ -1,4 +1,6 @@
 from __future__ import annotations
+from queue import Queue
+import select
 import socket
 import threading
 from typing import Tuple, TYPE_CHECKING
@@ -22,10 +24,14 @@ class ZoneConnection:
         self.reliable_port = reliable_port
         self.fast_port = fast_port
 
+        self.message_queue: Queue[region_net.ServerResponse] = Queue()
+        self.last_recevied_seq = 0
+        self.last_sent_seq = 0
+
         self.game = game
 
-    def open_reliable_conn(self, session_id: int) -> int:
-        """opens the TCP conn and returns the user id. can throw"""
+    def open_connections(self, session_id: int) -> int:
+        """opens the TCP and UDP conn's and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
         handshake = region_net.HandshakeStart()
         handshake.session_id = session_id
@@ -37,10 +43,28 @@ class ZoneConnection:
         login_resp.ParseFromString(login_resp_raw)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
+        self.open_fast_conn(session_id)
 
-        listener = threading.Thread(target=server_listener, args=(self.game, self,))
+        listener = threading.Thread(target=server_listener, args=(self,))
         listener.start()
         return login_resp.user_id
+
+    def open_fast_conn(self, session_id: int) -> None:
+        # TODO: IMPORTANT! retry after set timeout if no resp in case packet got lost
+        handshake = region_net.HandshakeStart()
+        handshake.session_id = session_id
+        handshake.kind = handshake.LOGIN
+
+        self.fast_conn.sendto(handshake.SerializeToString(), (self.host, self.fast_port))
+        login_resp_raw = self.fast_conn.recv(BUFF_SIZE)
+        login_resp = region_net.HandshakeStart()
+        login_resp.ParseFromString(login_resp_raw)
+        if login_resp.kind != login_resp.SERVER_OK:
+            raise RuntimeError("failed connecting to udp zone: invalid session id")
+
+    def start_event_handler(self):
+        listener = threading.Thread(target=event_handler, args=(self.game, self.message_queue,))
+        listener.start()
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
@@ -105,41 +129,70 @@ def should_update_location(old_pos: Tuple[int, int], new_pos: Tuple[int, int], m
     return traveled_dst_squared > min_dst_squared
 
 
-def server_listener(game: Game, zone: ZoneConnection):
+def server_listener(zone: ZoneConnection):
     """
     Start this one in another thread
-    Assumes a connection has already been established in `game.region_conn`
+    Continiously polls server updates and pushes them into the queue
+    """
+    sock_list = [zone.reliable_conn, zone.fast_conn]
+    tcp_recv = lambda: zone.reliable_conn.recv(BUFF_SIZE)
+    udp_recv = lambda: zone.fast_conn.recvfrom(BUFF_SIZE)[0]
+
+    while True:
+        readable, _, _ = select.select(sock_list, [], [])
+        for s in readable:
+            receiver = tcp_recv
+            is_udp = False
+            if s == zone.fast_conn:
+                receiver = udp_recv
+                is_udp = True
+
+            server_raw = receiver()
+            if not server_raw:
+                continue
+
+            parsed = region_net.ServerResponse()
+            parsed.ParseFromString(server_raw)
+
+            if is_udp and parsed.seq_num and parsed.seq_num < zone.last_recevied_seq:
+                print(f"[INFO]: ignoring packet with {parsed.seq_num=} since max seq={zone.last_recevied_seq}")
+                continue
+
+            zone.message_queue.put(parsed)
+
+def event_handler(game: Game, zone_queue: Queue[region_net.ServerResponse]):
+    """
+    Start this one in another thread
+    Continiously polls queue events and updates acordingly
     """
     from bullets import Bullets
 
     while True:
-        server_raw = zone.reliable_conn.recv(BUFF_SIZE)
-        if not server_raw:
-            continue
-        parsed = region_net.ServerResponse()
-        parsed.ParseFromString(server_raw)
-        print(f"received: {parsed}")
+        update = zone_queue.get()
+        if not update:
+            break
+        print(f"received: {update}")
 
-        payload_type = parsed.WhichOneof("payload")
+        payload_type = update.WhichOneof("payload")
         print(f'{payload_type=}')
         if payload_type == "move_self":
             print("force moving self...")
             # TODO: have a lock sorrounding player hitbox
             hb = game.level.player.hitbox
-            hb.x = parsed.move_self.x
-            hb.y = parsed.move_self.y
+            hb.x = update.move_self.x
+            hb.y = update.move_self.y
         elif payload_type == "other_data":
-            payload_type = parsed.other_data.WhichOneof("payload")
+            payload_type = update.other_data.WhichOneof("payload")
             print(f"{payload_type=}")
             if payload_type == "new_location":
-                pos = parsed.other_data.new_location
-                game.level.entities.add_or_update([game.level.visible_sprites], parsed.sender_id, pos=(pos.x, pos.y))
+                pos = update.other_data.new_location
+                game.level.entities.add_or_update([game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y))
             elif payload_type == "HP":
                 health_elem = game.level.player.health
-                new_hp = parsed.other_data.HP
-                print(f"{parsed.other_data.player_id=}")
-                if parsed.other_data.player_id != game.user_id:
-                    game.level.entities.add_or_update([game.level.visible_sprites], parsed.other_data.player_id, hp=new_hp)
+                new_hp = update.other_data.HP
+                print(f"{update.other_data.player_id=}")
+                if update.other_data.player_id != game.user_id:
+                    game.level.entities.add_or_update([game.level.visible_sprites], update.other_data.player_id, hp=new_hp)
                 else:
                     old_hp = health_elem.get_life()
                     diff = new_hp - old_hp
@@ -150,8 +203,8 @@ def server_listener(game: Game, zone: ZoneConnection):
                         health_elem.sub_life(abs(diff))
             # elif payload_type == "state":
             #     ...
-        elif len(parsed.bullet_shot) > 0:
-            inc_bullets = parsed.bullet_shot
+        elif len(update.bullet_shot) > 0:
+            inc_bullets = update.bullet_shot
             for bullet in inc_bullets:
                 Bullets.BulletLS.append(Bullets(
                     bullet.gun_type + '_bullet',
