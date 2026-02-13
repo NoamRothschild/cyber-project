@@ -10,7 +10,9 @@ from colectibes import Colectible_sprite
 pygame.init()
 
 
-class level:
+class Level:
+    Domain_Expansion_ls = []
+
     def __init__(self):
         self.display_surface = pygame.display.get_surface()
 
@@ -19,6 +21,9 @@ class level:
         self.colectible_sprite = pygame.sprite.Group()
 
         self.draw_map()
+
+    def handle_event(self, event):
+        self.player.shop_ui.handle_event(event, self.player)
 
     def draw_map(self):
         for rindex, row in enumerate(world_map):
@@ -29,7 +34,7 @@ class level:
                     Rock((x, y), [self.visible_sprites, self.obstacle_sprites])
                 if col == 't':
                     Colectible_sprite((x, y), [self.visible_sprites, self.colectible_sprite], "Ak-7", "weapon")
-                if col == 't':
+                if col == 'c':
                     Colectible_sprite((x, y), [self.visible_sprites, self.colectible_sprite], "speed", "potion")
                 if col == 'p':
                     self.player = Player((x, y), [self.visible_sprites], self.obstacle_sprites)

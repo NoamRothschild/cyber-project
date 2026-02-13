@@ -8,7 +8,6 @@ from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import ZoneConnection
 from mapset import WIDTH, HEIGHT
 
-
 class Game:
     SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
 
@@ -33,6 +32,8 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.is_running = False
                     break
+                self.level.handle_event(event)
+
             if not self.is_running: break
 
             self.screen.blit(self.image, (0, 0))
@@ -46,6 +47,7 @@ class Game:
 
         pygame.quit()
         # sys.exit()
+
 
 
 if __name__ == '__main__':
