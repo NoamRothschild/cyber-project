@@ -24,7 +24,7 @@ class ZoneConnection:
 
         self.game = game
 
-    def open_reliable_conn(self, session_id: int) -> int:
+    def open_reliable_conn(self, session_id: str) -> int:
         """opens the TCP conn and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
         handshake = region_net.HandshakeStart()
