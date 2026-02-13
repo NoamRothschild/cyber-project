@@ -1,9 +1,9 @@
 import pygame
 from mapset import WIDTH,HEIGHT
-from Game import Game
+from game import Game
 from mapset import *
 from  Arsenal import *
-from Game import *
+from game import *
 import time
 from colectibes import Colectible_sprite
 from potion import Potion

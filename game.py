@@ -3,7 +3,7 @@
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
 from mapset import *
-from Level import *
+from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import ZoneConnection
 from mapset import WIDTH, HEIGHT

@@ -1,7 +1,7 @@
 import pygame
 import math
-from Game import *
-from Game import Game
+from game import *
+from game import Game
 
 
 # need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )

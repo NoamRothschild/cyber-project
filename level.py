@@ -3,14 +3,14 @@ import pygame
 import Inventory
 from Inventory import *
 from mapset import *
-from Player import *
-from Rock import Rock
+from player import *
+from tile import Rock
 from colectibes import Colectible_sprite
 
 pygame.init()
 
 
-class Level:
+class level:
     Domain_Expansion_ls = []
 
     def __init__(self):

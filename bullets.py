@@ -1,5 +1,5 @@
 import pygame, math
-from Game import *
+from game import *
 
 
 
