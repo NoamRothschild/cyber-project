@@ -6,11 +6,11 @@ class Potion(pygame.sprite.Sprite):
     potions = {"healing": (pygame.image.load("rock.png").convert_alpha(),
                            "health_bar",
                            30, None),
-               "speed": (pygame.image.load("speed.png").convert_alpha(),
+               "speed": (pygame.image.load("client/Potion/speed.png").convert_alpha(),
                          "speed", # on what the potion has effect
                          10, #how much it does
                          6),# for how much time
-               "super_speed": (pygame.image.load("super_speed.png").convert_alpha(),
+               "super_speed": (pygame.image.load("client/Potion/super_speed.png").convert_alpha(),
                                "speed",
                                40,
                                10)
