@@ -67,13 +67,13 @@ class ZoneConnection:
         listener.start()
 
     def send_udp(self, update: region_net.RegionUpdate) -> None:
+        update.seq_num = self.last_sent_seq
         try:
-            update.seq_num = self.last_sent_seq
             self.fast_conn.sendto(update.SerializeToString(), (self.host, self.fast_port))
-            self.last_sent_seq += 1
         except Exception as e:
             print(f"[WARN]: failed sending UDP update: {e}, falling back to TCP")
             self.reliable_conn.sendall(update.SerializeToString())
+        self.last_sent_seq += 1
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         if not should_update_location(self.server_known_pos, pos):
