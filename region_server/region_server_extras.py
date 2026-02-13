@@ -136,6 +136,25 @@ class Client:
 
         global clients
         self = Client(reader, writer, session_id, user_id)
+
+        # when a new player joins:
+        # 1. provide the new client everyone's location (ServerResponse so client can render entities)
+        # 2. provide everyone the new client's location
+        for client in clients.values():
+            resp_to_new = region_net.ServerResponse()
+            resp_to_new.sender_id = client.user_id
+            resp_to_new.other_data.new_location.CopyFrom(
+                region_net.LocationBlock(x=client.pos[0], y=client.pos[1])
+            )
+            await self.write(resp_to_new.SerializeToString())
+
+            resp_to_other = region_net.ServerResponse()
+            resp_to_other.sender_id = self.user_id
+            resp_to_other.other_data.new_location.CopyFrom(
+                region_net.LocationBlock(x=self.pos[0], y=self.pos[1])
+            )
+            await client.write(resp_to_other.SerializeToString())
+
         clients[session_id] = self
 
         try:
