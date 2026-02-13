@@ -1,15 +1,16 @@
 from __future__ import annotations
-import protobuf.region_net_pb2 as region_net
 from region_server_extras import *
 import asyncio
-from config import ZONE_HOST, ZONE_TCP_PORT
+import aioudp
+from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 
 async def main() -> None:
     server = await asyncio.start_server(Client.client_handler_setup, ZONE_HOST, ZONE_TCP_PORT)
     projectile_handler.create_background_task()
 
-    async with server:
-        await server.serve_forever()
+    async with aioudp.serve(ZONE_HOST, ZONE_UDP_PORT, Client.udp_handler):
+        async with server:
+            await server.serve_forever()
 
 
 if __name__ == "__main__":

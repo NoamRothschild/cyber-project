@@ -7,6 +7,7 @@ message RegionUpdate {
     LocationBlock location_block = 1;
     BulletShot bullet_shot = 2;
   }
+  optional uint64 seq_num = 3;
 }
 
 message LocationBlock {
@@ -34,6 +35,7 @@ message HandshakeStart {
   enum Kind {
     LOGIN = 0;
     SERVER_OK = 1;
+    SERVER_FAIL_INVALID_SESSION_ID = 2;
   }
 }
 
@@ -57,4 +59,5 @@ message ServerResponse {
     OtherPlayerData other_data = 3;
   }
   repeated BulletShot bullet_shot = 4;
+  optional uint64 seq_num = 5;
 }
