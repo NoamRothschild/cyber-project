@@ -1,11 +1,8 @@
 # the main game loop
 # basic rejister and login loop
-import protobuf.region_net_pb2 as region_net
-import pygame, sys
-from mapset import *
 from level import *
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
-from region_server_extras import ZoneConnection
+from region_server.region_server import ZoneConnection
 from mapset import WIDTH, HEIGHT
 
 class Game:

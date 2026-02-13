@@ -1,12 +1,6 @@
-import pygame
-from mapset import WIDTH,HEIGHT
-from game import Game
-from mapset import *
-from  Arsenal import *
-from game import *
+from client.Arsenal import *
 import time
-from colectibes import Colectible_sprite
-from potion import Potion
+from client.colectibes import Colectible_sprite
 
 
 class Inventory(pygame.sprite.Sprite):

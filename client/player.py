@@ -1,12 +1,8 @@
-import pygame
-
-from Arsenal import *
-from Arsenal import Arsenal
-from Inventory import *
-from bullets import *
-from level import *
-from game import *
-from domain_Expansion import *
+from client.Arsenal import *
+from client.Arsenal import Arsenal
+from client.Inventory import *
+from client.bullets import *
+from client.domain_Expansion import *
 from shop import ShopUI
 
 PINK = (234, 54, 128)

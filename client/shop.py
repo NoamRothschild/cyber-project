@@ -1,7 +1,7 @@
 # Fixler the pro ᓚᘏᗢ
 import pygame
-from Arsenal import Arsenal
-from bullets import Bullets
+from client.Arsenal import Arsenal
+from client.bullets import Bullets
 
 
 class ShopUI:

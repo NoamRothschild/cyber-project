@@ -1,11 +1,8 @@
-import pygame
-
-import Inventory
-from Inventory import *
+from client.Inventory import *
 from mapset import *
 from player import *
 from tile import Rock
-from colectibes import Colectible_sprite
+from client.colectibes import Colectible_sprite
 
 pygame.init()
 
