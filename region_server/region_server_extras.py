@@ -143,7 +143,7 @@ class Client:
         finally:
             clients.remove(self)
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int, user_id: int) -> None:
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: str, user_id: int) -> None:
         self.reader = reader
         self.writer = writer
         self.writer_lock = asyncio.Lock()
