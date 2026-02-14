@@ -57,7 +57,7 @@ class Bullets:
     ):
         self.display_surface = pygame.display.get_surface()
 
-        self.image_bullet, coordinates, self.ttl, self.speed, self.damage, self.scale = self.bullet_types[weapon.bullet]
+        self.image_bullet, coordinates, self.ttl, self.speed, self.damage, self.scale = self.bullet_types[bullet_type]
         self.offset_x, self.offset_y = coordinates
 
         # Scale and set transparency

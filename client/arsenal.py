@@ -55,8 +55,8 @@ class Arsenal:
     }
 
     def GetBulletType(self):
-        self.weapon, self.Bullet, coordinates = Arsenal.Arsenal_gunType[self.gun_type]
-        return self.Bullet
+
+        return self.bullet
 
     def __init__(self, gun_type):
         # gun type - type of the gun c:

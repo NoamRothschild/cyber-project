@@ -123,9 +123,8 @@ class Player(pygame.sprite.Sprite):
                             self.rect.centerx - WIDTH / 2,
                             self.rect.centery - HEIGHT / 2,
                         ]
-                        Bullets.BulletLS.append(
-                            Bullets(
-                                self.current_Weapon(),
+                        bullet=Bullets(
+                                self.current_Weapon().GetBulletType(),
                                 self.display_surface.get_width() / 2,
                                 self.display_surface.get_height() / 2,
                                 mouse_x=mouse_x,
@@ -133,15 +132,18 @@ class Player(pygame.sprite.Sprite):
                                 scroll=scroll,
                                 from_network=False,
                             )
-                        )
+
+
+
                         self.current_Weapon().mag -= 1
+                        ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
+                        Bullets.BulletLS.append(bullet)
             except:
                 print("error")
             if self.current_Weapon().gun_type == "domain_expansion":
                 Domain_Expansion.run(self)
 
-            ZoneConnectionSingleton().zone.try_send_bullet(gun_type, bullet.angle, count)
-            Bullets.BulletLS.append(bullet)
+
 
     def move(self):  # change x and y pos according to direction, speed
         if self.direction.magnitude() != 0:
