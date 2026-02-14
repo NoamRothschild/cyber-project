@@ -11,7 +11,6 @@ from bullets import *
 from domain_Expansion import *
 from shop import ShopUI
 from potion import Potion
-import traceback
 
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE=400
@@ -124,9 +123,7 @@ class Player(pygame.sprite.Sprite):
                             self.rect.centerx - WIDTH / 2,
                             self.rect.centery - HEIGHT / 2,
                         ]
-                        # Construct the local bullet (uses the client's bullet key)
-                        try:
-                            bullet = Bullets(
+                        bullet=Bullets(
                                 self.current_Weapon().GetBulletType(),
                                 self.display_surface.get_width() / 2,
                                 self.display_surface.get_height() / 2,
@@ -135,47 +132,14 @@ class Player(pygame.sprite.Sprite):
                                 scroll=scroll,
                                 from_network=False,
                             )
-                        except Exception as e:
-                            print("Failed to construct local bullet:", e)
-                            traceback.print_exc()
-                            # skip sending/updating this bullet
 
 
-                        # decrement local magazine
-                        try:
-                            self.current_Weapon().mag -= 1
-                        except Exception:
-                            pass
 
-                        # Prepare server-visible gun name (the server expects the weapon id, not the asset key)
-                        try:
-                            server_gun = self.current_Weapon().get_name()
-                        except Exception:
-                            server_gun = None
-
-                        # Debug log what we will send — this is the critical line to inspect when bullets "don't arrive"
-                        try:
-                            print(f"Shooting local bullet; local_key={self.current_Weapon().GetBulletType()}, server_gun={server_gun}, angle={bullet.angle:.3f}, pos=({bullet.x:.1f},{bullet.y:.1f})")
-                        except Exception:
-                            pass
-
-                        # Try to send to server (if connection exists). Don't let a send failure crash input handling.
-                        if server_gun is not None:
-                            try:
-                                ZoneConnectionSingleton().zone.try_send_bullet(server_gun, float(bullet.angle), 1)
-                            except Exception as e:
-                                print("Failed to send bullet to server:", e)
-                                traceback.print_exc()
-
-                        # Append locally so the firing player sees their own bullet immediately
-                        try:
-                            Bullets.BulletLS.append(bullet)
-                        except Exception as e:
-                            print("Failed to append local bullet:", e)
-                            traceback.print_exc()
-            except Exception as e:
-                print("Error in shooting flow:", e)
-                traceback.print_exc()
+                        self.current_Weapon().mag -= 1
+                        ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
+                        Bullets.BulletLS.append(bullet)
+            except:
+                print("error")
             if self.current_Weapon().gun_type == "domain_expansion":
                 Domain_Expansion.run(self)
 

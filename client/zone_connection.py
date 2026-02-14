@@ -59,12 +59,6 @@ class ZoneConnection:
 
     def try_send_bullet(self, gun_type: str, angle: float, count: int) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
-        # debug print for outgoing bullet
-        try:
-            print(f"OUTGOING bullet -> gun_type={gun_type}, angle={angle}, count={count}")
-        except Exception:
-            pass
-
         update = region_net.RegionUpdate()
         update.bullet_shot.CopyFrom(
             region_net.BulletShot(
@@ -72,10 +66,7 @@ class ZoneConnection:
             )
         )
 
-        try:
-            self.reliable_conn.sendall(update.SerializeToString())
-        except Exception as e:
-            print(f"Failed to send bullet update to server: {e}")
+        self.reliable_conn.sendall(update.SerializeToString())
 
 
 class ZoneConnectionSingleton:
@@ -120,11 +111,6 @@ def server_listener(game: Game, zone: ZoneConnection):
     Assumes a connection has already been established in `game.region_conn`
     """
     from bullets import Bullets
-    # Try to import arsenal to map server gun type -> client bullet key
-    try:
-        from arsenal import Arsenal
-    except Exception:
-        Arsenal = None
 
     while True:
         server_raw = zone.reliable_conn.recv(BUFF_SIZE)
@@ -167,28 +153,10 @@ def server_listener(game: Game, zone: ZoneConnection):
         elif len(parsed.bullet_shot) > 0:
             inc_bullets = parsed.bullet_shot
             for bullet in inc_bullets:
-                # Map server gun_type -> client bullet key using Arsenal config when available.
-                if Arsenal is not None:
-                    try:
-                        bullet_key = Arsenal.Arsenal_gunType[bullet.gun_type][1]
-                    except Exception:
-                        bullet_key = f"{bullet.gun_type}_bullet"
-                else:
-                    bullet_key = f"{bullet.gun_type}_bullet"
+                Bullets.BulletLS.append(Bullets(
+                    bullet.gun_type + '_bullet',
+                    bullet.x, bullet.y,
+                    angle=bullet.angle,
+                    from_network=True)
+                )
 
-                # Debug incoming bullets
-                try:
-                    print(f"INCOMING bullet_shot from server: server_gun_type={bullet.gun_type}, mapped_key={bullet_key}, x={bullet.x}, y={bullet.y}, angle={bullet.angle}")
-                except Exception:
-                    pass
-
-                try:
-                    Bullets.BulletLS.append(Bullets(
-                        bullet_key,
-                        bullet.x, bullet.y,
-                        angle=bullet.angle,
-                        from_network=True)
-                    )
-                except Exception as e:
-                    # Log and continue instead of crashing the listener thread
-                    print(f"Failed to construct network bullet (gun_type={bullet.gun_type} -> key={bullet_key}): {e}")
