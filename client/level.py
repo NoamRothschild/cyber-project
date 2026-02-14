@@ -1,4 +1,4 @@
-from client.Inventory import *
+from client.inventory import *
 from mapset import *
 from player import *
 from tile import Rock
