@@ -1,6 +1,6 @@
 import pygame
 from mapset import *
-from client.Arsenal import Arsenal
+from client.arsenal import Arsenal
 from potion import Potion
 
 blue=(23, 130, 184)

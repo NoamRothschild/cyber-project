@@ -1,5 +1,5 @@
-from client.Arsenal import *
-from client.Arsenal import Arsenal
+from client.arsenal import *
+from client.arsenal import Arsenal
 from client.Inventory import *
 from client.bullets import *
 from client.domain_Expansion import *

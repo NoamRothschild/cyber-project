@@ -1,6 +1,6 @@
 # Fixler the pro ᓚᘏᗢ
 import pygame
-from client.Arsenal import Arsenal
+from client.arsenal import Arsenal
 from client.bullets import Bullets
 
 

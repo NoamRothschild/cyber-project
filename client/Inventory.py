@@ -1,4 +1,4 @@
-from client.Arsenal import *
+from client.arsenal import *
 import time
 from client.colectibes import Colectible_sprite
 
