@@ -54,6 +54,12 @@ class Arsenal:
                   )
     }
 
+    @staticmethod
+    def bullet_from_gun(gun_type: str, default_fmt = '{}_bullet') -> str:
+        if gun := Arsenal.Arsenal_gunType.get(gun_type):
+            return gun[1] # index 1 -> bullet type
+        return default_fmt.format(gun_type)
+
     def GetBulletType(self):
 
         return self.bullet

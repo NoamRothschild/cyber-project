@@ -3,6 +3,7 @@ import socket
 import threading
 from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
+from arsenal import Arsenal
 
 if TYPE_CHECKING:
     # Imported only for type checking to avoid circular imports at runtime
@@ -154,7 +155,7 @@ def server_listener(game: Game, zone: ZoneConnection):
             inc_bullets = parsed.bullet_shot
             for bullet in inc_bullets:
                 Bullets.BulletLS.append(Bullets(
-                    bullet.gun_type + '_bullet',
+                    Arsenal.bullet_from_gun(bullet.gun_type),
                     bullet.x, bullet.y,
                     angle=bullet.angle,
                     from_network=True)
