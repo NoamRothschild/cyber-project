@@ -55,7 +55,7 @@ class ShopUI:
         kind, name = item
 
         if kind == "weapon":
-            img = Arsenal.Arsenal_gunType[name][0].copy()
+            img = Arsenal.get_weapon_img(name).copy()
         else:
             img = Bullets.bullet_types[name][0].copy()
 
