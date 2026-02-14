@@ -1,25 +1,141 @@
 # Provides utility functions for the client for easier communication with server
 from __future__ import annotations
 import asyncio
-import socket
-import threading
-from typing import Tuple, Set, TYPE_CHECKING
+from random import randint
+from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
-
-if TYPE_CHECKING:
-    from client.game import Game
+import math
 
 BUFF_SIZE = 1024
 
+# 60Hz tick rate
+TICK_INTERVAL_SEC = 1.0 / 60
+
+# TODO: might parse this from a bullets config json file
+BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
+    "Ak-7": {
+        "ttl": 50,
+        "speed": 20,
+        "damage": 1,
+        "range": 50,
+    }
+}
+
+class ProjectileHandler:
+    def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
+        self.lock = asyncio.Lock()
+        self.projectiles = []
+        self.tick_intervals = tick_intervals
+
+    async def ticker(self):
+        loop = asyncio.get_running_loop()
+        global clients
+        while True:
+            start_time = loop.time()
+            await self.tick()
+            sleep_time = self.tick_intervals - (loop.time() - start_time)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+
+    def create_background_task(self) -> None:
+        """Start the ticker so bullets move every tick. Call once at server startup."""
+        asyncio.create_task(self.ticker())
+
+    def bullet_hit(self, proj: dict, client: Client) -> bool:
+        dst_squared = (client.pos[0] - proj["x"]) ** 2 + (client.pos[1] - proj["y"]) ** 2
+        return dst_squared < proj["range"] ** 2
+
+    async def tick(self) -> None:
+        to_remove: list[dict] = []
+        global clients
+        async with self.lock:
+            for proj in self.projectiles:
+                proj["ttl"] -= 1
+                if proj["ttl"] <= 0:
+                    to_remove.append(proj)
+                    continue
+                proj["x"] += proj["velocity_x"]
+                proj["y"] += proj["velocity_y"]
+            for e in to_remove:
+                self.projectiles.remove(e)
+
+            for client in clients:
+                for proj in self.projectiles:
+                    if proj['owner_uuid'] == client.user_id:
+                        continue
+                    if client.user_id in proj["already_hit"]:
+                        continue
+
+                    if self.bullet_hit(proj, client):
+                        await client.hit(proj["damage"], proj["owner_uuid"])
+                        proj["already_hit"].add(client.user_id)
+
+    async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
+        template = BULLET_TYPES.get(bullet_shot.gun_type)
+        if not template:
+            print(f"Warn: unknown bullet type fired: {bullet_shot.gun_type} by user with id {client.user_id}")
+            return b''
+
+        bullet = template.copy()
+        bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
+        bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
+        bullet["owner_uuid"] = client.user_id
+        bullet["already_hit"] = set[int]() # client ids that have been hit by this bullet
+        bullet["x"] = client.pos[0]
+        bullet["y"] = client.pos[1]
+
+        update = region_net.ServerResponse(sender_id=client.user_id)
+
+        async with self.lock:
+            for i in range(bullet_shot.count):
+                blt = bullet.copy()
+                blt["x"] += i * blt["velocity_x"]
+                blt["y"] += i * blt["velocity_y"]
+                self.projectiles.append(blt)
+                update.bullet_shot.add(
+                    gun_type=bullet_shot.gun_type,
+                    angle=bullet_shot.angle,
+                    count=1,
+                    x=int(blt["x"]),
+                    y=int(blt["y"]),
+                    ttl=int(blt["ttl"]),
+                    speed=int(blt["speed"]),
+                )
+
+        return update.SerializeToString()
+
+
 # TODO: sorround with a lock as well
 clients: Set[Client] = set()
+
+projectile_handler = ProjectileHandler()
 
 class Client:
     @staticmethod
     async def client_handler_setup(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         print("new connection established")
+
+        handshake_raw = await reader.read(1024)
+        handshake = region_net.HandshakeStart()
+        handshake.ParseFromString(handshake_raw)
+        # TODO: verify the session id with the auth server && cache it
+        session_id = handshake.session_id
+
+        # TODO: get this one from the auth server
+        user_id = randint(0, 2 ** 31 - 1)
+
+        handshake.Clear()
+        handshake.CopyFrom(region_net.HandshakeStart(
+            kind=region_net.HandshakeStart.SERVER_OK,
+            user_id=user_id,
+        ))
+        
+
+        writer.write(handshake.SerializeToString())
+        await writer.drain()
+
         global clients
-        self = Client(reader, writer)
+        self = Client(reader, writer, session_id, user_id)
         clients.add(self)
 
         try:
@@ -27,10 +143,22 @@ class Client:
         finally:
             clients.remove(self)
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int, user_id: int) -> None:
         self.reader = reader
         self.writer = writer
         self.writer_lock = asyncio.Lock()
+        self.session_id = session_id
+        self.user_id = user_id
+        self.hp = 400
+        self.pos: Tuple[int, int] = (0, 0) # TODO: fetch this from the DB
+
+    async def hit(self, count, hitter_id: int):
+        self.hp -= count
+        update = region_net.ServerResponse()
+        update.sender_id = hitter_id
+        update.other_data.CopyFrom(region_net.OtherPlayerData(HP=self.hp, player_id=self.user_id))
+        await self.broadcast(update.SerializeToString())
+        await self.write(update.SerializeToString())
 
     async def handle(self):
         while True:
@@ -45,10 +173,17 @@ class Client:
             payload_type = update.WhichOneof("payload")
             if payload_type == "location_block":
                 pos = (update.location_block.x, update.location_block.y)
+                self.pos = pos
 
                 resp = region_net.ServerResponse()
+                resp.sender_id = self.user_id
                 resp.other_data.new_location.CopyFrom(region_net.LocationBlock(x=pos[0], y=pos[1]))
                 await self.broadcast(resp.SerializeToString())
+            elif payload_type == "bullet_shot":
+                global projectile_handler
+                update_bytes = await projectile_handler.add(update.bullet_shot, self)
+                if update_bytes:
+                    await self.broadcast(update_bytes)
 
     async def write(self, data: bytes):
         async with self.writer_lock:
@@ -60,85 +195,6 @@ class Client:
         for client in clients:
             if client == self:
                 continue
-            async with client.writer_lock:
-                self.writer.write(data)
-                await self.writer.drain()
+            await client.write(data)
         print(f"data broadcasted to {len(clients) - 1} clients")
 
-
-def server_listener(game: Game, zone: ZoneConnection):
-    """
-    Start this one in another thread
-    Assumes a connection has already been established in `game.region_conn`
-    """
-    while True:
-        server_raw = zone.reliable_conn.recv(BUFF_SIZE)
-        if not server_raw:
-            continue
-        parsed = region_net.ServerResponse()
-        parsed.ParseFromString(server_raw)
-        print(f"received: {parsed}")
-
-        payload_type = parsed.WhichOneof("payload")
-        print(f'{payload_type=}')
-        if payload_type == "move_self":
-            print("force moving self...")
-            # TODO: have a lock sorrounding player hitbox
-            hb = game.level.player.hitbox
-            hb.x = parsed.move_self.x
-            hb.y = parsed.move_self.y
-        elif payload_type == "other_data":
-            payload_type = parsed.other_data.WhichOneof("payload")
-            print(f"{payload_type=}")
-            # if payload_type == "new_location":
-            #     ...
-            # elif payload_type == "HP":
-            #     ...
-            # elif payload_type == "state":
-            #     ...
-
-
-class ZoneConnection:
-    def __init__(self, game: Game, host: str, reliable_port: int, fast_port: int) -> None:
-        # the position the server thinks we are at
-        self.server_known_pos: Tuple[int, int] = (0, 0)
-
-        # reliable -> TCP, fast -> UDP
-        self.reliable_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.fast_conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-        self.host = host
-        self.reliable_port = reliable_port
-        self.fast_port = fast_port
-
-        self.game = game
-
-    def open_reliable_conn(self) -> None:
-        """opens the TCP conn. can throw"""
-        self.reliable_conn.connect((self.host, self.reliable_port))
-        listener = threading.Thread(target=server_listener, args=(self.game, self,))
-        listener.start()
-
-    def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
-        """NOTE: currently uses TCP. TODO: move to udp"""
-        if not should_update_location(self.server_known_pos, pos):
-            return
-
-        update = region_net.RegionUpdate()
-        update.location_block.CopyFrom(
-            region_net.LocationBlock(
-                x=pos[0], y=pos[1]
-            )
-        )
-
-        self.server_known_pos = pos
-        self.reliable_conn.sendall(update.SerializeToString())
-
-def should_update_location(old_pos: Tuple[int, int], new_pos: Tuple[int, int], min_dst=5) -> bool:
-    """returns true when the distance between the two pos are above min_dst"""
-    if old_pos == new_pos:
-        return False
-    traveled_dst_squared = (old_pos[0] - new_pos[0]) ** 2 + (old_pos[1] - new_pos[1]) ** 2
-    min_dst_squared = min_dst ** 2
-
-    return traveled_dst_squared > min_dst_squared

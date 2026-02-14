@@ -1,19 +1,19 @@
-from client.arsenal import *
+import pygame
+from mapset import WIDTH,HEIGHT
+from mapset import *
+from arsenal import *
 import time
-from client.colectibes import Colectible_sprite
-
-
+from colectibes import Colectible_sprite
 class Inventory(pygame.sprite.Sprite):
 
 
     def __init__(self):
         super().__init__()
         self.image = pygame.image.load('inventory.png').convert()
-        # self.image=pygame.transform.scale(self.image,(WIDTH,self.image.get_height()))
-        self.image.set_colorkey(PINK)
+        self.image.set_colorkey(PINK)#image background
         self.rect = self.image.get_rect()
-        self.rect.y = HEIGHT - (self.rect.height)
-        self.rect.x = WIDTH / 2 - (self.rect.width / 2)
+        self.rect.y=HEIGHT-(self.rect.height)
+        self.rect.x=WIDTH/2-(self.rect.width/2)#putting the inventory in a specific place
         self.display = pygame.display.get_surface()
         # self.unused_weapons=pygame.sprite.Group()
         # self.potions=pygame.sprite.Group()

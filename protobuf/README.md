@@ -9,7 +9,10 @@ in order to be able to update the transfer protocol, we would need the protobuf 
 ### for linux (also for docker):
 
 ```bash
-sudo apt install protobuf-compiler
+wget https://github.com/protocolbuffers/protobuf/releases/download/v33.4/protoc-33.4-linux-x86_64.zip
+unzip protoc-33.4-linux-x86_64.zip -d protoc
+export PATH="$(pwd)/protoc/bin:$PATH"
+protoc --version
 ```
 
 ### for windows:

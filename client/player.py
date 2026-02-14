@@ -1,27 +1,31 @@
-from client.arsenal import *
-from client.arsenal import Arsenal
-from client.inventory import *
-from client.bullets import *
-from client.domain_Expansion import *
+from helth import HealthBar
+from inventory import *
+from bullets import *
+from bullets import Bullets
+from game import *
+from zone_connection import ZoneConnectionSingleton
+from mapset import *
+from arsenal import Arsenal
+from inventory import *
+from bullets import *
+from domain_Expansion import *
 from shop import ShopUI
 
+
 PINK = (234, 54, 128)
-
-
-
+HEALTH_BAR_SCALE=400
+HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos, groups, obstacle_sprites):
-        super().__init__(groups)
-        self.display_surface = pygame.display.get_surface()
-        self.screen_scroll = [0, 0]
-
+    def __init__(self, pos, groups, other_groups):
+        super().__init__(groups)  # the groups for now is only visable sprite
         self.image = pygame.image.load('player.png').convert_alpha()
-        self.image.set_colorkey(PINK)
+        self.image.set_colorkey(PINK)  # background
         self.rect = self.image.get_rect(topleft=pos)
+
         self.hitbox = self.rect.inflate(-20, -10)
         self.speed = 4
         self.direction = pygame.math.Vector2()
-        self.obstacle_sprites = obstacle_sprites
+        self.obstacle_sprites, self.harmfull_sprites = other_groups  # rocks and such
 
         self.last_r_press = 0
         self.last_shoot = 0
@@ -37,7 +41,7 @@ class Player(pygame.sprite.Sprite):
             "arrow": 1
         }
 
-        self.inventory = Inventory()
+        self.health = HealthBar(HEALTH_BAR_POS,HEALTH_BAR_SCALE)
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
@@ -48,7 +52,7 @@ class Player(pygame.sprite.Sprite):
     def current_Weapon(self):
         return self.inventory.wep_inventory[self.inventory.current_weapon]
 
-    def input(self):
+    def input(self):  # check if you want to move with your player
         keys = pygame.key.get_pressed()
 
         if self.shop_ui.open:
@@ -63,24 +67,20 @@ class Player(pygame.sprite.Sprite):
             return
 
         if keys[pygame.K_UP] or keys[pygame.K_w]:
+
             self.direction.y = -1
-            self.screen_scroll[1] -= self.speed
 
         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
             self.direction.y = 1
-            self.screen_scroll[1] += self.speed
         else:
             self.direction.y = 0
 
-        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            self.direction.x = -1
-            self.screen_scroll[0] -= self.speed
-
-        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            self.direction.x = 1
-            self.screen_scroll[0] += self.speed
-        else:
-            self.direction.x = 0
+            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+                self.direction.x = -1
+            elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+                self.direction.x = 1
+            else:
+                self.direction.x = 0
 
         if keys[pygame.K_b]:
             now = pygame.time.get_ticks()
@@ -116,26 +116,31 @@ class Player(pygame.sprite.Sprite):
                         self.last_shoot = now
 
                         mouse_x, mouse_y = pygame.mouse.get_pos()
+                        scroll = [
+                            self.rect.centerx - WIDTH / 2,
+                            self.rect.centery - HEIGHT / 2,
+                            ]
                         Bullets.BulletLS.append(
                             Bullets(
                                 self.current_Weapon(),
                                 self.display_surface.get_width() / 2,
                                 self.display_surface.get_height() / 2,
-                                mouse_x,
-                                mouse_y,
-                                self.screen_scroll
+                                mouse_x=mouse_x,
+                                mouse_y=mouse_y,
+                                scroll=scroll,
+                                from_network=False,
                             )
                         )
                         self.current_Weapon().mag -= 1
             except:
                 print("error")
-
             if self.current_Weapon().gun_type == "domain_expansion":
                 Domain_Expansion.run(self)
-                # Level.Domain_Expansion_ls.append("h")
-                # self.inventory.delete() delet from inventory when it used
 
-    def move(self):
+            ZoneConnectionSingleton().zone.try_send_bullet(gun_type, bullet.angle, count)
+            Bullets.BulletLS.append(bullet)
+
+    def move(self):  # change x and y pos according to direction, speed
         if self.direction.magnitude() != 0:
             self.direction = self.direction.normalize()
         self.hitbox.x += int(self.direction.x * self.speed)
@@ -145,20 +150,30 @@ class Player(pygame.sprite.Sprite):
         self.rect.center = self.hitbox.center
 
     def check_coalition(self, direction):
-        if direction == 'horizontal':
-            for sprite in self.obstacle_sprites:
-                if sprite.rect.colliderect(self.hitbox):
+
+        collision_sprites = pygame.sprite.spritecollide(self, self.obstacle_sprites, False)
+
+        for sprite in collision_sprites:
+
+            if sprite.hitbox.colliderect(self.hitbox):
+                self.check_harm_done(sprite)
+                if direction == 'horizontal':
                     if self.direction.x > 0:
-                        self.hitbox.right = sprite.rect.left
+                        self.hitbox.right = sprite.hitbox.left
                     elif self.direction.x < 0:
-                        self.hitbox.left = sprite.rect.right
-        if direction == 'vertical':
-            for sprite in self.obstacle_sprites:
-                if sprite.rect.colliderect(self.hitbox):
-                    if self.direction.y > 0:
-                        self.hitbox.bottom = sprite.rect.top
-                    elif self.direction.y < 0:
-                        self.hitbox.top = sprite.rect.bottom
+                        self.hitbox.left = sprite.hitbox.right
+
+
+                elif direction == 'vertical':
+                    if self.direction.y > 0:  # נע למטה
+                        self.hitbox.bottom = sprite.hitbox.top
+                    elif self.direction.y < 0:  # נע למעלה
+                        self.hitbox.top = sprite.hitbox.bottom
+
+    def check_harm_done(self, sprite):
+        if sprite in self.harmfull_sprites:
+            self.health.sub_life(30)
+
 
     def check_if_collect(self, collecters):
         for sprite in collecters:
@@ -177,5 +192,6 @@ class Player(pygame.sprite.Sprite):
         self.shop_ui.draw(self.display_surface, self)
 
         self.move()
+        self.inventory.open()
+        self.health.draw()
         self.check_if_collect(collecters)
-        self.inventory.open([self.groups()[0], collecters], self.rect, self)

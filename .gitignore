@@ -1,5 +1,7 @@
 protobuf/*.py
 protobuf/*.pyi
+**/config.py
+**/protobuf
 
 # ---- PYTHON DEFAULT GIT IGNORE ----
 

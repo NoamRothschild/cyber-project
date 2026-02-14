@@ -5,6 +5,7 @@ package game.region;
 message RegionUpdate {
   oneof payload {
     LocationBlock location_block = 1;
+    BulletShot bullet_shot = 2;
   }
 }
 
@@ -13,10 +14,22 @@ message LocationBlock {
   int32 y = 2;
 }
 
+message BulletShot {
+  string gun_type = 1;
+  float angle = 2;
+  int32 count = 3;
+  optional int32 x = 4;     // only set from server -> client
+  optional int32 y = 5;     // only set from server -> client
+  optional int32 ttl =  6;  // only set from server -> client
+  optional int32 speed = 7; // only set from server -> client
+}
+
 message HandshakeStart {
+  Kind kind = 1;
   oneof payload {
-    string session_id = 1;
+    int32 session_id = 2;
   }
+  optional int32 user_id = 3; // only set from server -> client
 
   enum Kind {
     LOGIN = 0;
@@ -30,6 +43,7 @@ message OtherPlayerData {
     int32 HP = 2;
     OtherState state = 3;
   }
+  int32 player_id = 4;
   enum OtherState {
     WALKING = 0;
     ATTACKING = 1;
@@ -37,8 +51,10 @@ message OtherPlayerData {
 }
 
 message ServerResponse {
+  int32 sender_id = 1;
   oneof payload {
-    LocationBlock move_self = 1; // force tp back - block invalid movements
-    OtherPlayerData other_data = 2;
+    LocationBlock move_self = 2; // force tp back - block invalid movements
+    OtherPlayerData other_data = 3;
   }
+  repeated BulletShot bullet_shot = 4;
 }
