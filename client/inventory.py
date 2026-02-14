@@ -12,7 +12,7 @@ class Inventory(pygame.sprite.Sprite):
         self.image = pygame.image.load('inventory.png').convert()
         self.image.set_colorkey(PINK)#image background
         self.rect = self.image.get_rect()
-        self.rect.y=HEIGHT-(self.rect.height)
+        self.rect.y=HEIGHT-self.rect.height
         self.rect.x=WIDTH/2-(self.rect.width/2)#putting the inventory in a specific place
         self.display = pygame.display.get_surface()
         # self.unused_weapons=pygame.sprite.Group()
@@ -34,8 +34,9 @@ class Inventory(pygame.sprite.Sprite):
         if not self.is_wep_empty():
             self.wep_inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
 
-    def open(self, group, prect, player):
+    def open(self, group, player):
         self.display.blit(self.image, self.rect)
+        prect=player.rect
         for i, wep in enumerate(self.wep_inventory):
             wep.draw_for_inventory(i, self.rect.x, self.rect.y)
         for i, potion in enumerate(self.potion_inventory):

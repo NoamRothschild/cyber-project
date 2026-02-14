@@ -4,14 +4,15 @@ from entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
 from mapset import *
-from level import *
+
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
-
+SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
+from level import *
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
     def __init__(self, host: str, tcp_port: int, udp_port: int):

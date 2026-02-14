@@ -1,5 +1,5 @@
 from __future__ import annotations
-from region_server.region_server_extras import *
+from region_server_extras import *
 import asyncio
 from config import ZONE_HOST, ZONE_TCP_PORT
 

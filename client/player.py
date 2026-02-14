@@ -10,7 +10,7 @@ from inventory import *
 from bullets import *
 from domain_Expansion import *
 from shop import ShopUI
-
+from potion import Potion
 
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE=400
@@ -18,6 +18,7 @@ HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
 class Player(pygame.sprite.Sprite):
     def __init__(self, pos, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
+        self.display_surface=pygame.display.get_surface()
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)  # background
         self.rect = self.image.get_rect(topleft=pos)
@@ -25,7 +26,9 @@ class Player(pygame.sprite.Sprite):
         self.hitbox = self.rect.inflate(-20, -10)
         self.speed = 4
         self.direction = pygame.math.Vector2()
-        self.obstacle_sprites, self.harmfull_sprites = other_groups  # rocks and such
+        self.obstacle_sprites, self.harmfull_sprites,self.colect_sprite = other_groups  # rocks and such
+
+        self.inventory = Inventory()
 
         self.last_r_press = 0
         self.last_shoot = 0
@@ -119,7 +122,7 @@ class Player(pygame.sprite.Sprite):
                         scroll = [
                             self.rect.centerx - WIDTH / 2,
                             self.rect.centery - HEIGHT / 2,
-                            ]
+                        ]
                         Bullets.BulletLS.append(
                             Bullets(
                                 self.current_Weapon(),
@@ -175,8 +178,8 @@ class Player(pygame.sprite.Sprite):
             self.health.sub_life(30)
 
 
-    def check_if_collect(self, collecters):
-        for sprite in collecters:
+    def check_if_collect(self):
+        for sprite in self.colect_sprite:
             if sprite.rect.colliderect(self.hitbox):
                 if sprite.kind == "weapon":
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "weapon")
@@ -185,13 +188,13 @@ class Player(pygame.sprite.Sprite):
                 sprite.kill()
                 break
 
-    def update(self, collecters):
+    def update(self):
         self.input()
         draw_AND_update_Bullets(self)
         self.current_Weapon().draw_mag_stat()
         self.shop_ui.draw(self.display_surface, self)
 
         self.move()
-        self.inventory.open()
+        self.inventory.open(self.colect_sprite,self)
         self.health.draw()
-        self.check_if_collect(collecters)
+        self.check_if_collect()

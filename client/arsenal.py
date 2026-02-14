@@ -60,6 +60,7 @@ class Arsenal:
 
     def __init__(self, gun_type):
         # gun type - type of the gun c:
+        self.display=pygame.display.get_surface()
         self.gun_type = gun_type
         self.weapon_img, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown = \
         Arsenal.Arsenal_gunType[gun_type]
@@ -75,7 +76,7 @@ class Arsenal:
 
     def draw_for_inventory(self, i, low_x, low_y):
         if (i < 10):
-            Game.SCREEN.blit(self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
+            self.display.blit(self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
         # drowing the gun with angle
@@ -107,7 +108,7 @@ class Arsenal:
 
         # draw
         rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
-        Game.SCREEN.blit(rotated, rect.topleft)
+        self.display.blit(rotated, rect.topleft)
 
     def get_image(self):
         return self.weapon_img
@@ -136,7 +137,7 @@ class Arsenal:
                 img_num.set_colorkey((23, 130, 184))
                 img_num = pygame.transform.scale(img_num, (17, 18))
 
-                Game.SCREEN.blit(img_num, (x + offset_x, y))
+                self.display.blit(img_num, (x + offset_x, y))
                 offset_x -= img_num.get_width()
 
             offset_x -= 10
@@ -150,7 +151,7 @@ class Arsenal:
             scale = 15
             img_bullet = pygame.transform.scale(img_bullet, (scale, int(h * (scale / w))))
 
-            Game.SCREEN.blit(img_bullet, (x + offset_x, y - 15))
+            self.display.blit(img_bullet, (x + offset_x, y - 15))
             return
         else:
             weapon_img = self.weapon_img
@@ -158,4 +159,4 @@ class Arsenal:
             scale = 35
             weapon_img = pygame.transform.scale(weapon_img, (scale, int(h * (scale / w))))
 
-            Game.SCREEN.blit(weapon_img, (x - w / 2, y))
+            self.display.blit(weapon_img, (x - w / 2, y))

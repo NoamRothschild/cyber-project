@@ -100,7 +100,7 @@ class Level:
 
 
         self.player = Player((370 * SIZE, 163 * SIZE), [self.visible_sprites],
-                             [self.obstacle_sprites, self.harmfull_sprites])
+                             [self.obstacle_sprites, self.harmfull_sprites,self.colectible_sprite])
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
