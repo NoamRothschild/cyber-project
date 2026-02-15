@@ -3,9 +3,9 @@ import time
 
 
 class Potion(pygame.sprite.Sprite):
-    potions = {"healing": (pygame.image.load("rock.png").convert_alpha(),
+    potions = {"healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
                            "health_bar",
-                           30, None),
+                           15, 3),
                "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
                          "speed", # on what the potion has effect
                          10, #how much it does
@@ -24,6 +24,7 @@ class Potion(pygame.sprite.Sprite):
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
 
+
     def draw_for_inventory(self, i, low_x, low_y):
         if (i < 10):
             self.display_surface.blit(self.smaller_v, (low_x + i * 31 + 369, low_y + 20))
@@ -36,8 +37,12 @@ class Potion(pygame.sprite.Sprite):
 
     def purpose(self, player):
         """doing the potion purpose"""
-        if self.potion_type == "healing":
-            pass
+        if self.what == "health_bar":
+            player.health.add_life(self.how_much)
+            if self.is_potion_is == False:
+                self.is_potion_is = True
+                self.last_heal= time.time()
+                self.delete_last_action_time = self.last_heal
         if self.what == "speed":
             player.speed += self.how_much
             self.old_speed = player.speed
@@ -48,9 +53,14 @@ class Potion(pygame.sprite.Sprite):
         """checking if the potion should stop its purpose"""
         if self.is_potion_is == True and self.ttl != None:
             current_time = time.time()
+            if (self.what == "health_bar" and current_time - self.last_heal >= 1):
+                self.last_heal = current_time
+                self.purpose(player)
             if current_time - self.delete_last_action_time > self.ttl:
                 if self.what == "speed":
                     player.speed -= self.how_much
                 self.delete_last_action_time = current_time
                 return True
+
+
         return False

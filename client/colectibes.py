@@ -16,6 +16,6 @@ class Colectible_sprite(pygame.sprite.Sprite):
         self.image.set_colorkey(blue)
 
         self.image = pygame.transform.scale(self.image,
-                                            (size / 2, self.image.get_height() * ((size / 2)) / self.image.get_width()))
+                                            (SIZE / 2, self.image.get_height() * ((SIZE / 2)) / self.image.get_width()))
         self.rect = self.image.get_rect()
         self.rect = self.image.get_rect(topleft=position)

@@ -15,7 +15,7 @@ class HealthBar(pygame.sprite.Sprite):
         self.plus_rect = pygame.Rect(pos[0],pos[1], self.width, self.height)
         x, y = self.plus_rect.topright
         self.minus_rect = pygame.Rect(x, y, 0, self.height)
-        self.shield_time = 1
+        self.shield_time = 0.5
         self.last_sub_life = time.time()
 
     def draw(self,x=None,y=None):

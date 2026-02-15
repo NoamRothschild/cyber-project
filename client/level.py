@@ -85,11 +85,11 @@ class Level:
                     Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites], self.image[0], "rock")
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 7 == 0:
-                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites],
+                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
                              get_trees(), "tree")
 
                     else:
-                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites],
+                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
                              self.image[1], "tree")
                     tree_count += 1
                     ground_count = 0
@@ -99,7 +99,7 @@ class Level:
                         Rock((x * SIZE+SIZE/2, y * SIZE+SIZE/2), [self.visible_sprites],get_bushes(), " "," ")
 
 
-        self.player = Player((370 * SIZE, 163 * SIZE), [self.visible_sprites],
+        self.player = Player( [self.visible_sprites],
                              [self.obstacle_sprites, self.harmfull_sprites,self.colectible_sprite])
 
     def run(self):

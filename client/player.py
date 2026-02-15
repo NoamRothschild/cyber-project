@@ -15,18 +15,20 @@ from potion import Potion
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE=400
 HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
+Starting_POS = (370 * SIZE, 163 * SIZE)
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos, groups, other_groups):
+    def __init__(self, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
         self.display_surface=pygame.display.get_surface()
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)  # background
-        self.rect = self.image.get_rect(topleft=pos)
+        self.rect = self.image.get_rect(topleft=Starting_POS)
 
         self.hitbox = self.rect.inflate(-20, -10)
         self.speed = 4
         self.direction = pygame.math.Vector2()
-        self.obstacle_sprites, self.harmfull_sprites,self.colect_sprite = other_groups  # rocks and such
+        self.groups = groups
+        self.obstacle_sprites, self.harmfull_sprites,self.colect_sprite = other_groups # rocks and such
 
         self.inventory = Inventory()
 
@@ -49,7 +51,7 @@ class Player(pygame.sprite.Sprite):
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Potion("super_speed"), "potion")
+        self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
         self.inventory.add_item_toThe_Inventory(Arsenal("domain_expansion"), "weapon")
 
     def current_Weapon(self):
@@ -162,7 +164,9 @@ class Player(pygame.sprite.Sprite):
 
             if sprite.hitbox.colliderect(self.hitbox):
                 self.check_harm_done(sprite)
+                self.check_harm_done(sprite)
                 if direction == 'horizontal':
+
                     if self.direction.x > 0:
                         self.hitbox.right = sprite.hitbox.left
                     elif self.direction.x < 0:
@@ -189,14 +193,21 @@ class Player(pygame.sprite.Sprite):
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "potion")
                 sprite.kill()
                 break
+    def dead(self):
+        if not self.health.is_alive():
+            self.inventory.delete_w([self.colect_sprite,self.groups[0]],self.rect)
+            self.health.add_life(HEALTH_BAR_SCALE)
+            self.rect.topleft = Starting_POS
+            self.hitbox.center=self.rect.center
 
     def update(self):
+        self.dead()
         self.input()
         draw_AND_update_Bullets(self)
         self.current_Weapon().draw_mag_stat()
         self.shop_ui.draw(self.display_surface, self)
 
         self.move()
-        self.inventory.open(self.colect_sprite,self)
+        self.inventory.open([self.colect_sprite,self.groups[0]],self)
         self.health.draw()
         self.check_if_collect()
