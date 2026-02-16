@@ -19,6 +19,7 @@ Starting_POS = (370 * SIZE, 163 * SIZE)
 class Player(pygame.sprite.Sprite):
     def __init__(self, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
+
         self.display_surface=pygame.display.get_surface()
         self.image = pygame.image.load('player.png').convert_alpha()
         self.image.set_colorkey(PINK)  # background
@@ -57,7 +58,7 @@ class Player(pygame.sprite.Sprite):
     def current_Weapon(self):
         return self.inventory.wep_inventory[self.inventory.current_weapon]
 
-    def input(self):  # check if you want to move with your player
+    def input(self,is_c_o):  # check if you want to move with your player
         keys = pygame.key.get_pressed()
 
         if self.shop_ui.open:
@@ -86,29 +87,29 @@ class Player(pygame.sprite.Sprite):
                 self.direction.x = 1
             else:
                 self.direction.x = 0
+        if not is_c_o:
+            if keys[pygame.K_b]:
+                now = pygame.time.get_ticks()
+                if now - self.last_b_press > 300:
+                    self.last_b_press = now
+                    self.shop_ui.toggle()
 
-        if keys[pygame.K_b]:
-            now = pygame.time.get_ticks()
-            if now - self.last_b_press > 300:
-                self.last_b_press = now
-                self.shop_ui.toggle()
+            if keys[pygame.K_r]:
+                w = self.current_Weapon()
+                now = pygame.time.get_ticks()
+                if now - self.last_r_press >= w.fire_cooldown:
+                    self.last_r_press = now
 
-        if keys[pygame.K_r]:
-            w = self.current_Weapon()
-            now = pygame.time.get_ticks()
-            if now - self.last_r_press >= w.fire_cooldown:
-                self.last_r_press = now
+                    if w.bullet == "null":
+                        w.refill_mag()
+                    else:
+                        capability = Arsenal.Arsenal_gunType[w.gun_type][5]
+                        need = max(0, capability - w.mag)
+                        have = self.ammo_collection.get(w.bullet, 0)
+                        take = min(need, have)
 
-                if w.bullet == "null":
-                    w.refill_mag()
-                else:
-                    capability = Arsenal.Arsenal_gunType[w.gun_type][5]
-                    need = max(0, capability - w.mag)
-                    have = self.ammo_collection.get(w.bullet, 0)
-                    take = min(need, have)
-
-                    w.mag += take
-                    self.ammo_collection[w.bullet] = have - take
+                        w.mag += take
+                        self.ammo_collection[w.bullet] = have - take
 
         mouse_buttons = pygame.mouse.get_pressed()
 
@@ -200,9 +201,9 @@ class Player(pygame.sprite.Sprite):
             self.rect.topleft = Starting_POS
             self.hitbox.center=self.rect.center
 
-    def update(self):
+    def update(self,is_c_o):
         self.dead()
-        self.input()
+        self.input(is_c_o)
         draw_AND_update_Bullets(self)
         self.current_Weapon().draw_mag_stat()
         self.shop_ui.draw(self.display_surface, self)

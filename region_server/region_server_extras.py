@@ -16,10 +16,16 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
     "Ak-7": {
         "ttl": 50,
         "speed": 20,
-        "damage": 1,
+        "damage": 30,
         "range": 50,
-    }
+    },
+    "bow": {
+        "ttl": 50,  # ttl
+        "speed": 20,  # speed
+        "damage": 5,  # damage
+        "range": 50,    }
 }
+
 
 class ProjectileHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:

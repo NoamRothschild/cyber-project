@@ -6,6 +6,7 @@ from colectibes import Colectible_sprite
 from PIL import Image
 import random
 import os
+from chat import *
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
@@ -56,7 +57,7 @@ class Level:
 
         self.image = [pygame.image.load('rock.png').convert(), pygame.image.load('tree.png').convert(),
                       pygame.image.load('water.png').convert()]
-
+        self.chat=Chat()
         self.entities = Entities()
         preload_all_bushes()
         preload_all_trees()
@@ -64,6 +65,9 @@ class Level:
 
     def handle_event(self, event):
         self.player.shop_ui.handle_event(event, self.player)
+        self.chat.handle_event(event)
+        if event.type == pygame.K_z:
+            self.chat.add_external_message("ai alon")
     def draw_map(self):  # crating a very basic map with small borders(need to be changed
         self.map_image = Image.open("map.png")
 
@@ -107,7 +111,8 @@ class Level:
 
         self.player.inventory.items_hendeling(self.player)
 
-        self.visible_sprites.update()
+        self.visible_sprites.update(self.chat.is_open)
+        self.chat.draw()
 
 class Camera(pygame.sprite.Group):  # a group that has every visible sprite that should be moved when the player does
     def __init__(self):
