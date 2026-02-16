@@ -5,7 +5,7 @@ import time
 class Potion(pygame.sprite.Sprite):
     potions = {"healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
                            "health_bar",
-                           15, 3),
+                           15, 15),
                "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
                          "speed", # on what the potion has effect
                          10, #how much it does
@@ -38,7 +38,7 @@ class Potion(pygame.sprite.Sprite):
     def purpose(self, player):
         """doing the potion purpose"""
         if self.what == "health_bar":
-            player.health.add_life(self.how_much)
+            player.health.add_life(self.how_much,True)
             if self.is_potion_is == False:
                 self.is_potion_is = True
                 self.last_heal= time.time()

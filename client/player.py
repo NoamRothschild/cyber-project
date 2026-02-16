@@ -197,7 +197,7 @@ class Player(pygame.sprite.Sprite):
     def dead(self):
         if not self.health.is_alive():
             self.inventory.delete_w([self.colect_sprite,self.groups[0]],self.rect)
-            self.health.add_life(HEALTH_BAR_SCALE)
+            self.health.add_life(HEALTH_BAR_SCALE,True)
             self.rect.topleft = Starting_POS
             self.hitbox.center=self.rect.center
 

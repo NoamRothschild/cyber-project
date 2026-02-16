@@ -68,7 +68,15 @@ class ZoneConnection:
         )
 
         self.reliable_conn.sendall(update.SerializeToString())
-
+    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+        print("hi avram")
+        update = region_net.RegionUpdate()
+        update.potion_use.CopyFrom(
+            region_net.PotionUse(
+                potion_type = potion_kind,HowMuch = how_much
+            )
+        )
+        self.reliable_conn.sendall(update.SerializeToString())
 
 class ZoneConnectionSingleton:
     _instance: None | ZoneConnectionSingleton = None
