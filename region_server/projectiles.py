@@ -19,8 +19,8 @@ class ProjectileHandler:
         self.tick_intervals = tick_intervals
 
     def bullet_hit(self, proj: dict, client: "Client") -> bool:
-        dst_squared = (client.pos[0] - proj["x"]) ** 2 + (
-            client.pos[1] - proj["y"]
+        dst_squared = (client.state.x - proj["x"]) ** 2 + (
+            client.state.y - proj["y"]
         ) ** 2
         return dst_squared < proj["range"] ** 2
 
@@ -61,8 +61,8 @@ class ProjectileHandler:
         bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
         bullet["owner_uuid"] = client.user_id
         bullet["already_hit"] = set()
-        bullet["x"] = client.pos[0]
-        bullet["y"] = client.pos[1]
+        bullet["x"] = client.state.x
+        bullet["y"] = client.state.y
 
         update = region_net.ServerResponse(sender_id=client.user_id)
 

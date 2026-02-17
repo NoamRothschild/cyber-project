@@ -1,7 +1,8 @@
 from __future__ import annotations
 import asyncio
+from dataclasses import dataclass, field
 from random import randint
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 import aioudp
 import protobuf.region_net_pb2 as region_net
 from constants import BUFF_SIZE
@@ -9,6 +10,24 @@ from state import get_client, nodes
 
 if TYPE_CHECKING:
     from region_node import RegionNode
+
+
+@dataclass
+class PlayerState:
+    x: int
+    y: int
+    hp: int = 400
+
+
+@dataclass
+class ConnectionState:
+    reader: asyncio.StreamReader
+    writer: asyncio.StreamWriter
+    writer_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    udp_conn: aioudp.Connection | None = None
+    stop_udp_conn: asyncio.Event = field(default_factory=asyncio.Event)
+    last_recevied_seq: int = 0
+    last_sent_seq: int = 0
 
 
 class Client:
@@ -55,21 +74,21 @@ class Client:
             resp_to_new = region_net.ServerResponse()
             resp_to_new.sender_id = client.user_id
             resp_to_new.other_data.new_location.CopyFrom(
-                region_net.LocationBlock(x=client.pos[0], y=client.pos[1])
+                region_net.LocationBlock(x=client.state.x, y=client.state.y)
             )
             await self.write(resp_to_new.SerializeToString())
 
             resp_to_other = region_net.ServerResponse()
             resp_to_other.sender_id = self.user_id
             resp_to_other.other_data.new_location.CopyFrom(
-                region_net.LocationBlock(x=self.pos[0], y=self.pos[1])
+                region_net.LocationBlock(x=self.state.x, y=self.state.y)
             )
             await client.write(resp_to_other.SerializeToString())
 
         try:
             await self.handle_tcp()
         finally:
-            self.stop_udp_conn.set()
+            self.conn_state.stop_udp_conn.set()
             del node.clients[session_id]
 
     @staticmethod
@@ -89,11 +108,11 @@ class Client:
             )
             await conn.send(handshake.SerializeToString())
 
-            cli.udp_conn = conn
+            cli.conn_state.udp_conn = conn
             try:
                 await cli.handle_udp(conn)
             finally:
-                cli.udp_conn = None
+                cli.conn_state.udp_conn = None
         else:
             handshake.Clear()
             handshake.CopyFrom(
@@ -111,25 +130,21 @@ class Client:
         user_id: int,
         node: "RegionNode",
     ) -> None:
-        self.reader = reader
-        self.writer = writer
-        self.writer_lock = asyncio.Lock()
-        self.udp_conn: aioudp.Connection | None = None
-        self.stop_udp_conn = asyncio.Event()
-        self.last_recevied_seq = 0
-        self.last_sent_seq = 0
         self.session_id = session_id
         self.user_id = user_id
         self.node = node
-        self.hp = 400
-        self.pos: Tuple[int, int] = (0, 0)  # TODO: fetch this from the DB
+        self.state = PlayerState(0, 0)
+        self.conn_state = ConnectionState(
+            reader, 
+            writer,
+        )
 
     async def hit(self, count: int, hitter_id: int) -> None:
-        self.hp -= count
+        self.state.hp -= count
         update = region_net.ServerResponse()
         update.sender_id = hitter_id
         update.other_data.CopyFrom(
-            region_net.OtherPlayerData(HP=self.hp, player_id=self.user_id)
+            region_net.OtherPlayerData(HP=self.state.hp, player_id=self.user_id)
         )
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
@@ -140,22 +155,22 @@ class Client:
         print(f"received: {update}")
         if source == Client.FROM_UDP:
             seq = update.seq_num
-            if seq and seq < self.last_recevied_seq:
+            if seq and seq < self.conn_state.last_recevied_seq:
                 print(
-                    f"[INFO]: ignoring packet with {seq=} since max seq={self.last_recevied_seq}"
+                    f"[INFO]: ignoring packet with {seq=} since max seq={self.conn_state.last_recevied_seq}"
                 )
                 return
-            self.last_recevied_seq = seq
+            self.conn_state.last_recevied_seq = seq
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
-            pos = (update.location_block.x, update.location_block.y)
-            self.pos = pos
+            self.state.x = update.location_block.x
+            self.state.y = update.location_block.y
 
             resp = region_net.ServerResponse()
             resp.sender_id = self.user_id
             resp.other_data.new_location.CopyFrom(
-                region_net.LocationBlock(x=pos[0], y=pos[1])
+                region_net.LocationBlock(x=self.state.x, y=self.state.y)
             )
             await self.broadcast_udp(resp)
         elif payload_type == "bullet_shot":
@@ -167,44 +182,44 @@ class Client:
 
     async def handle_tcp(self) -> None:
         while True:
-            data = await self.reader.read(BUFF_SIZE)
+            data = await self.conn_state.reader.read(BUFF_SIZE)
             if not data:
                 break
             await self.handle_region_update(data, Client.FROM_TCP)
 
     async def handle_udp(self, conn: aioudp.Connection) -> None:
-        while not self.stop_udp_conn.is_set():
+        while not self.conn_state.stop_udp_conn.is_set():
             message = await conn.recv()
             if not message:
-                self.udp_conn = None
+                self.conn_state.udp_conn = None
                 break
             await self.handle_region_update(message, Client.FROM_UDP)
 
     async def write_udp(self, data: region_net.ServerResponse) -> None:
-        data.seq_num = self.last_sent_seq
+        data.seq_num = self.conn_state.last_sent_seq
         raw = data.SerializeToString()
-        if conn := self.udp_conn:
+        if conn := self.conn_state.udp_conn:
             await conn.send(raw)
-            self.last_sent_seq += 1
+            self.conn_state.last_sent_seq += 1
         else:
             await self.write(raw)  # fallback to tcp when udp sock is not available
 
     async def write(self, data: bytes) -> None:
-        async with self.writer_lock:
-            self.writer.write(data)
-            await self.writer.drain()
+        async with self.conn_state.writer_lock:
+            self.conn_state.writer.write(data)
+            await self.conn_state.writer.drain()
 
     async def broadcast_udp(self, data: region_net.ServerResponse) -> None:
         for client in self.node.clients.values():
             if client == self:
                 continue
-            data.seq_num = client.last_sent_seq
+            data.seq_num = client.conn_state.last_sent_seq
             raw = data.SerializeToString()
 
             try:
-                if conn := client.udp_conn:
+                if conn := client.conn_state.udp_conn:
                     await conn.send(raw)
-                    client.last_sent_seq += 1
+                    client.conn_state.last_sent_seq += 1
                 else:
                     await client.write(
                         raw
