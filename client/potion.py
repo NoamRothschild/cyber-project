@@ -1,6 +1,6 @@
 import pygame
 import time
-
+from helth import HealthBar
 
 class Potion(pygame.sprite.Sprite):
     potions = {"healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
@@ -23,6 +23,7 @@ class Potion(pygame.sprite.Sprite):
         self.smaller_v = pygame.transform.scale(self.image, (30, 30))
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
+        self.health = HealthBar((0, 0), 30)
 
 
     def draw_for_inventory(self, i, low_x, low_y):
@@ -48,6 +49,11 @@ class Potion(pygame.sprite.Sprite):
             self.old_speed = player.speed
             self.is_potion_is = True
             self.delete_last_action_time = time.time()
+    def creat_bar(self,i,pos):
+        low_x,low_y = pos
+        self.health.move((low_x + i * 31 + 370, low_y-self.health.height))
+        self.health.draw()
+        self.delete_last_bar_sub=time.time()
 
     def should_it_stop(self, player):
         """checking if the potion should stop its purpose"""
@@ -56,11 +62,15 @@ class Potion(pygame.sprite.Sprite):
             if (self.what == "health_bar" and current_time - self.last_heal >= 1):
                 self.last_heal = current_time
                 self.purpose(player)
-            if current_time - self.delete_last_action_time > self.ttl:
+            elif current_time - self.delete_last_action_time > self.ttl:
                 if self.what == "speed":
                     player.speed -= self.how_much
                 self.delete_last_action_time = current_time
                 return True
+            elif current_time - self.delete_last_bar_sub > 1:
+                self.health.sub_life(30/self.ttl)
 
-
+                self.delete_last_bar_sub = current_time
+            self.health.draw()
+            print("bar bar")
         return False

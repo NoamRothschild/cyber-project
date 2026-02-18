@@ -8,6 +8,8 @@ class HealthBar(pygame.sprite.Sprite):
         if groups is not None:
             super().__init__(groups)
         self.height = scale//10
+        if self.height < 5:
+            self.height = 5
         self.width = scale
         self.rect = pygame.Rect(pos[0],pos[1],self.width,self.height)
 

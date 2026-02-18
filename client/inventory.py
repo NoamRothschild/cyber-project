@@ -79,6 +79,8 @@ class Inventory(pygame.sprite.Sprite):
                     i - 1].is_potion_is == False:
                     print("hii")
                     self.potion_inventory[i - 1].purpose(player)
+                    self.potion_inventory[i - 1].creat_bar((i - 1),self.rect.bottomleft)
+
         for i in range(10):
             if i < len(self.potion_inventory) and not self.is_potion_empty():
                 if self.potion_inventory[i].should_it_stop(player):

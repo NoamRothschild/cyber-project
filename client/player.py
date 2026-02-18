@@ -53,6 +53,7 @@ class Player(pygame.sprite.Sprite):
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
         self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
+        self.inventory.add_item_toThe_Inventory(Potion("speed"), "potion")
         self.inventory.add_item_toThe_Inventory(Arsenal("domain_expansion"), "weapon")
 
     def current_Weapon(self):
