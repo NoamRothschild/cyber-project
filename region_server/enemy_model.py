@@ -94,7 +94,7 @@ class EnemyModel:
         self.direction_x /= magnitude
         self.direction_y /= magnitude
 
-    def update_ai(self, now_ms: int, players: Sequence[PlayerSnapshot]) -> Optional[int]:
+    def update_state_machine(self, now_ms: int, players: Sequence[PlayerSnapshot]) -> Optional[int]:
         """
         Returns attacked_player_id if an attack happened, else None.
         """
