@@ -184,6 +184,7 @@ class Player(pygame.sprite.Sprite):
     def check_harm_done(self, sprite):
         if sprite in self.harmfull_sprites:
             self.health.sub_life(30)
+            Red_hit.start()
 
 
     def check_if_collect(self):

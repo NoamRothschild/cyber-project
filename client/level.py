@@ -113,6 +113,8 @@ class Level:
 
         self.visible_sprites.update(self.chat.is_open)
         self.chat.draw()
+        Green_hit.draw_fill()
+        Red_hit.draw_fill()
 
 class Camera(pygame.sprite.Group):  # a group that has every visible sprite that should be moved when the player does
     def __init__(self):

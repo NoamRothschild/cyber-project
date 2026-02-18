@@ -1,6 +1,8 @@
 import pygame
 import time
 from helth import HealthBar
+from mapset import *
+
 
 class Potion(pygame.sprite.Sprite):
     potions = {"healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
@@ -40,6 +42,7 @@ class Potion(pygame.sprite.Sprite):
         """doing the potion purpose"""
         if self.what == "health_bar":
             player.health.add_life(self.how_much,True)
+            Green_hit.start()
             if self.is_potion_is == False:
                 self.is_potion_is = True
                 self.last_heal= time.time()

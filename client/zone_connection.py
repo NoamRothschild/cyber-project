@@ -4,6 +4,7 @@ import threading
 from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
 from arsenal import Arsenal
+from mapset import *
 
 if TYPE_CHECKING:
     # Imported only for type checking to avoid circular imports at runtime
@@ -155,8 +156,10 @@ def server_listener(game: Game, zone: ZoneConnection):
                     print(f"player hp changed")
                     if diff > 0:
                         health_elem.add_life(diff)
+                        Green_hit.start()
                     elif diff < 0:
                         health_elem.sub_life(abs(diff))
+                        Red_hit.start()
             # elif payload_type == "state":
             #     ...
         elif len(parsed.bullet_shot) > 0:
