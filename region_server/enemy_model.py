@@ -5,6 +5,7 @@ import math
 
 Vec2 = Tuple[float, float]
 
+
 @dataclass
 class AABB:
     x: float
@@ -14,11 +15,12 @@ class AABB:
 
     def intersects(self, other: "AABB") -> bool:
         return not (
-            self.x + self.w <= other.x or
-            self.x >= other.x + other.w or
-            self.y + self.h <= other.y or
-            self.y >= other.y + other.h
+                self.x + self.w <= other.x or
+                self.x >= other.x + other.w or
+                self.y + self.h <= other.y or
+                self.y >= other.y + other.h
         )
+
 
 @dataclass
 class PlayerSnapshot:
@@ -31,6 +33,7 @@ class PlayerSnapshot:
     @property
     def aabb(self) -> AABB:
         return AABB(self.x, self.y, self.w, self.h)
+
 
 @dataclass
 class EnemyModel:
@@ -78,7 +81,7 @@ class EnemyModel:
         return best
 
     def _set_patrol_dir(self) -> None:
-        dirs = [(1,0), (0,1), (-1,0), (0,-1)]
+        dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
         self.direction_x, self.direction_y = dirs[self.patrol_index]
 
     def _normalize_dir(self) -> None:
@@ -113,7 +116,7 @@ class EnemyModel:
         else:
             self.state = "PATROL"
 
-        #PATROL
+        # PATROL
         if self.state == "PATROL":
             if now_ms >= self.next_patrol_switch_ms:
                 self.patrol_index = (self.patrol_index + 1) % 4
@@ -121,7 +124,7 @@ class EnemyModel:
             self._set_patrol_dir()
             return None
 
-        #CHASE
+        # CHASE
         if self.state == "CHASE":
             self.direction_x = target_center_x - enemy_center_x
             self.direction_y = target_center_y - enemy_center_y
