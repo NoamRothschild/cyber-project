@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 class PlayerState:
     x: int
     y: int
+    cell_x: int
+    cell_y: int
     hp: int = 400
 
 
@@ -61,7 +63,7 @@ class Client:
         await writer.drain()
 
         # For now: assign to the single whole-map node
-        node = nodes[0]
+        node = nodes[(6, 6)]  # NOTE: (6, 6) is the node the player was constructed at
         self = Client(reader, writer, session_id, user_id, node)
         node.clients[session_id] = self
 
@@ -133,9 +135,9 @@ class Client:
         self.session_id = session_id
         self.user_id = user_id
         self.node = node
-        self.state = PlayerState(0, 0)
+        self.state = PlayerState(*node.topleft, *node.to_cell_pos(node.topleft))
         self.conn_state = ConnectionState(
-            reader, 
+            reader,
             writer,
         )
 
@@ -164,15 +166,7 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
-            self.state.x = update.location_block.x
-            self.state.y = update.location_block.y
-
-            resp = region_net.ServerResponse()
-            resp.sender_id = self.user_id
-            resp.other_data.new_location.CopyFrom(
-                region_net.LocationBlock(x=self.state.x, y=self.state.y)
-            )
-            await self.broadcast_udp(resp)
+            await self.node.handle_movement(self, update.location_block)
         elif payload_type == "bullet_shot":
             update_bytes = await self.node.projectile_handler.add(
                 update.bullet_shot, self
