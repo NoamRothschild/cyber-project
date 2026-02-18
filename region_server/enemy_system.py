@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Sequence, Callable
 from enemy_model import EnemyModel, PlayerSnapshot, AABB
 
+
 @dataclass
 class EnemyUpdate:
     enemy_id: int
@@ -25,10 +26,10 @@ class EnemySystem:
         self.obstacles = list(obstacles)
 
     def tick(
-        self,
-        now_ms: int,
-        players: Sequence[PlayerSnapshot],
-        on_attack: Callable[[int, int], None],  # (enemy_id, player_id)
+            self,
+            now_ms: int,
+            players: Sequence[PlayerSnapshot],
+            on_attack: Callable[[int, int], None],  # (enemy_id, player_id)
     ) -> List[EnemyUpdate]:
         updates: List[EnemyUpdate] = []
         for enemy in self.enemies.values():
