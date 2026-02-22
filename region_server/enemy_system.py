@@ -11,7 +11,7 @@ class EnemyUpdate:
     x: float
     y: float
     state: str
-    # @TODO extend in later versions to include HP, animation state, velocity etc
+    # TODO: extend in later versions to include HP, animation state, velocity etc
 
 
 class EnemySystem:
