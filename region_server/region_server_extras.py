@@ -5,8 +5,13 @@ from random import randint
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import math
+import time
+
+from region_server.enemy_model import PlayerSnapshot
 
 BUFF_SIZE = 1024
+SECONDS_TO_MS = 1000
+ENEMY_DAMAGE = 5
 
 # 60Hz tick rate
 TICK_INTERVAL_SEC = 1.0 / 60
@@ -20,6 +25,10 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,
     }
 }
+
+
+def loop_time_ms():
+    return int(time.time() * SECONDS_TO_MS)
 
 
 class ProjectileHandler:
@@ -106,11 +115,63 @@ class ProjectileHandler:
         return update.SerializeToString()
 
 
+class EnemyHandler:
+    def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
+        self.tick_intervals = tick_intervals
+        self.enemies = {}  # key: enemy_id -> value: EnemyModel
+        self.lock = asyncio.Lock()
+
+    def create_background_task(self) -> None:
+        asyncio.create_task(self.ticker())
+
+    async def ticker(self):
+        loop = asyncio.get_running_loop()
+        while True:
+            start_time = loop.time()
+            await self.tick()
+            sleep_time = self.tick_intervals - (loop.time() - start_time)
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+
+    async def tick(self) -> None:
+        global clients
+
+        async with self.lock:
+            now_ms = loop_time_ms()
+
+            for enemy in self.enemies.values():
+                attacked_player_id = enemy.update_ai(
+                    now_ms,
+                    [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
+                )
+
+                enemy.move_and_collide([])  # TODO: add obstacles later
+
+                # Handle attack
+                if attacked_player_id is not None:
+                    for c in clients:
+                        if c.user_id == attacked_player_id:
+                            await c.hit(ENEMY_DAMAGE, enemy.enemy_id)
+
+                # Broadcast new location
+                update = region_net.ServerResponse()
+                update.sender_id = enemy.enemy_id
+                update.other_data.new_location.CopyFrom(
+                    region_net.LocationBlock(
+                        x=int(enemy.x),
+                        y=int(enemy.y)
+                    )
+                )
+
+                for c in clients:
+                    await c.write(update.SerializeToString())
+
+
 # TODO: surround with a lock as well
 clients: Set[Client] = set()
 
 projectile_handler = ProjectileHandler()
-
+enemy_handler = EnemyHandler()
 
 class Client:
     @staticmethod
