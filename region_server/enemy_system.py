@@ -15,7 +15,8 @@ class EnemyUpdate:
 
 
 class EnemySystem:
-    def __init__(self) -> None:
+    def __init__(self, on_attack: Callable[[int, int], None]) -> None:
+        self.on_attack = on_attack # (enemy_id, player_id)
         self.enemies: Dict[int, EnemyModel] = {}
         self.obstacles: List[AABB] = []
 
@@ -28,8 +29,7 @@ class EnemySystem:
     def tick(
             self,
             now_ms: int,
-            players: Sequence[PlayerSnapshot],
-            on_attack: Callable[[int, int], None],  # (enemy_id, player_id)
+            players: Sequence[PlayerSnapshot]
     ) -> List[EnemyUpdate]:
         updates: List[EnemyUpdate] = []
         for enemy in self.enemies.values():
@@ -37,7 +37,7 @@ class EnemySystem:
             enemy.move_and_collide(self.obstacles)
 
             if attacked_player_id is not None:
-                on_attack(enemy.enemy_id, attacked_player_id)
+                self.on_attack(enemy.enemy_id, attacked_player_id)
 
             updates.append(EnemyUpdate(enemy.enemy_id, enemy.x, enemy.y, enemy.state))
         return updates
