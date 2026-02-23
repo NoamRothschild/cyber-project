@@ -7,7 +7,8 @@ import protobuf.region_net_pb2 as region_net
 import math
 import time
 
-from region_server.enemy_model import PlayerSnapshot
+from enemy_model import PlayerSnapshot
+from enemy_model import EnemyModel
 
 BUFF_SIZE = 1024
 SECONDS_TO_MS = 1000
@@ -114,11 +115,21 @@ class ProjectileHandler:
 
         return update.SerializeToString()
 
+def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, float], min_dst=5) -> bool:
+    """returns true when the distance between the two pos are above min_dst"""
+    if old_pos == new_pos:
+        return False
+    traveled_dst_squared = (old_pos[0] - new_pos[0]) ** 2 + (old_pos[1] - new_pos[1]) ** 2
+    min_dst_squared = min_dst ** 2
+
+    return traveled_dst_squared > min_dst_squared
 
 class EnemyHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.tick_intervals = tick_intervals
-        self.enemies = {}  # key: enemy_id -> value: EnemyModel
+        self.enemies = {
+            1234: EnemyModel(1234, 0, 0, 74010, 32605)
+        }  # key: enemy_id -> value: EnemyModel
         self.lock = asyncio.Lock()
 
     def create_background_task(self) -> None:
@@ -140,7 +151,7 @@ class EnemyHandler:
             now_ms = loop_time_ms()
 
             for enemy in self.enemies.values():
-                attacked_player_id = enemy.update_ai(
+                attacked_player_id = enemy.update_state_machine(
                     now_ms,
                     [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
                 )
