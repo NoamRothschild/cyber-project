@@ -3,13 +3,16 @@ import sqlite3
 import hashlib
 import uuid
 import protobuf.auth_net_pb2 as auth_net
-
+import redis
 
 DB_NAME = 'Auth.db'
 PORT = 9999
 IP = '127.0.0.1'
 BYTES_TO_DECODE = 1024
 
+REDIS_PORT = 6379
+CACHE_TIME = 86400 # in seconds
+r = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
 
 def get_db_connection():
     """Creates a fresh database connection."""
@@ -91,6 +94,11 @@ def handle_login(username, password):
                 cursor.execute("DELETE FROM SESSIONS WHERE user_id = ?", (user_id_from_db,))
                 cursor.execute("INSERT INTO SESSIONS (session_id, user_id) VALUES (?, ?)",
                                (session_id, user_id_from_db))
+
+                # set data to redis db for 24h
+                # Key = session id, Value = user id
+                r.setex(f"session:{session_id}",  CACHE_TIME, user_id_from_db)
+
                 connection.commit()
                 return f"LOGIN_SUCCESS:{session_id}"
             else:
@@ -99,6 +107,7 @@ def handle_login(username, password):
     except sqlite3.Error as e:
         print(f"Error registering user: {e}")
         return "LOGIN_FAILED"
+
 
 
 def run_server():
