@@ -164,6 +164,10 @@ class EnemyHandler:
                         if c.user_id == attacked_player_id:
                             await c.hit(ENEMY_DAMAGE, enemy.enemy_id)
 
+                if not should_update_location((enemy.last_sent_x, enemy.last_sent_y),
+                                              (enemy.x, enemy.y)):
+                    return
+
                 # Broadcast new location
                 update = region_net.ServerResponse()
                 update.sender_id = enemy.enemy_id
@@ -173,6 +177,8 @@ class EnemyHandler:
                         y=int(enemy.y)
                     )
                 )
+                enemy.last_sent_x = enemy.x
+                enemy.last_sent_y = enemy.y
 
                 for c in clients:
                     await c.write(update.SerializeToString())
