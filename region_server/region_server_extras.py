@@ -1,10 +1,16 @@
 # Provides utility functions for the client for easier communication with server
 from __future__ import annotations
 import asyncio
-from random import randint
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import math
+import redis
+
+
+REDIS_PORT = 6379
+IP = "127.0.0.1"
+redis_client = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
+
 
 BUFF_SIZE = 1024
 
@@ -118,20 +124,34 @@ class Client:
         handshake_raw = await reader.read(1024)
         handshake = region_net.HandshakeStart()
         handshake.ParseFromString(handshake_raw)
-        # TODO: verify the session id with the auth server && cache it
         session_id = handshake.session_id
+        user_id_str = redis_client.get(f"session:{session_id}")
 
-        # TODO: get this one from the auth server
-        user_id = randint(0, 2 ** 31 - 1)
+        if user_id_str is None:
+            print(f"Authentication failed for session: {session_id}")
+            # Send failure status if your proto supports it, or just close
+            response = region_net.HandshakeStart(
+                kind=region_net.HandshakeStart.AUTH_FAIL,
+                session_id=-1,
+            )
+            writer.write(response.SerializeToString())
+            await writer.drain()
+
+            writer.close()
+            await writer.wait_closed()
+            return
+
+        user_id = int(user_id_str)
+        print(f"User {user_id} authenticated via Redis.")
 
         handshake.Clear()
-        handshake.CopyFrom(region_net.HandshakeStart(
+        # Prepare success response with the REAL user_id
+        response = region_net.HandshakeStart(
             kind=region_net.HandshakeStart.SERVER_OK,
             user_id=user_id,
-        ))
-        
+        )
 
-        writer.write(handshake.SerializeToString())
+        writer.write(response.SerializeToString())
         await writer.drain()
 
         global clients
