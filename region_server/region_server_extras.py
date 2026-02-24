@@ -63,10 +63,11 @@ class Client:
         await writer.drain()
 
         # For now: assign to the single whole-map node
-        node = nodes[(6, 6)]  # NOTE: (6, 6) is the node the player was constructed at
+        node = nodes[(16, 14)]  # NOTE: this is the node the player was constructed at (see Player class construction on client code)
         self = Client(reader, writer, session_id, user_id, node)
-        node.clients[session_id] = self
+        await node.register_client(self, (74000, 32600))
 
+        # TODO: move to register_client
         # when a new player joins:
         # 1. provide the new client everyone's location (ServerResponse so client can render entities)
         # 2. provide everyone the new client's location
@@ -91,7 +92,7 @@ class Client:
             await self.handle_tcp()
         finally:
             self.conn_state.stop_udp_conn.set()
-            del node.clients[session_id]
+            await node.unregister_client(self)
 
     @staticmethod
     async def udp_handler(conn: aioudp.Connection) -> None:
@@ -222,11 +223,11 @@ class Client:
                 print(
                     f"Client {client.user_id} was unable to receive data: {e}, ignoring..."
                 )
-        print(f"data broadcasted to {len(self.node.clients) - 1} clients")
+        print(f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}")
 
     async def broadcast(self, data: bytes) -> None:
         for client in self.node.clients.values():
             if client == self:
                 continue
             await client.write(data)
-        print(f"data broadcasted to {len(self.node.clients) - 1} clients")
+        print(f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}")

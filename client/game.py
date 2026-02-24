@@ -5,7 +5,7 @@ import protobuf.region_net_pb2 as region_net
 import pygame, sys
 from mapset import *
 from level import *
-from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
+from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
 import traceback
@@ -65,10 +65,10 @@ if __name__ == '__main__':
 
     YELLOW = '\033[33m'
     RESET = '\033[0m'
-    print(YELLOW + f"connecting to server at {ZONE_HOST}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
+    print(YELLOW + f"connecting to server at {ZONE_HOSTS[0]}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
 
     try:
-        game = Game(ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT)
+        game = Game(ZONE_HOSTS[0], ZONE_TCP_PORT, ZONE_UDP_PORT)
         game.run()
     except Exception as e:
         print(f"[FATAL]: {e}")

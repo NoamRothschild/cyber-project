@@ -1,10 +1,9 @@
 from __future__ import annotations
 import asyncio
-from typing import Any, Dict, List, Optional, Tuple
-from constants import TICK_INTERVAL_SEC, WHOLE_MAP_X_RANGE, WHOLE_MAP_Y_RANGE
-from region_node import RegionNode
-
-nodes: Dict[Tuple[int, int], RegionNode] = {}
+from typing import Any, Dict, List, Optional, Tuple, cast, Set
+from constants import TICK_INTERVAL_SEC, THIS_SERVER_IP
+from region_node import RegionNode, HORIZONAL_NODE_COUNT, nodes
+from servers_communication import get_redis
 
 
 def get_client(session_id: int) -> Optional[Any]:
@@ -17,12 +16,17 @@ def get_client(session_id: int) -> Optional[Any]:
 
 def _create_initial_nodes() -> None:
     """Create the single whole-map node. Call once at startup."""
+    r = get_redis()
+    my_nodes = r.smembers(f'region:{THIS_SERVER_IP}')
 
-    for y in range(20):
-        for x in range(17):
-            nodes[(x, y)] = RegionNode(
-                (x * RegionNode.NODE_WIDTH, y * RegionNode.NODE_HEIGHT)
-            )
+    for node_idx_raw in cast(Set[bytes], my_nodes):
+        node_idx = int(node_idx_raw)
+        x = node_idx % HORIZONAL_NODE_COUNT
+        y = node_idx // HORIZONAL_NODE_COUNT
+        nodes[(x, y)] = RegionNode(
+            (x * RegionNode.NODE_WIDTH, y * RegionNode.NODE_HEIGHT)
+        )
+        print(f"initiliazed node at pos {x, y}")
 
 
 def start_global_tick_loop() -> None:
