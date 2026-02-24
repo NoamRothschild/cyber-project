@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, Tuple, Set
+from typing import Any, Dict, Tuple, Set, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 import math
 from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
+from servers_communication import broadcast_on
 
 nodes: Dict[Tuple[int, int], RegionNode] = {}
 
@@ -48,6 +49,23 @@ class RegionNode:
     def which_node(x: int, y: int) -> Tuple[int, int]:
         """Takes a position and returns the node pos it correlates to"""
         return math.ceil(x / RegionNode.NODE_WIDTH) - 1, math.ceil(y / RegionNode.NODE_HEIGHT) - 1
+    
+    @staticmethod
+    def node_pos_to_idx(pos_x: int, pos_y: int) -> int:
+        return pos_y * HORIZONAL_NODE_COUNT + pos_x
+    
+    def possible_bounding_nodes(self, raw_x: int, raw_y: int) -> List[Tuple[int, int]]:
+        is_left = (raw_x - self.node_pos[0] * RegionNode.NODE_WIDTH) / RegionNode.NODE_WIDTH < .5
+        is_up = (raw_y - self.node_pos[1] * RegionNode.NODE_HEIGHT) / RegionNode.NODE_HEIGHT < .5
+
+        if is_left and is_up:
+            return [(-1,-1),(0,-1),(-1,0)]
+        elif is_left and not is_up:
+            return [(-1,0),(-1,1),(0,1)]
+        elif is_up: # and not is_left
+            return [(0,-1),(1,-1),(1,0)]
+        else: # not is_up and not is_left
+            return [(1,0),(0,1),(1,1)]
 
     async def register_client(self, client: Client, initial_pos: Tuple[int, int]):
         self.clients[client.session_id] = client
@@ -73,11 +91,21 @@ class RegionNode:
         if not self.contains(raw_x, raw_y):
             await self.unregister_client(client)
             node_pos = RegionNode.which_node(raw_x, raw_y)
+            # node is on this device
             if new_node := nodes.get(node_pos):
                 await new_node.register_client(client, (raw_x, raw_y))
                 client.node = new_node
             else:
-                ... # TODO: Node is on another physical server
+                print(f"Client on node {node_pos} that is not on this server.")
+                # node is on another physical server
+                # TODO: connect client to the new server
+                # TODO: set client.node to some other thing
+                # r = get_redis()
+                # channel = str(RegionNode.node_pos_to_idx(*node_pos))
+                # message = region_net.RegionUpdate(location_block=pos_update).SerializeToString()
+                # await r.publish(channel, message)
+                pass
+            return
 
         old_cell_x, old_cell_y = client.state.cell_x, client.state.cell_y
         client.state.x = raw_x
@@ -86,30 +114,27 @@ class RegionNode:
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
 
         # checking if other nodes can see this movement event
-        for bound_y in range(-1, 2):
-            for bound_x in range(-1, 2):
-                if bound_x == bound_y == 0:
-                    continue
-                pos_x = bound_x * RegionNode.NODE_WIDTH + raw_x
-                pos_y = bound_y * RegionNode.NODE_HEIGHT + raw_y
-                node_pos = RegionNode.which_node(pos_x, pos_y)
-                if node_pos == self.node_pos:
-                    continue
+        for bound_x, bound_y in self.possible_bounding_nodes(raw_x, raw_y):
+            node_pos = (self.node_pos[0] + bound_x, self.node_pos[1] + bound_y)
 
-                if extra_node := nodes.get(node_pos):
-                    # notify players in other nodes that can see this movement
-                    for cli in extra_node.clients.values():
-                        if cli.user_id == client.user_id:
-                            continue
-                        resp = region_net.ServerResponse()
-                        resp.sender_id = client.user_id
-                        resp.other_data.new_location.CopyFrom(
-                            region_net.LocationBlock(x=client.state.x, y=client.state.y)
-                        )
-                        await cli.write_udp(resp)
-                        print(f'showed {client.user_id}({client.node.view}) to {cli.user_id}({cli.node.view})')
-                else:
-                    ... # TODO: Node is on another physical server
+            if extra_node := nodes.get(node_pos):
+                # notify players in other nodes that can see this movement
+                for cli in extra_node.clients.values():
+                    if cli.user_id == client.user_id:
+                        continue
+                    resp = region_net.ServerResponse()
+                    resp.sender_id = client.user_id
+                    resp.other_data.new_location.CopyFrom(
+                        region_net.LocationBlock(x=client.state.x, y=client.state.y)
+                    )
+                    await cli.write_udp(resp)
+                    print(f'showed {client.user_id}({client.node.view}) to {cli.user_id}({cli.node.view})')
+            else:
+                print(f"key {node_pos}: {node_pos in nodes.keys()=}")
+                node_idx = str(RegionNode.node_pos_to_idx(*node_pos))
+                message = region_net.RegionUpdate(location_block=pos_update).SerializeToString()
+                await broadcast_on(node_idx, message)
+                print(f"({self.view}) -> ({node_pos}), played can be seen outside of this server, forwarding...")
 
         if (old_cell_x, old_cell_y) != (cell_x, cell_y):
             self.grid.get((old_cell_x, old_cell_y), set()).discard(client)
