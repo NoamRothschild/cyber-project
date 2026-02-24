@@ -5,6 +5,7 @@ import aioudp
 from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import Client
 from state import start_global_tick_loop, create_initial_nodes
+from servers_communication import start_redis_listener
 ZONE_HOST = ZONE_HOSTS[0]
 
 
@@ -23,6 +24,7 @@ async def main() -> None:
     )
     start_global_tick_loop()
     await create_initial_nodes()
+    start_redis_listener()
 
     async with aioudp.serve(ZONE_HOST, ZONE_UDP_PORT, Client.udp_handler):
         async with server:

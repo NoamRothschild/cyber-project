@@ -48,7 +48,7 @@ class RegionNode:
     @staticmethod
     def which_node(x: int, y: int) -> Tuple[int, int]:
         """Takes a position and returns the node pos it correlates to"""
-        return math.ceil(x / RegionNode.NODE_WIDTH) - 1, math.ceil(y / RegionNode.NODE_HEIGHT) - 1
+        return math.ceil(x / RegionNode.NODE_WIDTH), math.ceil(y / RegionNode.NODE_HEIGHT)
     
     @staticmethod
     def node_pos_to_idx(pos_x: int, pos_y: int) -> int:
