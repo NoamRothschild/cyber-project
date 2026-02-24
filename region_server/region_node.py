@@ -22,12 +22,13 @@ class RegionNode:
 
     def __init__(self, topleft: Tuple[int, int]) -> None:
         self.topleft = topleft
-        self.view = f'{topleft[0] // RegionNode.NODE_WIDTH, topleft[1] // RegionNode.NODE_HEIGHT}'
+        self.node_pos = RegionNode.which_node(*topleft)
+        self.view = str(self.node_pos)
         self.x_range = (topleft[0], topleft[0] + RegionNode.NODE_WIDTH)
         self.y_range = (topleft[1], topleft[1] + RegionNode.NODE_HEIGHT)
         self.grid: Dict[Tuple[int, int], Set[Client]] = {}
 
-        self.clients: Dict[int, Any] = {}  # session_id -> Client
+        self.clients: Dict[int, Client] = {}  # session_id -> Client
         self.projectile_handler = ProjectileHandler(self)
 
     def to_cell_pos(self, pos: Tuple[int, int]) -> Tuple[int, int]:
@@ -83,6 +84,32 @@ class RegionNode:
         client.state.y = raw_y
         cell_x, cell_y = self.to_cell_pos((raw_x, raw_y))
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
+
+        # checking if other nodes can see this movement event
+        for bound_y in range(-1, 2):
+            for bound_x in range(-1, 2):
+                if bound_x == bound_y == 0:
+                    continue
+                pos_x = bound_x * RegionNode.NODE_WIDTH + raw_x
+                pos_y = bound_y * RegionNode.NODE_HEIGHT + raw_y
+                node_pos = RegionNode.which_node(pos_x, pos_y)
+                if node_pos == self.node_pos:
+                    continue
+
+                if extra_node := nodes.get(node_pos):
+                    # notify players in other nodes that can see this movement
+                    for cli in extra_node.clients.values():
+                        if cli.user_id == client.user_id:
+                            continue
+                        resp = region_net.ServerResponse()
+                        resp.sender_id = client.user_id
+                        resp.other_data.new_location.CopyFrom(
+                            region_net.LocationBlock(x=client.state.x, y=client.state.y)
+                        )
+                        await cli.write_udp(resp)
+                        print(f'showed {client.user_id}({client.node.view}) to {cli.user_id}({cli.node.view})')
+                else:
+                    ... # TODO: Node is on another physical server
 
         if (old_cell_x, old_cell_y) != (cell_x, cell_y):
             self.grid.get((old_cell_x, old_cell_y), set()).discard(client)
