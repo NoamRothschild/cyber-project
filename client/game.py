@@ -3,6 +3,7 @@
 from entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
+import math
 from mapset import *
 from level import *
 from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
@@ -12,6 +13,7 @@ import traceback
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
+
 
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
@@ -49,9 +51,17 @@ class Game:
             self.level.run()
             self.screen.blit(fps_surface,fps_screen_pos )
             hb = self.level.player.hitbox
-
-            hb = self.level.player.hitbox
+            # Report precise world position to the server
             self.zone.try_send_update_pos((hb.x, hb.y))
+
+            # Show current region node near the FPS bar (0-based indices)
+            node_x = int(hb.x // NODE_WIDTH)
+            node_y = int(hb.y // NODE_HEIGHT)
+            node_text = f"({node_x}, {node_y})"
+            node_surface = self.font.render(node_text, True, "White")
+            node_pos = (fps_screen_pos[0], fps_screen_pos[1] + fps_surface.get_height() + 5)
+            self.screen.blit(node_surface, node_pos)
+
             pygame.display.update()
             self.clock.tick(FPS)
 

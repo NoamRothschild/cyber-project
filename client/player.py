@@ -47,9 +47,7 @@ class Player(pygame.sprite.Sprite):
             gun_type = "Ak-7" # NOTE: REPLACE ME
             count = 1 # NOTE: REPLACE ME
 
-            # Camera scroll is derived the same way as in Camera.custom_draw:
-            # center the camera on this player's rect.
-
+            # Scroll for converting screen (player at center) to world: player_world = screen_center + scroll.
             scroll = [
                 self.rect.centerx - WIDTH / 2,
                 self.rect.centery - HEIGHT / 2,

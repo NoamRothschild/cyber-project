@@ -1,5 +1,6 @@
 import pygame
 import math
+from mapset import SCREEN_SCALE_X, SCREEN_SCALE_Y
 
 
 #need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
@@ -29,13 +30,15 @@ class Arsenal:
         self.offset_x, self.offset_y = coordinates
 
     def draw(self, player_x, player_y):
-        #drowing the gun with angle
+        #drowing the gun with angle (scaled to match zoomed view)
         mouse_x, mouse_y = pygame.mouse.get_pos()
         weapon = self.weapon
 
         scale = 0.1
-        w,h = weapon.get_size()
-        weapon = pygame.transform.scale(weapon, (int(w * scale), int(h * scale)))
+        w, h = weapon.get_size()
+        scaled_w = max(1, int(w * scale * SCREEN_SCALE_X))
+        scaled_h = max(1, int(h * scale * SCREEN_SCALE_Y))
+        weapon = pygame.transform.scale(weapon, (scaled_w, scaled_h))
 
         weapon = pygame.transform.flip(weapon, True, False)
         if mouse_x < player_x:
@@ -45,7 +48,9 @@ class Arsenal:
         angle = -math.degrees(math.atan2(y_r, x_r))
         rotated = pygame.transform.rotate(weapon, angle)
 
-        #draw
-        rect = rotated.get_rect(center=(player_x + self.offset_x, player_y + self.offset_y))
+        # draw (offset scaled to match view)
+        offset_x = self.offset_x * SCREEN_SCALE_X
+        offset_y = self.offset_y * SCREEN_SCALE_Y
+        rect = rotated.get_rect(center=(player_x + offset_x, player_y + offset_y))
         screen = pygame.display.get_surface()
         screen.blit(rotated, rect.topleft)

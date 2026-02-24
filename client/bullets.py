@@ -1,13 +1,13 @@
 import pygame, math
 from game import *
+from mapset import VIEW_WIDTH, VIEW_HEIGHT, SCREEN_SCALE_X, SCREEN_SCALE_Y
 
 
 def draw_AND_update_Bullets(player):
-    # Derive camera scroll exactly like Camera.custom_draw does:
-    display = pygame.display.get_surface()
+    # Derive camera scroll exactly like Camera.custom_draw does (same view size):
     scroll = [
-        player.rect.centerx - display.get_width() / 2,
-        player.rect.centery - display.get_height() / 2,
+        player.rect.centerx - VIEW_WIDTH / 2,
+        player.rect.centery - VIEW_HEIGHT / 2,
     ]
 
     # Iterate over a copy so we can safely remove expired bullets
@@ -17,7 +17,7 @@ def draw_AND_update_Bullets(player):
             continue
 
         bullet.update()
-        bullet.draw(scroll)
+        bullet.draw(scroll, SCREEN_SCALE_X, SCREEN_SCALE_Y)
 
 
 class Bullets:
@@ -119,17 +119,24 @@ class Bullets:
         self.y += self.velocity_y
         self.ttl -= 1
 
-    def draw(self, scroll):
-        # Convert world-space bullet position to screen-space.
-        screen_x = self.x - scroll[0]
-        screen_y = self.y - scroll[1]
+    def draw(self, scroll, scale_x=None, scale_y=None):
+        if scale_x is None:
+            scale_x = 1.0
+        if scale_y is None:
+            scale_y = 1.0
+        # Convert world-space bullet position to screen-space (same scale as camera).
+        screen_x = (self.x - scroll[0]) * scale_x
+        screen_y = (self.y - scroll[1]) * scale_y
 
         # Apply the sprite offset so the bullet appears relative to the weapon.
-        bullet_center_x = screen_x + self.offset_x
-        bullet_center_y = screen_y + self.offset_y
+        bullet_center_x = screen_x + self.offset_x * scale_x
+        bullet_center_y = screen_y + self.offset_y * scale_y
 
         rotated = pygame.transform.rotate(
             self.image_bullet, -math.degrees(self.angle)
         )
-        rect = rotated.get_rect(center=(bullet_center_x, bullet_center_y))
-        self.display_surface.blit(rotated, rect.topleft)
+        # Scale bullet to match world zoom.
+        rw, rh = rotated.get_size()
+        scaled = pygame.transform.scale(rotated, (max(1, int(rw * scale_x)), max(1, int(rh * scale_y))))
+        rect = scaled.get_rect(center=(bullet_center_x, bullet_center_y))
+        self.display_surface.blit(scaled, rect.topleft)
