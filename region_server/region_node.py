@@ -9,8 +9,8 @@ import protobuf.region_net_pb2 as region_net
 
 
 class RegionNode:
-    NODE_WIDTH = 10800  # [px]
-    NODE_HEIGHT = 5200  # [px]
+    NODE_WIDTH = 4600  # [px]
+    NODE_HEIGHT = 2200  # [px]
     CELL_SIZE = 200  # [px]
 
     def __init__(self, topleft: Tuple[int, int]) -> None:

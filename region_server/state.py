@@ -18,8 +18,8 @@ def get_client(session_id: int) -> Optional[Any]:
 def _create_initial_nodes() -> None:
     """Create the single whole-map node. Call once at startup."""
 
-    for y in range(8):
-        for x in range(7):
+    for y in range(20):
+        for x in range(17):
             nodes[(x, y)] = RegionNode(
                 (x * RegionNode.NODE_WIDTH, y * RegionNode.NODE_HEIGHT)
             )
