@@ -47,8 +47,22 @@ class RegionNode:
     
     @staticmethod
     def which_node(x: int, y: int) -> Tuple[int, int]:
-        """Takes a position and returns the node pos it correlates to"""
-        return math.ceil(x / RegionNode.NODE_WIDTH), math.ceil(y / RegionNode.NODE_HEIGHT)
+        """Takes a position and returns the node pos it correlates to."""
+        node_x = x // RegionNode.NODE_WIDTH
+        node_y = y // RegionNode.NODE_HEIGHT
+
+        # Clamp to valid grid range
+        if node_x < 0:
+            node_x = 0
+        elif node_x >= HORIZONAL_NODE_COUNT:
+            node_x = HORIZONAL_NODE_COUNT - 1
+
+        if node_y < 0:
+            node_y = 0
+        elif node_y >= VERTICAL_NODE_COUNT:
+            node_y = VERTICAL_NODE_COUNT - 1
+
+        return node_x, node_y
     
     @staticmethod
     def node_pos_to_idx(pos_x: int, pos_y: int) -> int:
