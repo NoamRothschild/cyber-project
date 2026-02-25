@@ -127,9 +127,7 @@ def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, f
 class EnemyHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.tick_intervals = tick_intervals
-        self.enemies = {
-            1234: EnemyModel(1234, 0, 0, 74010, 32605)
-        }  # key: enemy_id -> value: EnemyModel
+        self.enemies = {}  # key: enemy_id -> value: EnemyModel
         self.lock = asyncio.Lock()
 
     def create_background_task(self) -> None:

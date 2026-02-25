@@ -38,10 +38,10 @@ class PlayerSnapshot:
 @dataclass
 class EnemyModel:
     enemy_id: int
-    last_sent_x: float
-    last_sent_y: float
     x: float
     y: float
+    last_sent_x: float = 0
+    last_sent_y: float = 0
     w: float = 30
     h: float = 40
 
