@@ -100,7 +100,7 @@ class EnemyModel:
         """
         Returns attacked_player_id if an attack happened, else None.
         """
-        target = self._closest_player(players)
+        target = self.closest_player(players)
         if target is None:
             self.state = "PATROL"
             return None
@@ -123,7 +123,7 @@ class EnemyModel:
             if now_ms >= self.next_patrol_switch_ms:
                 self.patrol_index = (self.patrol_index + 1) % 4
                 self.next_patrol_switch_ms = now_ms + self.patrol_switch_ms
-            self._set_patrol_dir()
+            self.set_patrol_dir()
             return None
 
         # CHASE
@@ -141,7 +141,7 @@ class EnemyModel:
         return None
 
     def move_and_collide(self, obstacles: Sequence[AABB]) -> None:
-        self._normalize_dir()
+        self.normalize_dir()
 
         # X axis
         self.x += self.direction_x * self.speed
