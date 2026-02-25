@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Any, Dict, Tuple, Set, List
+from typing import Any, Dict, Generator, Tuple, Set, List
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,7 +27,7 @@ class RegionNode:
         self.view = str(self.node_pos)
         self.x_range = (topleft[0], topleft[0] + RegionNode.NODE_WIDTH)
         self.y_range = (topleft[1], topleft[1] + RegionNode.NODE_HEIGHT)
-        self.grid: Dict[Tuple[int, int], Set[Client]] = {}
+        self.grid: Dict[Tuple[int, int], Set[Any]] = {}
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
         self.projectile_handler = ProjectileHandler(self)
@@ -44,7 +44,55 @@ class RegionNode:
             self.x_range[0] <= x <= self.x_range[1]
             and self.y_range[0] <= y <= self.y_range[1]
         )
-    
+
+    # ---- grid helpers ----
+
+    def grid_add(self, obj: Any, cell_x: int, cell_y: int) -> None:
+        key = (cell_x, cell_y)
+        if cell := self.grid.get(key):
+            cell.add(obj)
+        else:
+            self.grid[key] = {obj}
+
+    def grid_remove(self, obj: Any, cell_x: int, cell_y: int) -> None:
+        if cell := self.grid.get((cell_x, cell_y)):
+            cell.discard(obj)
+
+    def grid_move(
+        self, obj: Any, old_cx: int, old_cy: int, new_cx: int, new_cy: int
+    ) -> None:
+        if (old_cx, old_cy) != (new_cx, new_cy):
+            self.grid_remove(obj, old_cx, old_cy)
+            self.grid_add(obj, new_cx, new_cy)
+
+    def nearby(
+        self, cell_x: int, cell_y: int, radius: int
+    ) -> Generator[Any, None, None]:
+        """Yield grid objects expanding outward ring-by-ring up to
+        Chebyshev distance *radius*.  Typical usage::
+
+            radius = ceil(detection_range_px / CELL_SIZE)
+        """
+        for r in range(radius + 1):
+            if r == 0:
+                if cell := self.grid.get((cell_x, cell_y)):
+                    yield from cell
+                continue
+            # top and bottom edges of the ring
+            for dx in range(-r, r + 1):
+                if cell := self.grid.get((cell_x + dx, cell_y - r)):
+                    yield from cell
+                if cell := self.grid.get((cell_x + dx, cell_y + r)):
+                    yield from cell
+            # left and right edges (corners already covered above)
+            for dy in range(-r + 1, r):
+                if cell := self.grid.get((cell_x - r, cell_y + dy)):
+                    yield from cell
+                if cell := self.grid.get((cell_x + r, cell_y + dy)):
+                    yield from cell
+
+    # ---- static helpers ----
+
     @staticmethod
     def which_node(x: int, y: int) -> Tuple[int, int]:
         """Takes a position and returns the node pos it correlates to."""
@@ -85,17 +133,10 @@ class RegionNode:
         self.clients[client.session_id] = client
         cell_x, cell_y = self.to_cell_pos(initial_pos)
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
-
-        if cell := self.grid.get((cell_x, cell_y)):
-            cell.add(client)
-        else:
-            cell = set()
-            cell.add(client)
-            self.grid[(cell_x, cell_y)] = cell
+        self.grid_add(client, cell_x, cell_y)
     
     async def unregister_client(self, client: Client):
-        old_cell_x, old_cell_y = client.state.cell_x, client.state.cell_y
-        self.grid.get((old_cell_x, old_cell_y), set()).discard(client)
+        self.grid_remove(client, client.state.cell_x, client.state.cell_y)
         self.clients.pop(client.session_id, None)
 
     async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
@@ -150,14 +191,7 @@ class RegionNode:
                 await broadcast_on(node_idx, message)
                 print(f"({self.view}) -> ({node_pos}), played can be seen outside of this server, forwarding...")
 
-        if (old_cell_x, old_cell_y) != (cell_x, cell_y):
-            self.grid.get((old_cell_x, old_cell_y), set()).discard(client)
-            if cell := self.grid.get((cell_x, cell_y)):
-                cell.add(client)
-            else:
-                cell = set()
-                cell.add(client)
-                self.grid[(cell_x, cell_y)] = cell
+        self.grid_move(client, old_cell_x, old_cell_y, cell_x, cell_y)
 
         resp = region_net.ServerResponse()
         resp.sender_id = client.user_id
