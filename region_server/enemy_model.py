@@ -66,7 +66,7 @@ class EnemyModel:
     def aabb(self) -> AABB:
         return AABB(self.x, self.y, self.w, self.h)
 
-    def _closest_player(self, players: Sequence[PlayerSnapshot]) -> Optional[PlayerSnapshot]:
+    def closest_player(self, players: Sequence[PlayerSnapshot]) -> Optional[PlayerSnapshot]:
         if not players:
             return None
         enemy_x = self.x + self.w / 2
@@ -82,11 +82,11 @@ class EnemyModel:
                 best = player
         return best
 
-    def _set_patrol_dir(self) -> None:
+    def set_patrol_dir(self) -> None:
         dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
         self.direction_x, self.direction_y = dirs[self.patrol_index]
 
-    def _normalize_dir(self) -> None:
+    def normalize_dir(self) -> None:
         enemy_threshold = 1e-9
         magnitude_2 = self.direction_x * self.direction_x + self.direction_y * self.direction_y
         if magnitude_2 <= enemy_threshold:
