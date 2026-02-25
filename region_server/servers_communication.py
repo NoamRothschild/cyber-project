@@ -57,7 +57,27 @@ def start_redis_listener() -> None:
                 update = region_net.RegionUpdate()
                 update.ParseFromString(data[len(BROADCAST_PREFIX):])
                 if node := nodes.get(node_pos):
-                    print(f"got update of type {update.WhichOneof('payload')} to {node.node_pos}")
-                    pass # TODO: a system for handling events from outside the node
+                    payload_type = update.WhichOneof('payload')
+                    print(f"got update of type {payload_type} to {node.node_pos}")
+
+                    if payload_type == 'bullet_shot':
+                        bs = update.bullet_shot
+                        resp = region_net.ServerResponse(sender_id=update.sender_id)
+                        resp.bullet_shot.add(
+                            gun_type=bs.gun_type,
+                            angle=bs.angle,
+                            count=bs.count,
+                            x=bs.x,
+                            y=bs.y,
+                            ttl=bs.ttl,
+                            speed=bs.speed,
+                        )
+                        relay_data = resp.SerializeToString()
+                        for cli in node.clients.values():
+                            try:
+                                await cli.write(relay_data)
+                            except Exception as e:
+                                print(f"Failed to relay bullet to {cli.user_id}: {e}")
+                    # TODO: handle location_block from external servers
     
     asyncio.create_task(listener())

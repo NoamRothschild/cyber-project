@@ -169,11 +169,15 @@ class Client:
         if payload_type == "location_block":
             await self.node.handle_movement(self, update.location_block)
         elif payload_type == "bullet_shot":
-            update_bytes = await self.node.projectile_handler.add(
+            update_bytes, new_projs = await self.node.projectile_handler.add(
                 update.bullet_shot, self
             )
             if update_bytes:
                 await self.broadcast(update_bytes)
+                for proj in new_projs:
+                    for cli in self.node.clients.values():
+                        proj["seen_by"].add(cli.user_id)
+                await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
 
     async def handle_tcp(self) -> None:
         while True:

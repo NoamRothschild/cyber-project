@@ -36,10 +36,12 @@ def start_global_tick_loop() -> None:
 
     async def _ticker() -> None:
         loop = asyncio.get_running_loop()
+        cycle = 0
         while True:
+            cycle += 1
             start_time = loop.time()
             for node in nodes.values():
-                await node.projectile_handler.tick()
+                await node.projectile_handler.tick(cycle)
             sleep_time = TICK_INTERVAL_SEC - (loop.time() - start_time)
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
