@@ -75,5 +75,4 @@ class Potion(pygame.sprite.Sprite):
 
                 self.delete_last_bar_sub = current_time
             self.health.draw()
-            print("bar bar")
         return False

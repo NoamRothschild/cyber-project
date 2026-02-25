@@ -9,6 +9,11 @@ message RegionUpdate {
     PotionUse potion_use = 3;
   }
 }
+message ChatMessage {
+  oneof mas {
+    string message = 1;
+  }
+}
 message PotionUse {
   PotionType potion_type = 1;
   int32 HowMuch=2;

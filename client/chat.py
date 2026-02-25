@@ -1,11 +1,16 @@
 import pygame
+from game import Game
+import socket
+import protobuf.region_net_pb2 as region_net
+import threading
 
 # הגדרות בסיסיות
 width, height = 300, 400
+BUFF_SIZE = 1024
 
 
 class Chat(pygame.sprite.Sprite):
-    def __init__(self):
+    def __init__(self, host: str="127.0.0.1", reliable_port: int = 8888):
         super().__init__()
         self.rect = pygame.Rect(0, 80, width, height)
         self.screen = pygame.display.get_surface()
@@ -14,6 +19,12 @@ class Chat(pygame.sprite.Sprite):
 
         self.messages = []
         self.current_typing = ""  # מה שהמשתמש כותב כרגע
+        self.reliable_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.host = host
+        self.reliable_port = reliable_port
+        self.open_reliable_conn()
+
 
     def add_external_message(self, text):
 
@@ -35,7 +46,9 @@ class Chat(pygame.sprite.Sprite):
                 elif event.key == pygame.K_RETURN:
                     if self.current_typing:
                         self.add_external_message(f"You: {self.current_typing}")
+                        self.try_send_mas(str(self.current_typing))
                         self.current_typing = ""
+
                 elif event.key == pygame.K_BACKSPACE:
                     self.current_typing = self.current_typing[:-1]
                 else:
@@ -61,3 +74,36 @@ class Chat(pygame.sprite.Sprite):
         # ציור מה שהמשתמש מקליד כרגע (בתחתית)
         input_text = self.font.render(f"> {self.current_typing}", True, (0, 255, 0))
         self.screen.blit(input_text, (10, height+80 - 30))
+
+    def open_reliable_conn(self):
+        """opens the TCP conn and returns the user id. can throw"""
+        self.reliable_conn.connect((self.host, self.reliable_port))
+
+        listener = threading.Thread(target=server_listener, args=(self,))
+        listener.start()
+
+    def try_send_mas(self, mas: str ) -> None:
+
+        update = region_net.ChatMessage()
+        update.message = mas
+        self.reliable_conn.sendall(update.SerializeToString())
+
+def server_listener(chat: Chat):
+        """
+        Start this one in another thread
+        Assumes a connection has already been established in `game.region_conn`
+        """
+
+        while True:
+            server_raw = chat.reliable_conn.recv(BUFF_SIZE)
+            if not server_raw:
+                continue
+            parsed = region_net.ChatMessage()
+            parsed.ParseFromString(server_raw)
+            print(f"received: {parsed}")
+
+            payload_type = parsed.WhichOneof("mas")
+            print(f'{payload_type=}')
+            if payload_type == "message":
+                msg = parsed.message
+                chat.add_external_message(f"Other: {msg}")
