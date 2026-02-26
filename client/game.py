@@ -47,7 +47,6 @@ class Game:
 
             self.level.run()
             self.screen.blit(fps_surface,fps_screen_pos )
-            hb = self.level.player.hitbox
 
             hb = self.level.player.hitbox
             self.zone.try_send_update_pos((hb.x, hb.y))

@@ -14,7 +14,7 @@ BUFF_SIZE = 1024
 
 # TODO: sorround with a lock as well
 clients: Set[Client] = set()
-
+last_mess =["hii player"]
 
 class Client:
     @staticmethod
@@ -55,7 +55,22 @@ class Client:
         self.session_id = session_id
         self.user_id = user_id
 
+    def add_to_mas_stack(self, mas: str):
+        global last_mess
+        last_mess.append(mas)
+        if len(last_mess) > 18:
+            last_mess.pop(0)
     async def handle(self):
+        try:
+            masss=""
+            for mas in last_mess:
+                masss += mas+"\r\n"
+            update = region_net.ChatMessage()
+            print(masss)
+            update.message = masss
+            await self.write(update.SerializeToString())
+        except Exception as e:
+            print(f"error sending last messages: {e}")
         while True:
             data = await self.reader.read(1024)
             if not data:
@@ -64,10 +79,10 @@ class Client:
             update = region_net.ChatMessage()
             update.ParseFromString(data)
             print(str(self.user_id) + f": {update}" )
-
             payload_type = update.WhichOneof("mas")
             if payload_type == "message":
                 update.message = str(self.user_id) + f": {update.message}"
+                self.add_to_mas_stack(update.message)
                 await self.broadcast(update.SerializeToString())
 
     async def write(self, data: bytes):

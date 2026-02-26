@@ -103,7 +103,7 @@ def server_listener(chat: Chat):
         Start this one in another thread
         Assumes a connection has already been established in `game.region_conn`
         """
-
+        first= True
         while True:
             server_raw = chat.reliable_conn.recv(BUFF_SIZE)
             if not server_raw:
@@ -115,5 +115,16 @@ def server_listener(chat: Chat):
             payload_type = parsed.WhichOneof("mas")
             print(f'{payload_type=}')
             if payload_type == "message":
+                if(first):
+                    first=False
+                    break_starting_mas(chat, parsed.message)
+                    continue
                 msg = parsed.message
-                chat.add_external_message(f"Other: {msg}")
+                chat.add_external_message(f"{msg}")
+
+
+def break_starting_mas(chat: Chat, mas: str):
+    for m in mas.split("\r\n"):
+        chat.add_external_message(m)
+
+
