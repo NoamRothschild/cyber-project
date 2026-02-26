@@ -10,7 +10,7 @@ BUFF_SIZE = 1024
 
 
 class Chat(pygame.sprite.Sprite):
-    def __init__(self, host: str="127.0.0.1", reliable_port: int = 8888):
+    def __init__(self, ssid: int, host: str="127.0.0.1", reliable_port: int = 8888):
         super().__init__()
         self.rect = pygame.Rect(0, 80, width, height)
         self.screen = pygame.display.get_surface()
@@ -20,10 +20,10 @@ class Chat(pygame.sprite.Sprite):
         self.messages = []
         self.current_typing = ""  # מה שהמשתמש כותב כרגע
         self.reliable_conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+        self.session_id = ssid
         self.host = host
         self.reliable_port = reliable_port
-        self.open_reliable_conn()
+        self.user_idc=self.open_reliable_conn()
 
 
     def add_external_message(self, text):
@@ -78,9 +78,19 @@ class Chat(pygame.sprite.Sprite):
     def open_reliable_conn(self):
         """opens the TCP conn and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
+        handshake = region_net.HandshakeStart()
+        handshake.session_id = self.session_id
+        handshake.kind = handshake.LOGIN
 
+        self.reliable_conn.sendall(handshake.SerializeToString())
+        login_resp_raw = self.reliable_conn.recv(BUFF_SIZE)
+        login_resp = region_net.HandshakeStart()
+        login_resp.ParseFromString(login_resp_raw)
+        if login_resp.kind != login_resp.SERVER_OK:
+            raise RuntimeError("failed connecting to zone: invalid session id")
         listener = threading.Thread(target=server_listener, args=(self,))
         listener.start()
+        return login_resp.user_id
 
     def try_send_mas(self, mas: str ) -> None:
 

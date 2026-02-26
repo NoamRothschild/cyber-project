@@ -21,8 +21,25 @@ class Client:
     async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         print("new connection established")
 
+        handshake_raw = await reader.read(1024)
+        handshake = region_net.HandshakeStart()
+        handshake.ParseFromString(handshake_raw)
+        # TODO: verify the session id with the auth server && cache it
+        session_id = handshake.session_id
+
+        # TODO: get this one from the auth server
+        user_id = randint(0, 2 ** 31 - 1)
+
+        handshake.Clear()
+        handshake.CopyFrom(region_net.HandshakeStart(
+            kind=region_net.HandshakeStart.SERVER_OK,
+            user_id=user_id,
+        ))
+
+        writer.write(handshake.SerializeToString())
+        await writer.drain()
         global clients
-        self = Client(reader, writer)
+        self = Client(reader, writer,session_id,user_id)
         clients.add(self)
 
         try:
@@ -30,11 +47,13 @@ class Client:
         finally:
             clients.remove(self)
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int, user_id: int) -> None:
         self.reader = reader
         self.writer = writer
         self.writer_lock = asyncio.Lock()
-
+        self.session_id = session_id
+        self.user_id = user_id
 
     async def handle(self):
         while True:
@@ -44,10 +63,11 @@ class Client:
 
             update = region_net.ChatMessage()
             update.ParseFromString(data)
-            print(f"received: {update}")
+            print(str(self.user_id) + f": {update}" )
 
             payload_type = update.WhichOneof("mas")
             if payload_type == "message":
+                update.message = str(self.user_id) + f": {update.message}"
                 await self.broadcast(update.SerializeToString())
 
     async def write(self, data: bytes):

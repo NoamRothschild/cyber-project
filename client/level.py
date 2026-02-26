@@ -47,7 +47,7 @@ def get_bushes():
 class Level:
     Domain_Expansion_ls = []
 
-    def __init__(self):
+    def __init__(self,session_id):
         self.display_surface = pygame.display.get_surface()
 
         self.visible_sprites = Camera()
@@ -57,7 +57,7 @@ class Level:
 
         self.image = [pygame.image.load('rock.png').convert(), pygame.image.load('tree.png').convert(),
                       pygame.image.load('water.png').convert()]
-        self.chat=Chat()
+        self.chat=Chat(session_id)
         self.entities = Entities()
         preload_all_bushes()
         preload_all_trees()

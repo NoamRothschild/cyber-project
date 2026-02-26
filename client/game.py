@@ -25,7 +25,7 @@ class Game:
         self.zone = ZoneConnectionSingleton().zone
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
-        self.level = Level()
+        self.level = Level(self.session_id)
         self.is_running = False
 
     def run(self):
