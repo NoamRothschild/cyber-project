@@ -12,7 +12,7 @@ class Potion(pygame.sprite.Sprite):
                "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
                          "speed", # on what the potion has effect
                          10, #how much it does
-                         6),# for how much time
+                         1),# for how much time
                "super_speed": (pygame.image.load("Potion/super_speed.png").convert_alpha(),
                                "speed",
                                40,

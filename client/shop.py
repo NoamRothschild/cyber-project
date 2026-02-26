@@ -16,7 +16,6 @@ class ShopUI:
             "bow": 80,
             "sword": 60,
             "rock": 10,
-            "domain_expansion": 500
         }
 
         #  bullet_name -- (price, amount)
