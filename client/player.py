@@ -17,6 +17,7 @@ HEALTH_BAR_SCALE=400
 HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
 Starting_POS = (370 * SIZE, 163 * SIZE)
 class Player(pygame.sprite.Sprite):
+
     def __init__(self, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
 
@@ -39,7 +40,7 @@ class Player(pygame.sprite.Sprite):
         self.shop_open = False
         self.last_b_press = 0
 
-        self.money = 200
+        self.money = 200000
         self.shop_ui = ShopUI()
 
         self.ammo_collection = {
