@@ -1,4 +1,4 @@
-from helth import HealthBar
+from health import HealthBar
 from inventory import *
 from bullets import *
 from bullets import Bullets

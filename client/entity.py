@@ -2,7 +2,7 @@ import threading
 from typing import Any, Dict, Tuple
 from mapset import PINK
 import pygame
-from helth import HealthBar
+from health import HealthBar
 
 # TODO: display entity's hp bar above them
 SCALE_FROM_LIFE = 5
