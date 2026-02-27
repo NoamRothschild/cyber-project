@@ -4,8 +4,12 @@ from player import *
 from tile import Rock
 from PIL import Image
 from mapset import (
+    WIDTH,
+    HEIGHT,
     VIEW_WIDTH,
     VIEW_HEIGHT,
+    VIEW_SCALE_X,
+    VIEW_SCALE_Y,
     SCREEN_SCALE_X,
     SCREEN_SCALE_Y,
     NODE_WIDTH,
@@ -96,6 +100,34 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
 
         # Draw bold light-green bounding boxes around all visible region nodes
         self._draw_region_node_grid()
+
+        # Draw a centered red border box that mimics the original (unscaled)
+        # WIDTH x HEIGHT viewport within the currently zoomed-out view.
+        box_w = WIDTH / VIEW_SCALE_X
+        box_h = HEIGHT / VIEW_SCALE_Y
+        box_x = (WIDTH - box_w) / 2
+        box_y = (HEIGHT - box_h) / 2
+
+        # Inner "must see" viewport
+        pygame.draw.rect(
+            self.display,
+            (255, 0, 0),
+            pygame.Rect(box_x, box_y, box_w, box_h),
+            3,
+        )
+
+        # Outer, slightly larger viewport (1.5x the size) with a thinner stroke
+        outer_w = box_w * 1.5
+        outer_h = box_h * 1.5
+        outer_x = (WIDTH - outer_w) / 2
+        outer_y = (HEIGHT - outer_h) / 2
+
+        pygame.draw.rect(
+            self.display,
+            (255, 128, 128),
+            pygame.Rect(outer_x, outer_y, outer_w, outer_h),
+            2,
+        )
 
     def _draw_region_node_grid(self):
         # Current camera view in world coordinates
