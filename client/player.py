@@ -97,8 +97,12 @@ class Player(pygame.sprite.Sprite):
 
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
                 self.direction.x = -1
+                self.facing = "LEFT"
+
             elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
                 self.direction.x = 1
+                self.facing = "RIGHT"
+
             else:
                 self.direction.x = 0
         if not is_c_o:
