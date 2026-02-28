@@ -4,8 +4,8 @@ from entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
 from mapset import *
-
-from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
+from animation import Animation
+from region_server.config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
 
