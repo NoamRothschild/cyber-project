@@ -114,11 +114,11 @@ class ProjectileHandler:
             # Spatial collision detection
             for proj in self.projectiles:
                 search_radius = math.ceil(proj["range"] / RegionNode.CELL_SIZE)
-                for obj in node.nearby(proj["cell_x"], proj["cell_y"], search_radius):
+                for grid_field in node.nearby(proj["cell_x"], proj["cell_y"], search_radius):
                     # TODO: expand to also catch Enemy objects when pulled
-                    if not isinstance(obj, Client):
+                    if not isinstance(grid_field.obj, Client):
                         continue
-                    client = obj
+                    client = grid_field.obj
                     if proj["owner_uuid"] == client.user_id:
                         continue
                     if client.user_id in proj["already_hit"]:
