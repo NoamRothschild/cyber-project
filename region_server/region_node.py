@@ -272,7 +272,8 @@ class RegionNode:
                     ... # TODO: handle other proxy objects
 
             # proxy this movement to the other node
-            await create_proxy(self.node_pos, node_pos, region_net.RegionUpdate(location_block=pos_update))
+            proxy_update = region_net.RegionUpdate(location_block=pos_update, sender_id=client.user_id)
+            await create_proxy(self.node_pos, node_pos, proxy_update)
 
         self.grid_move(client, old_cell_x, old_cell_y, cell_x, cell_y)
 
@@ -281,6 +282,7 @@ class RegionNode:
         resp.other_data.new_location.CopyFrom(
             region_net.LocationBlock(x=client.state.x, y=client.state.y)
         )
+        resp.other_data.player_id = client.user_id
         await client.broadcast_udp(resp)
 
 WHOLE_MAP_X_RANGE = HORIZONAL_NODE_COUNT * RegionNode.NODE_WIDTH

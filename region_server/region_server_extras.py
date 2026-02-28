@@ -81,6 +81,7 @@ class Client:
             resp_to_new.other_data.new_location.CopyFrom(
                 region_net.LocationBlock(x=client.state.x, y=client.state.y)
             )
+            resp_to_new.other_data.player_id = client.user_id
             await self.write(resp_to_new.SerializeToString())
 
             resp_to_other = region_net.ServerResponse()
@@ -88,6 +89,7 @@ class Client:
             resp_to_other.other_data.new_location.CopyFrom(
                 region_net.LocationBlock(x=self.state.x, y=self.state.y)
             )
+            resp_to_other.other_data.player_id = self.user_id
             await client.write(resp_to_other.SerializeToString())
 
         try:
@@ -151,6 +153,7 @@ class Client:
         resp.other_data.new_location.CopyFrom(
             region_net.LocationBlock(x=client_pos[0], y=client_pos[1])
         )
+        resp.other_data.player_id = client_user_id
         await self.write_udp(resp)
     
     def can_see(self, pos: Tuple[int, int]) -> bool:
