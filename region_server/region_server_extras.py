@@ -227,15 +227,24 @@ class Client:
         data.seq_num = self.conn_state.last_sent_seq
         raw = data.SerializeToString()
         if conn := self.conn_state.udp_conn:
-            await conn.send(raw)
-            self.conn_state.last_sent_seq += 1
+            try:
+                await conn.send(raw)
+                self.conn_state.last_sent_seq += 1
+            except Exception as e:
+                print(f"Failed to send UDP to client {self.user_id}: {e}")
         else:
-            await self.write(raw)  # fallback to tcp when udp sock is not available
+            await self.write(raw)
 
-    async def write(self, data: bytes) -> None:
-        async with self.conn_state.writer_lock:
-            self.conn_state.writer.write(data)
-            await self.conn_state.writer.drain()
+    async def write(self, data: bytes) -> bool:
+        """Write data to the TCP stream. Returns False if the connection is dead."""
+        try:
+            async with self.conn_state.writer_lock:
+                self.conn_state.writer.write(data)
+                await self.conn_state.writer.drain()
+            return True
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, OSError) as e:
+            print(f"Failed to write to client {self.user_id}: {e}")
+            return False
 
     async def broadcast_udp(self, data: region_net.ServerResponse) -> None:
         for client in self.node.clients.values():
@@ -266,5 +275,8 @@ class Client:
         for client in self.node.clients.values():
             if client == self:
                 continue
-            await client.write(data)
+            try:
+                await client.write(data)
+            except Exception as e:
+                print(f"Client {client.user_id} was unable to receive data: {e}, ignoring...")
         print(f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}")
