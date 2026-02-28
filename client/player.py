@@ -86,7 +86,6 @@ class Player(pygame.sprite.Sprite):
             return
 
         if keys[pygame.K_UP] or keys[pygame.K_w]:
-
             self.direction.y = -1
 
         elif keys[pygame.K_DOWN] or keys[pygame.K_s]:
