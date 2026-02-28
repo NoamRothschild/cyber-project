@@ -41,3 +41,8 @@ class Entities:
             else:
                 self.entities[id] = Entity(groups, pos if pos is not None else (0, 0))
                 self.entities[id].set_hp(hp)
+
+    def remove(self, entity_id: int) -> None:
+        with self.lock:
+            if e := self.entities.pop(entity_id, None):
+                e.kill()

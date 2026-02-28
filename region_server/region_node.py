@@ -11,7 +11,7 @@ from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
 from servers_communication import broadcast_on
 from constants import CLIENT_ASPECT_RATIO, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
-from proxy import create_proxy, ProxyObject, ProxyClient
+from proxy import create_proxy, remove_proxy, ProxyObject, ProxyClient
 from grid_utils import GridField, ProxyField, Direction
 from nodes import nodes
 
@@ -63,10 +63,17 @@ class RegionNode:
         except ValueError:
             return
 
-        # remove the old event of the proxy by id if exists
-        field = ProxyField(proxy, set())
+        # remove the old proxy entry, capturing its seen set for despawn checks
+        old_seen: set[int] = set()
+        lookup = ProxyField(proxy, set())
         for prx in self.proxies:
-            prx.discard(field)
+            for existing in prx:
+                if existing == lookup:
+                    old_seen = existing.seen
+                    break
+            prx.discard(lookup)
+
+        field = ProxyField(proxy, set())
         self.proxies[Direction.to_proxy_pos(direction)].add(field)
 
         # notify all clients in this node who can see the proxy (using objects_in_view)
@@ -80,6 +87,29 @@ class RegionNode:
                 continue
             field.seen.add(cli.user_id)
             await cli.saw_client(proxy.pos, proxy.id)
+
+        # despawn for clients who could see the old proxy but can't see the new position
+        for uid in old_seen - field.seen:
+            for cli in self.clients.values():
+                if cli.user_id == uid:
+                    await cli.entity_despawned(proxy.id)
+                    break
+
+    async def receive_proxy_remove(self, sender_id: int) -> None:
+        """Remove a proxy by sender_id and despawn it for all clients who had seen it."""
+        from region_server_extras import Client
+        for prx in self.proxies:
+            to_remove = None
+            for existing in prx:
+                if existing.proxy.id == sender_id:
+                    to_remove = existing
+                    break
+            if to_remove:
+                for cli in self.clients.values():
+                    if cli.user_id in to_remove.seen:
+                        await cli.entity_despawned(sender_id)
+                prx.discard(to_remove)
+                return
 
     # ---- grid helpers ----
 
@@ -98,8 +128,15 @@ class RegionNode:
         self, obj: Any, old_cx: int, old_cy: int, new_cx: int, new_cy: int
     ) -> None:
         if (old_cx, old_cy) != (new_cx, new_cy):
+            old_seen = set()
+            if cell := self.grid.get((old_cx, old_cy)):
+                target = GridField(obj)
+                for field in cell:
+                    if field == target:
+                        old_seen = field.seen
+                        break
             self.grid_remove(obj, old_cx, old_cy)
-            self.grid_add(obj, new_cx, new_cy)
+            self.grid_add(obj, new_cx, new_cy, old_seen)
 
     def nearby(
         self, cell_x: int, cell_y: int, radius: int
@@ -225,6 +262,16 @@ class RegionNode:
 
         # moved to another node
         if not self.contains(raw_x, raw_y):
+            for cli in self.clients.values():
+                if cli.user_id == client.user_id:
+                    continue
+                if Client.can_see_static((cli.state.x, cli.state.y), (client.state.x, client.state.y)):
+                    await cli.entity_despawned(client.user_id)
+            # remove all proxies this client had on neighboring nodes
+            for direction in getattr(client, '_proxied_directions', set()):
+                node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+                await remove_proxy(self.node_pos, node_pos, client.user_id)
+            client._proxied_directions = set()
             await self.unregister_client(client)
             node_pos = RegionNode.which_node(raw_x, raw_y)
             # node is on this device
@@ -244,13 +291,22 @@ class RegionNode:
             return
 
         old_cell_x, old_cell_y = client.state.cell_x, client.state.cell_y
+        old_x, old_y = client.state.x, client.state.y
         client.state.x = raw_x
         client.state.y = raw_y
         cell_x, cell_y = self.to_cell_pos((raw_x, raw_y))
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
 
         bounds = self.possible_bounding_nodes(raw_x, raw_y)
+        new_proxied = set(bounds)
+        old_proxied: set = getattr(client, '_proxied_directions', set())
         print(f"possible bounding nodes: {bounds}")
+
+        # remove proxies for directions we're no longer near
+        for direction in old_proxied - new_proxied:
+            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+            await remove_proxy(self.node_pos, node_pos, client.user_id)
+        client._proxied_directions = new_proxied
 
         # checking who can we see and who can see us
         for direction in bounds:
@@ -275,7 +331,44 @@ class RegionNode:
             proxy_update = region_net.RegionUpdate(location_block=pos_update, sender_id=client.user_id)
             await create_proxy(self.node_pos, node_pos, proxy_update)
 
+        # notify player about same-node objects they haven't seen yet
+        for grid_field in self.objects_in_view((raw_x, raw_y)):
+            obj = grid_field.obj
+            if not isinstance(obj, Client):
+                continue
+            if obj.user_id == client.user_id:
+                continue
+            if client.user_id in grid_field.seen:
+                continue
+            if not Client.can_see_static((client.state.x, client.state.y), (obj.state.x, obj.state.y)):
+                continue
+            grid_field.seen.add(client.user_id)
+            await client.saw_client((obj.state.x, obj.state.y), obj.user_id)
+
+        # despawn: entities that left the moving player's viewport
+        for grid_field in self.objects_in_view((old_x, old_y)):
+            obj = grid_field.obj
+            if not isinstance(obj, Client):
+                continue
+            if obj.user_id == client.user_id:
+                continue
+            if client.user_id not in grid_field.seen:
+                continue
+            if Client.can_see_static((raw_x, raw_y), (obj.state.x, obj.state.y)):
+                continue
+            grid_field.seen.discard(client.user_id)
+            await client.entity_despawned(obj.user_id)
+
         self.grid_move(client, old_cell_x, old_cell_y, cell_x, cell_y)
+
+        # despawn: other clients who lost sight of the moving player
+        for cli in self.clients.values():
+            if cli.user_id == client.user_id:
+                continue
+            could_see = Client.can_see_static((cli.state.x, cli.state.y), (old_x, old_y))
+            can_see = Client.can_see_static((cli.state.x, cli.state.y), (raw_x, raw_y))
+            if could_see and not can_see:
+                await cli.entity_despawned(client.user_id)
 
         resp = region_net.ServerResponse()
         resp.sender_id = client.user_id

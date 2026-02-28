@@ -155,6 +155,14 @@ class Client:
         )
         resp.other_data.player_id = client_user_id
         await self.write_udp(resp)
+
+    async def entity_despawned(self, entity_user_id: int) -> None:
+        """Notify this player that an entity left their viewport"""
+        resp = region_net.ServerResponse()
+        resp.sender_id = entity_user_id
+        resp.other_data.state = region_net.OtherPlayerData.DESPAWNED
+        resp.other_data.player_id = entity_user_id
+        await self.write_udp(resp)
     
     def can_see(self, pos: Tuple[int, int]) -> bool:
         return abs(self.state.x - pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(self.state.y - pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)

@@ -230,7 +230,7 @@ def event_handler(
             hb.y = update.move_self.y
         elif payload_type == "other_data":
             payload_type = update.other_data.WhichOneof("payload")
-            print(f"{payload_type=}")
+            print(f"{payload_type=}, {update.other_data.player_id=}")
             if payload_type == "new_location":
                 pos = update.other_data.new_location
                 game.level.entities.add_or_update([game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y))
@@ -248,8 +248,9 @@ def event_handler(
                         health_elem.add_life(diff)
                     elif diff < 0:
                         health_elem.sub_life(abs(diff))
-            # elif payload_type == "state":
-            #     ...
+            elif payload_type == "state":
+                if update.other_data.state == region_net.OtherPlayerData.DESPAWNED:
+                    game.level.entities.remove(update.other_data.player_id)
         elif len(update.bullet_shot) > 0:
             inc_bullets = update.bullet_shot
             for bullet in inc_bullets:

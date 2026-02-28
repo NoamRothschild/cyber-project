@@ -30,11 +30,15 @@ def get_pubsub() -> PubSub:
 
 BROADCAST_PREFIX = b'BRD'
 PROXY_CREATE_PREFIX = b'PRX'
+PROXY_REMOVE_PREFIX = b'PRM'
 async def broadcast_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, BROADCAST_PREFIX + message)
 
 async def create_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_CREATE_PREFIX + message)
+
+async def remove_proxy_on(node_idx: str, message: bytes):
+    await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
 
 def start_redis_listener() -> None:
     """Must be called after initializing the node list"""
@@ -62,6 +66,12 @@ def start_redis_listener() -> None:
                 update.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
                 if node := nodes.get(node_pos):
                     await node.receive_proxy_event(update)
+
+            if data.startswith(PROXY_REMOVE_PREFIX):
+                update = region_net.RegionUpdate()
+                update.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
+                if node := nodes.get(node_pos):
+                    await node.receive_proxy_remove(update.sender_id)
 
             if data.startswith(BROADCAST_PREFIX):
                 update = region_net.RegionUpdate()

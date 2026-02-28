@@ -50,6 +50,7 @@ message OtherPlayerData {
   enum OtherState {
     WALKING = 0;
     ATTACKING = 1;
+    DESPAWNED = 2;
   }
 }
 
