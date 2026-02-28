@@ -13,7 +13,7 @@ class Arsenal:
         "Ak-7": ("arsenal-images/guns/Ak1.png",
                  "AK-7_bullet",
                  "not fixed",
-                 (15, 30),  # relative offset from the player
+                 (0, 27),  # relative offset from the player
                  70,  # scale
                  15,  # magzin
                  250  # fire_cooldown in ms (0.25s)
@@ -31,8 +31,8 @@ class Arsenal:
         "bow": ("arsenal-images/guns/bow.png",
                 "arrow",
                 "not fixed",
-                (15, 30),  # relative offset from the player
-                15,  # scale
+                (-10, 20),  # relative offset from the player
+                22,  # scale
                 5,  # magzin
                 500  # fire_cooldown
                 ),

@@ -63,9 +63,9 @@ class Bullets:
         # Scale and set transparency
         w, h = self.image_bullet.get_size()
         self.image_bullet = pygame.transform.scale(
-            self.image_bullet, (int(w * self.scale), int(h * self.scale))
-        )
+            self.image_bullet, (int(w * self.scale), int(h * self.scale)))
         self.image_bullet.set_colorkey(blue)
+        self.image_bullet = pygame.transform.flip(self.image_bullet, True, False)
         self.rect = self.image_bullet.get_rect()
         if from_network:
             # Network bullet: we must have an angle; x/y are already world-space.

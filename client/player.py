@@ -8,7 +8,6 @@ from mapset import *
 from arsenal import Arsenal
 from inventory import *
 from bullets import *
-from domain_Expansion import *
 from shop import ShopUI
 from potion import Potion
 
@@ -95,16 +94,16 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.y = 0
 
-            if keys[pygame.K_LEFT] or keys[pygame.K_a]:
+        if keys[pygame.K_LEFT] or keys[pygame.K_a]:
                 self.direction.x = -1
                 self.facing = "LEFT"
 
-            elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-                self.direction.x = 1
-                self.facing = "RIGHT"
+        elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
+            self.direction.x = 1
+            self.facing = "RIGHT"
 
-            else:
-                self.direction.x = 0
+        else:
+            self.direction.x = 0
         if not is_c_o:
             if keys[pygame.K_b]:
                 now = pygame.time.get_ticks()
