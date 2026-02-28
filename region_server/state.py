@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, cast, Set
 from constants import TICK_INTERVAL_SEC, THIS_SERVER_IP
 from region_node import RegionNode, HORIZONAL_NODE_COUNT
 from nodes import nodes
-from servers_communication import get_redis, get_pubsub
+from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL
 
 
 def get_client(session_id: int) -> Optional[Any]:
@@ -30,6 +30,8 @@ async def create_initial_nodes() -> None:
         )
         await ps.subscribe(node_idx_raw)
         print(f"initiliazed node at pos {x, y}")
+
+    await ps.subscribe(GLOBAL_CHANNEL)
 
 
 def start_global_tick_loop() -> None:

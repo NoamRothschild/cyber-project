@@ -31,6 +31,8 @@ def get_pubsub() -> PubSub:
 BROADCAST_PREFIX = b'BRD'
 PROXY_CREATE_PREFIX = b'PRX'
 PROXY_REMOVE_PREFIX = b'PRM'
+GLOBAL_CHANNEL = b'global'
+
 async def broadcast_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, BROADCAST_PREFIX + message)
 
@@ -39,6 +41,10 @@ async def create_proxy_on(node_idx: str, message: bytes):
 
 async def remove_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
+
+async def publish_player_disconnect(sender_id: int):
+    update = region_net.RegionUpdate(sender_id=sender_id)
+    await get_redis().publish(GLOBAL_CHANNEL, PROXY_REMOVE_PREFIX + update.SerializeToString())
 
 def start_redis_listener() -> None:
     """Must be called after initializing the node list"""
@@ -56,6 +62,15 @@ def start_redis_listener() -> None:
 
             data: bytes = msg['data']
             channel: bytes = msg['channel']
+
+            if channel == GLOBAL_CHANNEL:
+                if data.startswith(PROXY_REMOVE_PREFIX):
+                    update = region_net.RegionUpdate()
+                    update.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
+                    for node in nodes.values():
+                        await node.receive_proxy_remove(update.sender_id)
+                continue
+
             node_pos =  (
                 int(channel) % HORIZONAL_NODE_COUNT,
                 int(channel) // HORIZONAL_NODE_COUNT

@@ -34,3 +34,11 @@ async def remove_proxy(src_node_pos: Tuple[int, int], dst_node_pos: Tuple[int, i
         update = region_net.RegionUpdate(sender_id=sender_id)
         node_idx = str(RegionNode.node_pos_to_idx(*dst_node_pos))
         await remove_proxy_on(node_idx, update.SerializeToString())
+
+async def broadcast_disconnect(sender_id: int) -> None:
+    """Remove a player's proxy from every node on every server."""
+    from nodes import nodes
+    from servers_communication import publish_player_disconnect
+    for node in nodes.values():
+        await node.receive_proxy_remove(sender_id)
+    await publish_player_disconnect(sender_id)

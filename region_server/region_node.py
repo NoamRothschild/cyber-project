@@ -11,7 +11,7 @@ from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
 from servers_communication import broadcast_on
 from constants import CLIENT_ASPECT_RATIO, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
-from proxy import create_proxy, remove_proxy, ProxyObject, ProxyClient
+from proxy import create_proxy, remove_proxy, broadcast_disconnect, ProxyObject, ProxyClient
 from grid_utils import GridField, ProxyField, Direction
 from nodes import nodes
 
@@ -96,7 +96,7 @@ class RegionNode:
                     break
 
     async def receive_proxy_remove(self, sender_id: int) -> None:
-        """Remove a proxy by sender_id and despawn it for all clients who had seen it."""
+        """Remove all proxies matching sender_id and despawn for clients who had seen them."""
         from region_server_extras import Client
         for prx in self.proxies:
             to_remove = None
@@ -109,7 +109,6 @@ class RegionNode:
                     if cli.user_id in to_remove.seen:
                         await cli.entity_despawned(sender_id)
                 prx.discard(to_remove)
-                return
 
     # ---- grid helpers ----
 
@@ -253,13 +252,16 @@ class RegionNode:
         self.clients[client.session_id] = client
         self.grid_add(client, cell_x, cell_y)
     
-    async def unregister_client(self, client: Client):
-        for direction in getattr(client, '_proxied_directions', set()):
-            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
-            await remove_proxy(self.node_pos, node_pos, client.user_id)
-        client._proxied_directions = set()
+    def detach_client(self, client: Client):
+        """Remove client from this node's grid and client list without global cleanup."""
         self.grid_remove(client, client.state.cell_x, client.state.cell_y)
         self.clients.pop(client.session_id, None)
+
+    async def unregister_client(self, client: Client):
+        """Full disconnect: remove from node and purge proxies on all servers."""
+        client._proxied_directions = set()
+        self.detach_client(client)
+        await broadcast_disconnect(client.user_id)
 
     async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
         from region_server_extras import Client  # lazy to avoid circular import
@@ -267,17 +269,18 @@ class RegionNode:
 
         # moved to another node
         if not self.contains(raw_x, raw_y):
-            for cli in self.clients.values():
-                if cli.user_id == client.user_id:
-                    continue
-                if Client.can_see_static((cli.state.x, cli.state.y), (client.state.x, client.state.y)):
-                    await cli.entity_despawned(client.user_id)
-            # remove all proxies this client had on neighboring nodes
+            # remove proxies this client had on other neighboring nodes,
+            # but seed a proxy on THIS node so same-node clients still see the player
             for direction in getattr(client, '_proxied_directions', set()):
                 node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
                 await remove_proxy(self.node_pos, node_pos, client.user_id)
             client._proxied_directions = set()
-            await self.unregister_client(client)
+            self.detach_client(client)
+            proxy_update = region_net.RegionUpdate(
+                location_block=region_net.LocationBlock(x=client.state.x, y=client.state.y),
+                sender_id=client.user_id,
+            )
+            await self.receive_proxy_event(proxy_update)
             node_pos = RegionNode.which_node(raw_x, raw_y)
             # node is on this device
             if new_node := nodes.get(node_pos):
