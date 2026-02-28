@@ -29,15 +29,19 @@ def get_pubsub() -> PubSub:
     return RedisSingleton().pubsub
 
 BROADCAST_PREFIX = b'BRD'
+PROXY_CREATE_PREFIX = b'PRX'
 async def broadcast_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, BROADCAST_PREFIX + message)
 
-    
+async def create_proxy_on(node_idx: str, message: bytes):
+    await get_redis().publish(node_idx, PROXY_CREATE_PREFIX + message)
+
 def start_redis_listener() -> None:
     """Must be called after initializing the node list"""
 
     async def listener() -> None:
-        from region_node import HORIZONAL_NODE_COUNT, nodes
+        from region_node import HORIZONAL_NODE_COUNT
+        from nodes import nodes
         ps = get_pubsub()
         while True:
             msg = await ps.get_message(ignore_subscribe_messages=True, timeout=None)
@@ -52,6 +56,12 @@ def start_redis_listener() -> None:
                 int(channel) % HORIZONAL_NODE_COUNT,
                 int(channel) // HORIZONAL_NODE_COUNT
             )
+
+            if data.startswith(PROXY_CREATE_PREFIX):
+                update = region_net.RegionUpdate()
+                update.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
+                if node := nodes.get(node_pos):
+                    await node.receive_proxy_event(update)
 
             if data.startswith(BROADCAST_PREFIX):
                 update = region_net.RegionUpdate()

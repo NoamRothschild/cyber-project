@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Any, Dict, Generator, Tuple, Set, List
 from typing import TYPE_CHECKING
+from enum import Enum
 
 if TYPE_CHECKING:
     from region_server_extras import Client
@@ -9,12 +10,13 @@ import math
 from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
 from servers_communication import broadcast_on
-
-nodes: Dict[Tuple[int, int], RegionNode] = {}
+from constants import CLIENT_ASPECT_RATIO, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
+from proxy import create_proxy, ProxyObject, ProxyClient
+from grid_utils import GridField, ProxyField, Direction
+from nodes import nodes
 
 VERTICAL_NODE_COUNT = 20
 HORIZONAL_NODE_COUNT = 17
-
 
 class RegionNode:
     NODE_WIDTH = 4600  # [px]
@@ -27,7 +29,8 @@ class RegionNode:
         self.view = str(self.node_pos)
         self.x_range = (topleft[0], topleft[0] + RegionNode.NODE_WIDTH)
         self.y_range = (topleft[1], topleft[1] + RegionNode.NODE_HEIGHT)
-        self.grid: Dict[Tuple[int, int], Set[Any]] = {}
+        self.grid: Dict[Tuple[int, int], Set[GridField]] = {}
+        self.proxies: List[Set[ProxyField]] = [set() for _ in range(8)] # a set of proxies from each direction
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
         self.projectile_handler = ProjectileHandler(self)
@@ -44,19 +47,52 @@ class RegionNode:
             self.x_range[0] <= x <= self.x_range[1]
             and self.y_range[0] <= y <= self.y_range[1]
         )
+    
+    async def receive_proxy_event(self, proxy_update: region_net.RegionUpdate) -> None:
+        from region_server_extras import Client
+        payload_type = proxy_update.WhichOneof("payload")
+        if payload_type == "location_block":
+            proxy = ProxyClient(proxy_update.location_block.x, proxy_update.location_block.y, proxy_update.sender_id)
+        elif payload_type == "bullet_shot":
+            raise NotImplementedError("Bullet shots are not supported yet")
+        else:
+            raise ValueError(f"Unknown proxy update type: {payload_type}")
+
+        try:
+            direction = Direction.from_diff(self.node_pos, RegionNode.which_node(*proxy.pos))
+        except ValueError:
+            return
+
+        # remove the old event of the proxy by id if exists
+        field = ProxyField(proxy, set())
+        for prx in self.proxies:
+            prx.discard(field)
+        self.proxies[Direction.to_proxy_pos(direction)].add(field)
+
+        # notify all clients in this node who can see the proxy (using objects_in_view)
+        for grid_field in self.objects_in_view(proxy.pos):
+            cli = grid_field.obj
+            if not isinstance(cli, Client):
+                continue
+            if cli.user_id == proxy.id:
+                continue
+            if not Client.can_see_static((cli.state.x, cli.state.y), proxy.pos):
+                continue
+            field.seen.add(cli.user_id)
+            await cli.saw_client(proxy.pos, proxy.id)
 
     # ---- grid helpers ----
 
-    def grid_add(self, obj: Any, cell_x: int, cell_y: int) -> None:
+    def grid_add(self, obj: Any, cell_x: int, cell_y: int, seen: set[int] = set()) -> None:
         key = (cell_x, cell_y)
         if cell := self.grid.get(key):
-            cell.add(obj)
+            cell.add(GridField(obj, seen))
         else:
-            self.grid[key] = {obj}
+            self.grid[key] = {GridField(obj, seen)}
 
     def grid_remove(self, obj: Any, cell_x: int, cell_y: int) -> None:
         if cell := self.grid.get((cell_x, cell_y)):
-            cell.discard(obj)
+            cell.discard(GridField(obj))
 
     def grid_move(
         self, obj: Any, old_cx: int, old_cy: int, new_cx: int, new_cy: int
@@ -91,6 +127,30 @@ class RegionNode:
                 if cell := self.grid.get((cell_x + r, cell_y + dy)):
                     yield from cell
 
+    def objects_in_view(self, pos: Tuple[int, int]) -> Generator[Any, None, None]:
+        """Yield grid objects in cells overlapping the view rect (no per-pixel iteration)."""
+        left = pos[0] - int(CLIENT_RECEIVE_WIDTH) // 2
+        top = pos[1] - int(CLIENT_RECEIVE_HEIGHT) // 2
+        right = pos[0] + int(CLIENT_RECEIVE_WIDTH) // 2
+        bottom = pos[1] + int(CLIENT_RECEIVE_HEIGHT) // 2
+
+        cell_x_min = (left - self.x_range[0]) // RegionNode.CELL_SIZE
+        cell_x_max = (right - 1 - self.x_range[0]) // RegionNode.CELL_SIZE
+        cell_y_min = (top - self.y_range[0]) // RegionNode.CELL_SIZE
+        cell_y_max = (bottom - 1 - self.y_range[0]) // RegionNode.CELL_SIZE
+
+        max_cx = RegionNode.NODE_WIDTH // RegionNode.CELL_SIZE - 1
+        max_cy = RegionNode.NODE_HEIGHT // RegionNode.CELL_SIZE - 1
+        cell_x_min = max(0, cell_x_min)
+        cell_x_max = min(max_cx, cell_x_max)
+        cell_y_min = max(0, cell_y_min)
+        cell_y_max = min(max_cy, cell_y_max)
+
+        for cell_y in range(cell_y_min, cell_y_max + 1):
+            for cell_x in range(cell_x_min, cell_x_max + 1):
+                if cell := self.grid.get((cell_x, cell_y)):
+                    yield from cell
+
     # ---- static helpers ----
 
     @staticmethod
@@ -115,19 +175,39 @@ class RegionNode:
     @staticmethod
     def node_pos_to_idx(pos_x: int, pos_y: int) -> int:
         return pos_y * HORIZONAL_NODE_COUNT + pos_x
-    
-    def possible_bounding_nodes(self, raw_x: int, raw_y: int) -> List[Tuple[int, int]]:
-        is_left = (raw_x - self.node_pos[0] * RegionNode.NODE_WIDTH) / RegionNode.NODE_WIDTH < .5
-        is_up = (raw_y - self.node_pos[1] * RegionNode.NODE_HEIGHT) / RegionNode.NODE_HEIGHT < .5
+
+    def possible_bounding_nodes(self, raw_x: int, raw_y: int) -> List[Direction]:
+        """
+        Returns relative node offsets (dx, dy) for neighboring nodes that can see an object at (raw_x, raw_y), 
+        based on how close the position is to this node's borders.
+        """
+        local_x = (raw_x - self.node_pos[0] * RegionNode.NODE_WIDTH) / RegionNode.NODE_WIDTH
+        local_y = (raw_y - self.node_pos[1] * RegionNode.NODE_HEIGHT) / RegionNode.NODE_HEIGHT
+
+        edge_thresh_sides = (CLIENT_RECEIVE_WIDTH / 2) / RegionNode.NODE_WIDTH
+        edge_thresh_up_down = (CLIENT_RECEIVE_HEIGHT / 2) / RegionNode.NODE_HEIGHT
+        is_left = local_x < edge_thresh_sides
+        is_right = local_x > (1.0 - edge_thresh_sides)
+        is_up = local_y < edge_thresh_up_down
+        is_down = local_y > (1.0 - edge_thresh_up_down)
 
         if is_left and is_up:
-            return [(-1,-1),(0,-1),(-1,0)]
-        elif is_left and not is_up:
-            return [(-1,0),(-1,1),(0,1)]
-        elif is_up: # and not is_left
-            return [(0,-1),(1,-1),(1,0)]
-        else: # not is_up and not is_left
-            return [(1,0),(0,1),(1,1)]
+            return [Direction.UP_LEFT, Direction.UP, Direction.LEFT]
+        elif is_left and is_down:
+            return [Direction.DOWN_LEFT, Direction.DOWN, Direction.LEFT]
+        elif is_right and is_up:
+            return [Direction.UP_RIGHT, Direction.UP, Direction.RIGHT]
+        elif is_right and is_down:
+            return [Direction.DOWN_RIGHT, Direction.DOWN, Direction.RIGHT]
+        elif is_left:
+            return [Direction.LEFT]
+        elif is_right:
+            return [Direction.RIGHT]
+        elif is_up:
+            return [Direction.UP]
+        elif is_down:
+            return [Direction.DOWN]
+        return []
 
     async def register_client(self, client: Client, initial_pos: Tuple[int, int]):
         self.clients[client.session_id] = client
@@ -140,6 +220,7 @@ class RegionNode:
         self.clients.pop(client.session_id, None)
 
     async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
+        from region_server_extras import Client  # lazy to avoid circular import
         raw_x, raw_y = pos_update.x, pos_update.y
 
         # moved to another node
@@ -168,28 +249,30 @@ class RegionNode:
         cell_x, cell_y = self.to_cell_pos((raw_x, raw_y))
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
 
-        # checking if other nodes can see this movement event
-        for bound_x, bound_y in self.possible_bounding_nodes(raw_x, raw_y):
-            node_pos = (self.node_pos[0] + bound_x, self.node_pos[1] + bound_y)
+        bounds = self.possible_bounding_nodes(raw_x, raw_y)
+        print(f"possible bounding nodes: {bounds}")
 
-            if extra_node := nodes.get(node_pos):
-                # notify players in other nodes that can see this movement
-                for cli in extra_node.clients.values():
-                    if cli.user_id == client.user_id:
-                        continue
-                    resp = region_net.ServerResponse()
-                    resp.sender_id = client.user_id
-                    resp.other_data.new_location.CopyFrom(
-                        region_net.LocationBlock(x=client.state.x, y=client.state.y)
-                    )
-                    await cli.write_udp(resp)
-                    print(f'showed {client.user_id}({client.node.view}) to {cli.user_id}({cli.node.view})')
-            else:
-                print(f"key {node_pos}: {node_pos in nodes.keys()=}")
-                node_idx = str(RegionNode.node_pos_to_idx(*node_pos))
-                message = region_net.RegionUpdate(location_block=pos_update).SerializeToString()
-                await broadcast_on(node_idx, message)
-                print(f"({self.view}) -> ({node_pos}), played can be seen outside of this server, forwarding...")
+        # checking who can we see and who can see us
+        for direction in bounds:
+            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+
+            # show proxy events in the found node to the client sent the packet
+            for seen, obj in self.proxies[Direction.to_proxy_pos(direction)]:
+                if client.user_id in seen:
+                    continue
+                if obj.id == client.user_id:
+                    continue
+                if not Client.can_see_static(obj.pos, (client.state.x, client.state.y)):
+                    continue
+                seen.add(client.user_id)
+                if isinstance(obj, ProxyClient):
+                    await client.saw_client(obj.pos, obj.id)
+                    print(f'showed {client.user_id}({client.node.view}) to {obj.id}({node_pos})')
+                else:
+                    ... # TODO: handle other proxy objects
+
+            # proxy this movement to the other node
+            await create_proxy(self.node_pos, node_pos, region_net.RegionUpdate(location_block=pos_update))
 
         self.grid_move(client, old_cell_x, old_cell_y, cell_x, cell_y)
 

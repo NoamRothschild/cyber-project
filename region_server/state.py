@@ -2,7 +2,8 @@ from __future__ import annotations
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple, cast, Set
 from constants import TICK_INTERVAL_SEC, THIS_SERVER_IP
-from region_node import RegionNode, HORIZONAL_NODE_COUNT, nodes
+from region_node import RegionNode, HORIZONAL_NODE_COUNT
+from nodes import nodes
 from servers_communication import get_redis, get_pubsub
 
 

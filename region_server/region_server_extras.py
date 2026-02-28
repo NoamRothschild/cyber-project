@@ -2,11 +2,13 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass, field
 from random import randint
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 import aioudp
 import protobuf.region_net_pb2 as region_net
-from constants import BUFF_SIZE
-from state import get_client, nodes
+from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
+
+from state import get_client
+from nodes import nodes
 
 if TYPE_CHECKING:
     from region_node import RegionNode
@@ -141,6 +143,22 @@ class Client:
             reader,
             writer,
         )
+    
+    async def saw_client(self, client_pos: Tuple[int, int], client_user_id: int) -> None:
+        """Notify this player about a new client's location"""
+        resp = region_net.ServerResponse()
+        resp.sender_id = client_user_id
+        resp.other_data.new_location.CopyFrom(
+            region_net.LocationBlock(x=client_pos[0], y=client_pos[1])
+        )
+        await self.write_udp(resp)
+    
+    def can_see(self, pos: Tuple[int, int]) -> bool:
+        return abs(self.state.x - pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(self.state.y - pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)
+    
+    @staticmethod
+    def can_see_static(player_pos: Tuple[int, int], object_pos: Tuple[int, int]) -> bool:
+        return abs(player_pos[0] - object_pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(player_pos[1] - object_pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)
 
     async def hit(self, count: int, hitter_id: int) -> None:
         self.state.hp -= count
@@ -211,6 +229,10 @@ class Client:
     async def broadcast_udp(self, data: region_net.ServerResponse) -> None:
         for client in self.node.clients.values():
             if client == self:
+                continue
+            if client.user_id == data.sender_id:
+                continue
+            if not client.can_see((data.other_data.new_location.x, data.other_data.new_location.y)):
                 continue
             data.seq_num = client.conn_state.last_sent_seq
             raw = data.SerializeToString()

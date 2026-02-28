@@ -56,7 +56,8 @@ class ProjectileHandler:
         return resp.SerializeToString()
 
     async def tick(self, cycle: int) -> None:
-        from region_node import nodes, RegionNode
+        from nodes import nodes
+        from region_node import RegionNode
         from servers_communication import broadcast_on
         from region_server_extras import Client
 
@@ -216,15 +217,17 @@ class ProjectileHandler:
 
     async def broadcast_to_adjacent(self, projectiles: list[dict]) -> None:
         """Broadcast projectile creation data to players in adjacent nodes."""
-        from region_node import nodes, RegionNode
+        from nodes import nodes
+        from region_node import RegionNode
         from servers_communication import broadcast_on
 
         for proj in projectiles:
             data = self._build_bullet_response(proj)
 
-            for bound_x, bound_y in self._node.possible_bounding_nodes(
+            for direction in self._node.possible_bounding_nodes(
                 int(proj["x"]), int(proj["y"])
             ):
+                bound_x, bound_y = direction.value
                 node_pos = (
                     self._node.node_pos[0] + bound_x,
                     self._node.node_pos[1] + bound_y,
