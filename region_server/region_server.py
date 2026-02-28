@@ -2,11 +2,25 @@ from __future__ import annotations
 import asyncio
 import signal
 import aioudp
+import aioudp.server
 from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import Client
 from state import start_global_tick_loop, create_initial_nodes
 from servers_communication import start_redis_listener
 ZONE_HOST = ZONE_HOSTS[0]
+
+# aioudp's error_received raises unconditionally, which kills the UDP
+# transport's read loop on Windows when a client crashes (ICMP unreachable).
+# Even if we suppress the raise, Python's _ProactorDatagramTransport only
+# reschedules _loop_reading in the try/else branch — which doesn't run after
+# an OSError. We must manually restart the read loop.
+_KNOWN_UDP_ERRORS = {1234, 10054, 10053}  # WinError codes from dead endpoints
+def _safe_error_received(self, exc: Exception) -> None:
+    if not (isinstance(exc, OSError) and exc.winerror in _KNOWN_UDP_ERRORS):
+        print(f"[WARN] UDP transport error (suppressed): {exc}")
+    if self.transport is not None and not self.transport.is_closing():
+        asyncio.get_running_loop().call_soon(self.transport._loop_reading)
+aioudp.server._ServerProtocol.error_received = _safe_error_received
 
 
 async def main() -> None:

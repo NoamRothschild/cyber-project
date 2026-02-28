@@ -247,12 +247,17 @@ class RegionNode:
         return []
 
     async def register_client(self, client: Client, initial_pos: Tuple[int, int]):
-        self.clients[client.session_id] = client
+        client.state.x, client.state.y = initial_pos
         cell_x, cell_y = self.to_cell_pos(initial_pos)
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
+        self.clients[client.session_id] = client
         self.grid_add(client, cell_x, cell_y)
     
     async def unregister_client(self, client: Client):
+        for direction in getattr(client, '_proxied_directions', set()):
+            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+            await remove_proxy(self.node_pos, node_pos, client.user_id)
+        client._proxied_directions = set()
         self.grid_remove(client, client.state.cell_x, client.state.cell_y)
         self.clients.pop(client.session_id, None)
 

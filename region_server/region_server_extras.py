@@ -66,31 +66,10 @@ class Client:
 
         # For now: assign to the single whole-map node
         node = nodes[(16, 14)]  # NOTE: this is the node the player was constructed at (see Player class construction on client code)
+        initial_pos = (74000, 32600)
         self = Client(reader, writer, session_id, user_id, node)
-        await node.register_client(self, (74000, 32600))
-
-        # TODO: move to register_client
-        # when a new player joins:
-        # 1. provide the new client everyone's location (ServerResponse so client can render entities)
-        # 2. provide everyone the new client's location
-        for client in node.clients.values():
-            if client == self:
-                continue
-            resp_to_new = region_net.ServerResponse()
-            resp_to_new.sender_id = client.user_id
-            resp_to_new.other_data.new_location.CopyFrom(
-                region_net.LocationBlock(x=client.state.x, y=client.state.y)
-            )
-            resp_to_new.other_data.player_id = client.user_id
-            await self.write(resp_to_new.SerializeToString())
-
-            resp_to_other = region_net.ServerResponse()
-            resp_to_other.sender_id = self.user_id
-            resp_to_other.other_data.new_location.CopyFrom(
-                region_net.LocationBlock(x=self.state.x, y=self.state.y)
-            )
-            resp_to_other.other_data.player_id = self.user_id
-            await client.write(resp_to_other.SerializeToString())
+        
+        await node.register_client(self, initial_pos)
 
         try:
             await self.handle_tcp()
@@ -209,19 +188,25 @@ class Client:
                 await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
 
     async def handle_tcp(self) -> None:
-        while True:
-            data = await self.conn_state.reader.read(BUFF_SIZE)
-            if not data:
-                break
-            await self.handle_region_update(data, Client.FROM_TCP)
+        try:
+            while True:
+                data = await self.conn_state.reader.read(BUFF_SIZE)
+                if not data:
+                    break
+                await self.handle_region_update(data, Client.FROM_TCP)
+        except (ConnectionResetError, ConnectionAbortedError, OSError):
+            pass
 
     async def handle_udp(self, conn: aioudp.Connection) -> None:
-        while not self.conn_state.stop_udp_conn.is_set():
-            message = await conn.recv()
-            if not message:
-                self.conn_state.udp_conn = None
-                break
-            await self.handle_region_update(message, Client.FROM_UDP)
+        try:
+            while not self.conn_state.stop_udp_conn.is_set():
+                message = await conn.recv()
+                if not message:
+                    self.conn_state.udp_conn = None
+                    break
+                await self.handle_region_update(message, Client.FROM_UDP)
+        except (ConnectionResetError, ConnectionAbortedError, OSError):
+            self.conn_state.udp_conn = None
 
     async def write_udp(self, data: region_net.ServerResponse) -> None:
         data.seq_num = self.conn_state.last_sent_seq
