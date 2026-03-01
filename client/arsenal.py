@@ -28,15 +28,6 @@ class Arsenal:
                  -1  # fire_cooldown
                  ),
 
-        "domain_expansion": ("arsenal-images/guns/domainExp.png",
-                             "null",
-                             "fixed",
-                             (4, 32),  # relative offset from the player
-                             20,  # scale
-                             0,  # magzin
-                             -1  # fire_cooldown
-                             ),
-
         "bow": ("arsenal-images/guns/bow.png",
                 "arrow",
                 "not fixed",
@@ -46,12 +37,12 @@ class Arsenal:
                 500  # fire_cooldown
                 ),
         "sword": ("arsenal-images/guns/sword.png",
-                  "null",
+                  "arrow",
                   "fixed",
                   (-5, 12),  # relative offset from the player
                   100,  # scale
-                  0,  # magzin
-                  -1  # fire_cooldown
+                  10,  # magzin
+                  10  # fire_cooldown
                   )
     }
 

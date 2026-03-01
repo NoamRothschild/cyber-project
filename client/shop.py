@@ -1,8 +1,10 @@
 # Fixler the pro ᓚᘏᗢ
 import pygame
+
+from client import potion
 from client.arsenal import Arsenal
 from client.bullets import Bullets
-
+from potion import Potion
 
 class ShopUI:
     def __init__(self):
@@ -14,7 +16,6 @@ class ShopUI:
             "bow": 80,
             "sword": 60,
             "rock": 10,
-            "domain_expansion": 500
         }
 
         #  bullet_name -- (price, amount)
@@ -22,6 +23,14 @@ class ShopUI:
             "AK-7_bullet": (15, 5),
             "arrow": (10, 10)
         }
+
+        #  bullet_name -- (price)
+        self.potion={
+            "healing": 140,
+            "speed": 70,
+            "super_speed": 140
+        }
+
 
         self.font_title = pygame.font.SysFont(None, 36)
         self.font = pygame.font.SysFont(None, 26)
@@ -35,6 +44,10 @@ class ShopUI:
         items = []
         for w in self.weapon_prices:
             items.append(("weapon", w))
+
+        for p in self.potion:
+            items.append(("potion", p))
+
         for b in self.ammo_packs:
             items.append(("ammo", b))
         return items
@@ -43,21 +56,32 @@ class ShopUI:
         kind, name = item
         if kind == "weapon":
             return self.weapon_prices[name]
-        return self.ammo_packs[name][0]
+        if kind == "ammo":
+            return self.ammo_packs[name][0]
+        if kind == "potion":
+            return self.potion[name]
+        return None
 
     def item_title(self, item):
         kind, name = item
         if kind == "weapon":
             return name
-        return f"{name} x{self.ammo_packs[name][1]}"
+        if kind == "ammo":
+            return f"{name} x{self.ammo_packs[name][1]}"
+        if kind == "potion":
+            return name
+        return None
 
     def item_icon(self, item):  # ᓚᘏᗢ
         kind, name = item
 
         if kind == "weapon":
             img = Arsenal.get_weapon_img(name).copy()
-        else:
+
+        elif kind == "ammo":
             img = Bullets.bullet_types[name][0].copy()
+        else:
+            img = Potion.get_potion_img(name).copy()
 
         key = img.get_at((0, 0))[:3]
         img.set_colorkey(key)
@@ -100,12 +124,19 @@ class ShopUI:
         player.money -= price
 
         if kind == "weapon":
-            player.inventory.add_item_toThe_Inventory(Arsenal(name))
-        else:
+            player.inventory.add_item_toThe_Inventory(Arsenal(name), "weapon")
+
+        elif kind == "ammo":
             if not hasattr(player, "ammo_collection"):
                 player.ammo_collection = {}
             _, amount = self.ammo_packs[name]
             player.ammo_collection[name] = player.ammo_collection.get(name, 0) + amount
+
+        elif kind == "potion":
+            print(name)
+            player.inventory.add_item_toThe_Inventory(Potion(name), "potion")
+        else:
+            return
 
     # ᓚᘏᗢ
 
@@ -176,15 +207,26 @@ class ShopUI:
             ]
 
         # ammo
-        price, amount = self.ammo_packs[name]
-        bullet_damage = Bullets.bullet_types[name][4]
+        if kind == "ammo":
+            price, amount = self.ammo_packs[name]
+            bullet_damage = Bullets.bullet_types[name][4]
 
-        return [  # ᓚᘏᗢ
-            "Type: Ammo",  # ᓚᘏᗢ
-            f"Bullet: {name}",  # ᓚᘏᗢ
-            f"Adds: {amount}",  # ᓚᘏᗢ
-            f"Bullet damage: {bullet_damage}",  # ᓚᘏᗢ
-        ]
+            return [  # ᓚᘏᗢ
+                "Type: Ammo",  # ᓚᘏᗢ
+                f"Bullet: {name}",  # ᓚᘏᗢ
+                f"Adds: {amount}",  # ᓚᘏᗢ
+                f"Bullet damage: {bullet_damage}",  # ᓚᘏᗢ
+            ]
+
+        if kind == "potion":
+            price= self.potion[name]
+
+            return [  # ᓚᘏᗢ
+                "Type: Potion",  # ᓚᘏᗢ
+                f"Effect: {name} potion",  # ᓚᘏᗢ
+                f"Adds: {1}",  # ᓚᘏᗢ
+                f"Time last: {Potion.effect_time(name)}",  # ᓚᘏᗢ
+            ]
 
     # -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-#
     # -=-=-=-=-=-=-=-=-draw=-=-=-=-=-=-=-=-=-=-#
@@ -248,7 +290,17 @@ class ShopUI:
 
             # -----name-----#
             kind, name = item
-            label = name if kind == "weapon" else "AMMO"
+            if kind == "weapon":
+                label=  "weapon"
+
+            elif kind == "ammo":
+                label=  "AMMO"
+
+            elif kind == "potion":
+                label = "POTION"
+            else:
+                label = "UNKNOWN"
+
             label_txt = self.font.render(label, True, (210, 210, 210))
             label_rect = label_txt.get_rect(midbottom=(rect.centerx, rect.bottom - 6))
             screen.blit(label_txt, label_rect)

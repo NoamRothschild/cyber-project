@@ -2,10 +2,13 @@ import pygame
 import time
 from helth import HealthBar
 from mapset import *
+from functools import cache
 
-
+SERF = pygame.display.get_surface()
 class Potion(pygame.sprite.Sprite):
-    potions = {"healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
+
+    potions = {
+                "healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
                            "health_bar",
                            15, 15),
                "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
@@ -20,13 +23,23 @@ class Potion(pygame.sprite.Sprite):
 
     def __init__(self, potion_type):
         self.potion_type = potion_type
-        self.display_surface = pygame.display.get_surface()
+        self.display_surface = SERF
         self.image, self.what, self.how_much, self.ttl = Potion.potions[potion_type]
         self.smaller_v = pygame.transform.scale(self.image, (30, 30))
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
         self.health = HealthBar((0, 0), 30)
 
+
+    @staticmethod
+    def get_potion_img(potion: str) -> pygame.Surface:
+        image, what, how_much, ttl  = Potion.potions[potion]
+        return image
+
+    @staticmethod
+    def effect_time(potion: str) -> pygame.Surface:
+        image, what, how_much, ttl  = Potion.potions[potion]
+        return how_much
 
     def draw_for_inventory(self, i, low_x, low_y):
         if (i < 10):

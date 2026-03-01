@@ -21,11 +21,25 @@ class Player(pygame.sprite.Sprite):
         super().__init__(groups)  # the groups for now is only visable sprite
 
         self.display_surface=pygame.display.get_surface()
-        self.image = pygame.image.load('player.png').convert_alpha()
-        self.image.set_colorkey(PINK)  # background
+
+        self.animation = Animation(
+            "Player_Skins/mordred.png",
+            frame_w=32, frame_h=32,
+            rows={"idle": 0, "run": 3},
+            frames_per_row={"idle": 4, "run": 4},
+            scale=3,
+            colorkey=(23, 130, 184),
+            speed_ms=180
+        )
+        self.image = self.animation.image()
+        self.facing = "RIGHT"
+
         self.rect = self.image.get_rect(topleft=Starting_POS)
 
-        self.hitbox = self.rect.inflate(-20, -10)
+        self.hitbox = self.rect.inflate(0,0)
+        self.hitbox.width = 30
+        self.hitbox.height = 30
+
         self.speed = 4
         self.direction = pygame.math.Vector2()
         self.groups = groups
@@ -53,8 +67,6 @@ class Player(pygame.sprite.Sprite):
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
         self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
-        self.inventory.add_item_toThe_Inventory(Potion("speed"), "potion")
-        self.inventory.add_item_toThe_Inventory(Arsenal("domain_expansion"), "weapon")
 
     def current_Weapon(self):
         return self.inventory.wep_inventory[self.inventory.current_weapon]
@@ -84,8 +96,12 @@ class Player(pygame.sprite.Sprite):
 
             if keys[pygame.K_LEFT] or keys[pygame.K_a]:
                 self.direction.x = -1
+                self.facing = "LEFT"
+
             elif keys[pygame.K_RIGHT] or keys[pygame.K_d]:
                 self.direction.x = 1
+                self.facing = "RIGHT"
+
             else:
                 self.direction.x = 0
         if not is_c_o:
@@ -204,9 +220,27 @@ class Player(pygame.sprite.Sprite):
             self.rect.topleft = Starting_POS
             self.hitbox.center=self.rect.center
 
+    def playerState(self):
+        if self.direction.x != 0 or self.direction.y != 0:
+            self.animation.set_state("run")
+        else:
+            self.animation.set_state("idle")
+
+        self.animation.update()
+
+        old_center = self.rect.center
+
+        self.image = self.animation.image(flip_x=(not self.facing=="RIGHT"))
+
+        self.rect = self.image.get_rect(center=old_center)
+
+
     def update(self,is_c_o):
         self.dead()
         self.input(is_c_o)
+
+        self.playerState()
+
         draw_AND_update_Bullets(self)
         self.current_Weapon().draw_mag_stat()
         self.shop_ui.draw(self.display_surface, self)
