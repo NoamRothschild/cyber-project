@@ -257,10 +257,8 @@ def event_handler(
                     print(f"player hp changed")
                     if diff > 0:
                         health_elem.add_life(diff)
-                        Green_hit.start()
                     elif diff < 0:
                         health_elem.sub_life(abs(diff))
-                        Red_hit.start()
             elif payload_type == "state":
                 if update.other_data.state == region_net.OtherPlayerData.DESPAWNED:
                     game.level.entities.remove(update.other_data.player_id)

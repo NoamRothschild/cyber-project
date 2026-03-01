@@ -6,7 +6,7 @@ import pygame, sys
 import math
 from mapset import *
 from animation import Animation
-from region_server.config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
+from region_server.config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
 from level import *
 from random import randint
 from zone_connection import *

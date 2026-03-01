@@ -4,18 +4,17 @@ from helth import HealthBar
 from mapset import *
 from functools import cache
 
-SERF = pygame.display.get_surface()
 class Potion(pygame.sprite.Sprite):
 
     potions = {
-                "healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
+                "healing": ("Potion/super_health.png",
                            "health_bar",
                            15, 15),
-               "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
+               "speed": ("Potion/speed.png",
                          "speed", # on what the potion has effect
                          10, #how much it does
                          6),# for how much time
-               "super_speed": (pygame.image.load("Potion/super_speed.png").convert_alpha(),
+               "super_speed": ("Potion/super_speed.png",
                                "speed",
                                40,
                                10)
@@ -23,8 +22,9 @@ class Potion(pygame.sprite.Sprite):
 
     def __init__(self, potion_type):
         self.potion_type = potion_type
-        self.display_surface = SERF
+        self.display_surface = pygame.display.get_surface()
         self.image, self.what, self.how_much, self.ttl = Potion.potions[potion_type]
+        self.image = pygame.image.load(self.image).convert_alpha()
         self.smaller_v = pygame.transform.scale(self.image, (30, 30))
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
@@ -34,7 +34,7 @@ class Potion(pygame.sprite.Sprite):
     @staticmethod
     def get_potion_img(potion: str) -> pygame.Surface:
         image, what, how_much, ttl  = Potion.potions[potion]
-        return image
+        return pygame.image.load(image).convert_alpha()
 
     @staticmethod
     def effect_time(potion: str) -> pygame.Surface:
