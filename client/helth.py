@@ -43,3 +43,15 @@ class HealthBar(pygame.sprite.Sprite):
 
     def is_alive(self):
         return self.plus_rect.width > 0
+
+    def set_life(self, num):
+        # A direct override for loading from the database.
+        # It bypasses the shield and hit effects.
+        if num > 400:
+            num = 400
+        if num < 0:
+            num = 0
+
+        self.plus_rect.width = num
+        self.minus_rect.width = 400 - num
+        self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
