@@ -39,11 +39,11 @@ class Arsenal:
                 500  # fire_cooldown
                 ),
         "sword": ("arsenal-images/guns/sword.png",
-                  "arrow",
+                  "null",
                   "fixed",
                   (-5, 12),  # relative offset from the player
                   100,  # scale
-                  10,  # magzin
+                  0,  # magzin
                   10  # fire_cooldown
                   )
     }

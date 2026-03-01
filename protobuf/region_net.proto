@@ -2,24 +2,17 @@ syntax = "proto3";
 
 package game.region;
 
-message RegionUpdate {
-  oneof payload {
-    LocationBlock location_block = 1;
-    BulletShot bullet_shot = 2;
-    PotionUse potion_use = 3;
-  }
-}
+
 message ChatMessage {
   oneof mas {
     string message = 1;
   }
 }
-message PotionUse {
-  PotionType potion_type = 1;
-  int32 HowMuch=2;
 
-  enum PotionType {
-    health = 0;
+message RegionUpdate {
+  oneof payload {
+    LocationBlock location_block = 1;
+    BulletShot bullet_shot = 2;
   }
   optional uint64 seq_num = 3;
   optional int32 sender_id = 4;
