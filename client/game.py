@@ -11,6 +11,7 @@ from zone_connection import *
 from enter_screen import EnterScreen
 from enter_screen import EnterScreen
 from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
+import traceback
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
