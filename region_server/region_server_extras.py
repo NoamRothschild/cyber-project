@@ -5,12 +5,11 @@ from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import math
 import redis
-
+from auth_server import data_db_handler as db
 
 REDIS_PORT = 6379
 IP = "127.0.0.1"
 redis_client = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
-
 
 BUFF_SIZE = 1024
 
@@ -26,6 +25,7 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,
     }
 }
+
 
 class ProjectileHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
@@ -86,7 +86,7 @@ class ProjectileHandler:
         bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
         bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
         bullet["owner_uuid"] = client.user_id
-        bullet["already_hit"] = set[int]() # client ids that have been hit by this bullet
+        bullet["already_hit"] = set[int]()  # client ids that have been hit by this bullet
         bullet["x"] = client.pos[0]
         bullet["y"] = client.pos[1]
 
@@ -116,6 +116,7 @@ clients: Set[Client] = set()
 
 projectile_handler = ProjectileHandler()
 
+
 class Client:
     @staticmethod
     async def client_handler_setup(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
@@ -144,18 +145,37 @@ class Client:
         user_id = int(user_id_str)
         print(f"User {user_id} authenticated via Redis.")
 
+        player_stats = db.load_player(user_id)
+
+        if not player_stats:
+            print("Error: Player data not found! Fallback to defaults.")
+            player_stats = {
+                "health": 400,
+                "money": 0,
+                "weapons": [0] * 10,
+                "potions": [0] * 10,
+                "spawn_x": 74010,
+                "spawn_y": 32605
+            }
+
         handshake.Clear()
-        # Prepare success response with the REAL user_id
         response = region_net.HandshakeStart(
             kind=region_net.HandshakeStart.SERVER_OK,
             user_id=user_id,
+            health=player_stats["health"],
+            money=player_stats["money"],
+            pos_x=player_stats["spawn_x"],
+            pos_y=player_stats["spawn_y"]
         )
+
+        response.weapons.extend(player_stats["weapons"])
+        response.potions.extend(player_stats["potions"])
 
         writer.write(response.SerializeToString())
         await writer.drain()
 
         global clients
-        self = Client(reader, writer, session_id, user_id)
+        self = Client(reader, writer, session_id, user_id, player_stats)
         clients.add(self)
 
         try:
@@ -163,14 +183,34 @@ class Client:
         finally:
             clients.remove(self)
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: str, user_id: int) -> None:
+            print(f"User {user_id} disconnected. Saving state to database...")
+
+            # Package the live memory back into a dictionary
+            db.save_player(
+                player_id=self.user_id,
+                health=self.hp,
+                money=self.money,
+                weapons_list=list(self.weapons),
+                potions_list=list(self.potions),
+                spawn_x=int(self.pos[0]),
+                spawn_y=int(self.pos[1])
+            )
+            print(f" User {user_id} saved successfully.")
+
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: str,
+                 user_id: int, stats:dict) -> None:
         self.reader = reader
         self.writer = writer
         self.writer_lock = asyncio.Lock()
         self.session_id = session_id
         self.user_id = user_id
-        self.hp = 400
-        self.pos: Tuple[int, int] = (0, 0) # TODO: fetch this from the DB
+
+        self.hp = stats["health"]
+        self.pos: Tuple[int, int] = (stats["spawn_x"], stats["spawn_y"])
+
+        self.money = stats["money"]
+        self.weapons = stats["weapons"]
+        self.potions = stats["potions"]
 
     async def hit(self, count, hitter_id: int):
         self.hp -= count
@@ -217,4 +257,3 @@ class Client:
                 continue
             await client.write(data)
         print(f"data broadcasted to {len(clients) - 1} clients")
-
