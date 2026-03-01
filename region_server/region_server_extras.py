@@ -176,6 +176,9 @@ class Client:
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
             await self.node.handle_movement(self, update.location_block)
+        elif payload_type == "potion_use":
+            if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
+                await self.hit(-update.potion_use.HowMuch, self.user_id)
         elif payload_type == "bullet_shot":
             update_bytes, new_projs = await self.node.projectile_handler.add(
                 update.bullet_shot, self

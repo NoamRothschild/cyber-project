@@ -13,9 +13,19 @@ message RegionUpdate {
   oneof payload {
     LocationBlock location_block = 1;
     BulletShot bullet_shot = 2;
+    PotionUse potion_use = 3;
   }
-  optional uint64 seq_num = 3;
-  optional int32 sender_id = 4;
+  optional uint64 seq_num = 4;
+  optional int32 sender_id = 5;
+}
+
+message PotionUse {
+  PotionType potion_type = 1;
+  int32 HowMuch=2;
+
+  enum PotionType {
+    health = 0;
+  }
 }
 
 message LocationBlock {
