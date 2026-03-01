@@ -94,9 +94,11 @@ class Arsenal:
             mouse_x, mouse_y = pygame.mouse.get_pos()
             weapon_img = self.weapon_img
 
+            scale = 0.1
             w, h = weapon_img.get_size()
-            weapon_img = pygame.transform.scale(
-                weapon_img, (self.scale, int(h * (self.scale / w))))
+            scaled_w = max(1, int(w * scale * SCREEN_SCALE_X))
+            scaled_h = max(1, int(h * scale * SCREEN_SCALE_Y))
+            weapon_img = pygame.transform.scale(weapon_img, (scaled_w, scaled_h))
 
             weapon_img = pygame.transform.flip(weapon_img, True, False)
 
@@ -107,9 +109,11 @@ class Arsenal:
             angle = -math.degrees(math.atan2(y_r, x_r))
 
         else:
+            scale = 0.1
             w, h = self.weapon_img.get_size()
-            weapon_img = pygame.transform.scale(
-                self.weapon_img, (self.scale, int(h * (self.scale / w))))
+            scaled_w = max(1, int(w * scale * SCREEN_SCALE_X))
+            scaled_h = max(1, int(h * scale * SCREEN_SCALE_Y))
+            weapon_img = pygame.transform.scale(self.weapon_img, (scaled_w, scaled_h))
 
             if self.gun_type == "sword":
                 angle = 360 - 45
@@ -120,7 +124,7 @@ class Arsenal:
 
         # draw
         rect = rotated.get_rect(
-            center=(player_x + self.offset_x, player_y + self.offset_y))
+            center=(player_x + self.offset_x*SCREEN_SCALE_X, player_y + self.offset_y*SCREEN_SCALE_Y))
         self.display.blit(rotated, rect.topleft)
 
     def get_image(self):
