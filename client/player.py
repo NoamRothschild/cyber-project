@@ -62,11 +62,11 @@ class Player(pygame.sprite.Sprite):
         }
 
         self.health = HealthBar(HEALTH_BAR_POS,HEALTH_BAR_SCALE)
-        self.inventory.add_item_toThe_Inventory(Arsenal("Ak-7"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Arsenal("rock"), "weapon")
+        self.inventory.add_item_toThe_Inventory(Arsenal("Ak 47"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("Assault rifle"), "weapon")
+        self.inventory.add_item_toThe_Inventory(Arsenal("Pistol"), "weapon")
         self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
 
     def current_Weapon(self):

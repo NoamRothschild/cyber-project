@@ -1,3 +1,5 @@
+from typing import Any
+
 import pygame
 import math
 from functools import cache
@@ -7,28 +9,16 @@ from weapon_anim import WeaponAnim
 
 
 class Arsenal:
-    #     USE example
-    #     weapon = Arsenal("Ak-7")
-    #     weapon.draw(SCREEN, player.x, player.y)
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
-        "Ak-7": ("arsenal-images/guns/Ak1.png",
-                 1,
+        "Ak 47": ("arsenal-images/guns/Ak 47.png",
+                 12,
                  "AK-7_bullet",
                  "not fixed",
                  (0, 27),  # relative offset from the player
-                 70,  # scale
+                 120,  # scale
                  15,  # magzin
-                 250  # fire_cooldown in ms (0.25s)
-                 ),
-
-        "rock": ("rock.png",
-                 1,
-                 "null",
-                 "fixed",
-                 (4, 32),  # relative offset from the player
-                 20,  # scale
-                 0,  # magzin
-                 -1  # fire_cooldown
+                 250,  # fire_cooldown in ms (0.25s)
+                 (20, 45)  #rotating point
                  ),
 
         "bow": ("arsenal-images/guns/bow.png",
@@ -38,33 +28,47 @@ class Arsenal:
                 (-10, 20),  # relative offset from the player
                 22,  # scale
                 5,  # magzin
-                500  # fire_cooldown
+                500,  # fire_cooldown
+                (20, 45)  #rotating point
                 ),
         "sword": ("arsenal-images/guns/sword.png",
                   1,
                   "arrow",
                   "fixed",
-                  (-5, 12),  # relative offset from the player
+                  (-10, -40),  # relative offset from the player
                   100,  # scale
                   10,  # magzin
-                  10  # fire_cooldown
+                  10,  # fire_cooldown
+                  (0, 0)  #rotating point
                   ),
         "Assault rifle":
                 ("arsenal-images/guns/Assault rifle.png",
                  24,
                   "AK-7_bullet",
                   "not fixed",
-                  (15, 35),  # relative offset from the player
+                  (10, 35),  # relative offset from the player
                   130,  # scale
-                  10,  # magzin
-                  100  # fire_cooldown
-                  )
+                  30,  # magzin
+                  100,  # fire_cooldown
+                 (35, 26) #rotating point
+                  ),
+        "Pistol":
+            ("arsenal-images/guns/Pistol.png",
+             12,
+             "AK-7_bullet",
+             "not fixed",
+             (15, 25),  # relative offset from the player
+             100,  # scale
+             10,  # magzin
+             100,  # fire_cooldown
+             (15, 16) #rotating point
+             )
     }
 
     @staticmethod
     def bullet_from_gun(gun_type: str, default_fmt='{}_bullet') -> str:
         if gun := Arsenal.Arsenal_gunType.get(gun_type):
-            return gun[1]  # index 1 -> bullet type
+            return gun[2]  # index 1 -> bullet type
         return default_fmt.format(gun_type)
 
     @staticmethod
@@ -73,7 +77,8 @@ class Arsenal:
         path = Arsenal.Arsenal_gunType[gun_type][0]
         return pygame.image.load(path).convert_alpha()
 
-    def _cut_weapon_frames(self, sheet: pygame.Surface, frames: int):
+    @staticmethod
+    def _cut_weapon_frames(sheet: pygame.Surface, frames: int) -> list[Any]:
         # spritesheet
         sheet_w, sheet_h = sheet.get_size()
         frame_w = sheet_w // frames
@@ -95,7 +100,7 @@ class Arsenal:
         # gun type - type of the gun c:
         self.display = pygame.display.get_surface()
         self.gun_type = gun_type
-        self.weapon_path,self.img_num, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown = \
+        self.weapon_path,self.img_num, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown,self.pivot = \
             Arsenal.Arsenal_gunType[gun_type]
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
@@ -117,7 +122,7 @@ class Arsenal:
 
 
     def refill_mag(self):
-        weapon_path, bullet, movement, coordinates, scale, mag, fire_cooldown = Arsenal.Arsenal_gunType[self.gun_type]
+        weapon_path,img_num, bullet, movement, coordinates, scale, mag, fire_cooldown,pivot = Arsenal.Arsenal_gunType[self.gun_type]
         self.mag = mag
 
     def draw_for_inventory(self, i, low_x, low_y):
@@ -145,20 +150,22 @@ class Arsenal:
         # drowing the gun with angle
         if self.movement == "not fixed":
             mouse_x, mouse_y = pygame.mouse.get_pos()
-            weapon_img =weapon_img_src
 
-            w, h = weapon_img.get_size()
-            weapon_img = pygame.transform.scale(
-                weapon_img, (self.scale, int(h * (self.scale / w))))
-
-            weapon_img = pygame.transform.flip(weapon_img, True, False)
+            w, h = weapon_img_src.get_size()
+            weapon_img_src = pygame.transform.scale(
+                weapon_img_src, (self.scale, int(h * (self.scale / w))))
 
             if mouse_x < player_x:
-                weapon_img = pygame.transform.flip(weapon_img, False, True)
-                if self.gun_type=="Assault rifle":
-                    offset_x = self.offset_x-30
+                weapon_img_src = pygame.transform.flip(weapon_img_src, False, True)
 
-            if mouse_y < player_y and self.gun_type=="Assault rifle" :  offset_y = self.offset_y-15
+                offset_x = self.offset_x*-1
+
+            if mouse_y < player_y and mouse_x>player_x:
+                offset_x,offset_y =offset_x+4,self.offset_y-11
+
+            if mouse_y < player_y and mouse_x<player_x :
+                offset_x,offset_y =offset_x-7,self.offset_y-11
+
 
             x_r, y_r = mouse_x - player_x, mouse_y - player_y
             angle = -math.degrees(math.atan2(y_r, x_r))
@@ -173,12 +180,43 @@ class Arsenal:
             else:
                 angle = 0
 
-        rotated = pygame.transform.rotate(weapon_img, angle)
+        # DEBUG
+        #debug_img = weapon_img.copy()
+        #pygame.draw.circle(debug_img, (255, 0, 0), self.pivot, 5)
+        #self.display.blit(debug_img, (50, 50))
 
-        # draw
-        rect = rotated.get_rect(
-            center=(player_x + offset_x, player_y + offset_y))
-        self.display.blit(rotated, rect.topleft)
+
+        w, h = weapon_img_src.get_size()
+        scale_ratio = self.scale / w
+
+        weapon_img = pygame.transform.scale(
+            weapon_img_src,
+            (self.scale, int(h * scale_ratio))
+        )
+
+        #center of rotation
+        pivot = pygame.math.Vector2(
+            self.pivot[0] * scale_ratio,
+            self.pivot[1] * scale_ratio
+        )
+
+        hand_pos = pygame.math.Vector2(
+            player_x + offset_x,
+            player_y + offset_y
+        )
+
+        image_rect = weapon_img.get_rect()
+        center = pygame.math.Vector2(image_rect.center)
+        pivot_offset = pivot - center
+
+        rotated_offset = pivot_offset.rotate(-angle)
+
+        rotated_image = pygame.transform.rotate(weapon_img, angle)
+
+        new_center = hand_pos - rotated_offset
+        rotated_rect = rotated_image.get_rect(center=new_center)
+
+        self.display.blit(rotated_image, rotated_rect)
 
     def get_image(self):
         return self.weapon_img

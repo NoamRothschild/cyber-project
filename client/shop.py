@@ -12,10 +12,11 @@ class ShopUI:
 
         # price
         self.weapon_prices = {
-            "Ak-7": 120,
+            "Ak 47": 300,
+            "Assault rifle": 350,
+            "Pistol": 200,
             "bow": 80,
             "sword": 60,
-            "rock": 10,
         }
 
         #  bullet_name -- (price, amount)
@@ -76,7 +77,9 @@ class ShopUI:
         kind, name = item
 
         if kind == "weapon":
-            img = Arsenal.get_weapon_img(name).copy()
+            w = Arsenal(name)
+            weapon_frames = w._cut_weapon_frames(w.weapon_img, w.img_num)
+            img=weapon_frames[0]
 
         elif kind == "ammo":
             img = Bullets.bullet_types[name][0].copy()
@@ -165,7 +168,7 @@ class ShopUI:
 
             icon = self.item_icon(item)
 
-            min_icon = 56  # תנסה 48/56/64
+            min_icon = 56
 
             iw, ih = icon.get_size()
             max_w = card_rect.w - 16
