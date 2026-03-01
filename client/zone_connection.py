@@ -3,6 +3,7 @@ import socket
 import threading
 from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
+from inventory import WEAPON_MAP
 
 if TYPE_CHECKING:
     # Imported only for type checking to avoid circular imports at runtime
@@ -37,6 +38,29 @@ class ZoneConnection:
         login_resp.ParseFromString(login_resp_raw)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
+
+        player = self.game.level.player
+
+        player.hitbox.x = login_resp.pos_x
+        player.hitbox.y = login_resp.pos_y
+
+        player.rect.center = player.hitbox.center
+
+        self.server_known_pos = (login_resp.pos_x, login_resp.pos_y)
+
+        player.health.set_life(login_resp.health)
+
+        player.inventory.inventory.clear()
+        for weapon_id in login_resp.weapons:
+            if weapon_id != 0:  # 0 is our DB standard for an "empty" slot. Skip it.
+                if weapon_id in WEAPON_MAP:
+                    weapon_name = WEAPON_MAP[weapon_id]
+                    player.inventory.add_item_toThe_Inventory(weapon_name)
+                else:
+                    # Security/Log: Catch corrupted DB data without crashing the client
+                    print(f"[WARNING] Server sent unknown weapon ID: {weapon_id}")
+
+        print(f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}")
 
         listener = threading.Thread(target=server_listener, args=(self.game, self,))
         listener.start()
