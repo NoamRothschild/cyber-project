@@ -4,6 +4,7 @@ import hashlib
 import uuid
 import protobuf.auth_net_pb2 as auth_net
 import redis
+import data_db_handler as db
 
 DB_NAME = 'Auth.db'
 PORT = 9999
@@ -94,6 +95,9 @@ def handle_login(username, password):
                 cursor.execute("DELETE FROM SESSIONS WHERE user_id = ?", (user_id_from_db,))
                 cursor.execute("INSERT INTO SESSIONS (session_id, user_id) VALUES (?, ?)",
                                (session_id, user_id_from_db))
+
+                #creating an "instance" in the game data db
+                db.create_new_player(user_id_from_db)
 
                 # set data to redis db for 24h
                 # Key = session id, Value = user id
