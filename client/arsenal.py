@@ -1,6 +1,8 @@
 import pygame
 import math
 from functools import cache
+from mapset import SCREEN_SCALE_X, SCREEN_SCALE_Y
+
 
 # need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
 
@@ -68,7 +70,7 @@ class Arsenal:
         self.gun_type = gun_type
         self.weapon_path, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown = \
             Arsenal.Arsenal_gunType[gun_type]
-        
+
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
         self.weapon_img.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))

@@ -1,6 +1,9 @@
 {
   // after changing run setup_dev.py to update
-  "ZONE_HOST": "127.0.0.1",
+  "ZONE_HOSTS": ["127.0.0.1"],
+  "REDIS_HOST": "127.0.0.1",
   "ZONE_TCP_PORT": 8085,
-  "ZONE_UDP_PORT": 8086
+  "ZONE_UDP_PORT": 8086,
+  "AUTH_HOST": "127.0.0.1",
+  "AUTH_PORT": 9999
 }

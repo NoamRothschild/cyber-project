@@ -1,10 +1,10 @@
 from __future__ import annotations
+from queue import Empty, Queue
+import select
 import socket
 import threading
 from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
-from arsenal import Arsenal
-from mapset import *
 
 if TYPE_CHECKING:
     # Imported only for type checking to avoid circular imports at runtime
@@ -24,10 +24,17 @@ class ZoneConnection:
         self.reliable_port = reliable_port
         self.fast_port = fast_port
 
+        self.message_queue: Queue[region_net.ServerResponse] = Queue()
+        self.last_recevied_seq = 0
+        self.last_sent_seq = 0
+        self._stop_event = threading.Event()
+        self._listener_thread: threading.Thread | None = None
+        self._event_handler_thread: threading.Thread | None = None
+
         self.game = game
 
-    def open_reliable_conn(self, session_id: int) -> int:
-        """opens the TCP conn and returns the user id. can throw"""
+    def open_connections(self, session_id: int) -> int:
+        """opens the TCP and UDP conn's and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
         handshake = region_net.HandshakeStart()
         handshake.session_id = session_id
@@ -39,10 +46,64 @@ class ZoneConnection:
         login_resp.ParseFromString(login_resp_raw)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
+        self.open_fast_conn(session_id)
 
-        listener = threading.Thread(target=server_listener, args=(self.game, self,))
-        listener.start()
+        self._listener_thread = threading.Thread(target=server_listener, args=(self,), daemon=True)
+        self._listener_thread.start()
         return login_resp.user_id
+
+    def open_fast_conn(self, session_id: int) -> None:
+        handshake = region_net.HandshakeStart()
+        handshake.session_id = session_id
+        handshake.kind = handshake.LOGIN
+        handshake_bytes = handshake.SerializeToString()
+
+        udp_timeout_sec = 3.0
+        max_retries = 5
+        old_timeout = self.fast_conn.gettimeout()
+        self.fast_conn.settimeout(udp_timeout_sec)
+        try:
+            for attempt in range(max_retries):
+                self.fast_conn.sendto(handshake_bytes, (self.host, self.fast_port))
+                try:
+                    login_resp_raw = self.fast_conn.recv(BUFF_SIZE)
+                except socket.timeout:
+                    if attempt == max_retries - 1:
+                        raise RuntimeError("failed connecting to udp zone: no response after retries (packet loss?)")
+                    continue
+                if not login_resp_raw:
+                    continue
+                login_resp = region_net.HandshakeStart()
+                login_resp.ParseFromString(login_resp_raw)
+                if login_resp.kind != login_resp.SERVER_OK:
+                    raise RuntimeError("failed connecting to udp zone: invalid session id")
+                return
+        finally:
+            self.fast_conn.settimeout(old_timeout)
+
+    def start_event_handler(self):
+        self._event_handler_thread = threading.Thread(
+            target=event_handler, args=(self.game, self.message_queue, self._stop_event), daemon=True
+        )
+        self._event_handler_thread.start()
+
+    def stop(self) -> None:
+        """Signal listener and event_handler threads to exit, then join them. Call when client exits."""
+        self._stop_event.set()
+        self.message_queue.put(None)  # unblock event_handler
+        if self._listener_thread is not None:
+            self._listener_thread.join(timeout=2.0)
+        if self._event_handler_thread is not None:
+            self._event_handler_thread.join(timeout=2.0)
+
+    def send_udp(self, update: region_net.RegionUpdate) -> None:
+        update.seq_num = self.last_sent_seq
+        try:
+            self.fast_conn.sendto(update.SerializeToString(), (self.host, self.fast_port))
+        except Exception as e:
+            print(f"[WARN]: failed sending UDP update: {e}, falling back to TCP")
+            self.reliable_conn.sendall(update.SerializeToString())
+        self.last_sent_seq += 1
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
@@ -57,7 +118,7 @@ class ZoneConnection:
         )
 
         self.server_known_pos = pos
-        self.reliable_conn.sendall(update.SerializeToString())
+        self.send_udp(update)
 
     def try_send_bullet(self, gun_type: str, angle: float, count: int) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
@@ -78,6 +139,7 @@ class ZoneConnection:
             )
         )
         self.reliable_conn.sendall(update.SerializeToString())
+
 
 class ZoneConnectionSingleton:
     _instance: None | ZoneConnectionSingleton = None
@@ -115,41 +177,80 @@ def should_update_location(old_pos: Tuple[int, int], new_pos: Tuple[int, int], m
     return traveled_dst_squared > min_dst_squared
 
 
-def server_listener(game: Game, zone: ZoneConnection):
+def server_listener(zone: ZoneConnection):
     """
     Start this one in another thread
-    Assumes a connection has already been established in `game.region_conn`
+    Continiously polls server updates and pushes them into the queue
+    """
+    sock_list = [zone.reliable_conn, zone.fast_conn]
+    tcp_recv = lambda: zone.reliable_conn.recv(BUFF_SIZE)
+    udp_recv = lambda: zone.fast_conn.recvfrom(BUFF_SIZE)[0]
+    select_timeout = 0.5
+
+    while not zone._stop_event.is_set():
+        readable, _, _ = select.select(sock_list, [], [], select_timeout)
+        if not readable:
+            continue
+        for s in readable:
+            receiver = tcp_recv
+            is_udp = False
+            if s == zone.fast_conn:
+                receiver = udp_recv
+                is_udp = True
+
+            server_raw = receiver()
+            if not server_raw:
+                continue
+
+            parsed = region_net.ServerResponse()
+            parsed.ParseFromString(server_raw)
+
+            if is_udp and parsed.seq_num and parsed.seq_num < zone.last_recevied_seq:
+                print(f"[INFO]: ignoring packet with {parsed.seq_num=} since max seq={zone.last_recevied_seq}")
+                continue
+            if is_udp:
+                zone.last_recevied_seq = max(zone.last_recevied_seq, parsed.seq_num)
+
+            zone.message_queue.put(parsed)
+
+def event_handler(
+    game: Game, zone_queue: Queue[region_net.ServerResponse], stop_event: threading.Event
+):
+    """
+    Start this one in another thread
+    Continiously polls queue events and updates acordingly
     """
     from bullets import Bullets
 
-    while True:
-        server_raw = zone.reliable_conn.recv(BUFF_SIZE)
-        if not server_raw:
+    while not stop_event.is_set():
+        try:
+            update = zone_queue.get(timeout=0.5)
+        except Empty:
             continue
-        parsed = region_net.ServerResponse()
-        parsed.ParseFromString(server_raw)
-        print(f"received: {parsed}")
+        if update is None:
+            break
+        print(f"received: {update}")
 
-        payload_type = parsed.WhichOneof("payload")
+        payload_type = update.WhichOneof("payload")
         print(f'{payload_type=}')
         if payload_type == "move_self":
             print("force moving self...")
             # TODO: have a lock sorrounding player hitbox
             hb = game.level.player.hitbox
-            hb.x = parsed.move_self.x
-            hb.y = parsed.move_self.y
+            hb.x = update.move_self.x
+            hb.y = update.move_self.y
         elif payload_type == "other_data":
-            payload_type = parsed.other_data.WhichOneof("payload")
-            print(f"{payload_type=}")
+            payload_type = update.other_data.WhichOneof("payload")
+            print(f"{payload_type=}, {update.other_data.player_id=}")
             if payload_type == "new_location":
-                pos = parsed.other_data.new_location
-                game.level.entities.add_or_update([game.level.visible_sprites], parsed.sender_id, pos=(pos.x, pos.y))
+                pos = update.other_data.new_location
+                game.level.entities.add_or_update([game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y))
             elif payload_type == "HP":
                 health_elem = game.level.player.health
-                new_hp = parsed.other_data.HP
-                print(f"{parsed.other_data.player_id=}")
-                if parsed.other_data.player_id != game.user_id:
-                    game.level.entities.add_or_update([game.level.visible_sprites], parsed.other_data.player_id, hp=new_hp)
+                new_hp = update.other_data.HP
+                print(f"{update.other_data.player_id=}")
+                if update.other_data.player_id != game.user_id:
+                    game.level.entities.add_or_update([game.level.visible_sprites], update.other_data.player_id, hp=new_hp)
                 else:
                     old_hp = health_elem.get_life()
                     diff = new_hp - old_hp
@@ -160,13 +261,14 @@ def server_listener(game: Game, zone: ZoneConnection):
                     elif diff < 0:
                         health_elem.sub_life(abs(diff))
                         Red_hit.start()
-            # elif payload_type == "state":
-            #     ...
-        elif len(parsed.bullet_shot) > 0:
-            inc_bullets = parsed.bullet_shot
+            elif payload_type == "state":
+                if update.other_data.state == region_net.OtherPlayerData.DESPAWNED:
+                    game.level.entities.remove(update.other_data.player_id)
+        elif len(update.bullet_shot) > 0:
+            inc_bullets = update.bullet_shot
             for bullet in inc_bullets:
                 Bullets.BulletLS.append(Bullets(
-                    Arsenal.bullet_from_gun(bullet.gun_type),
+                    bullet.gun_type + '_bullet',
                     bullet.x, bullet.y,
                     angle=bullet.angle,
                     from_network=True)
