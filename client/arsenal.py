@@ -94,10 +94,10 @@ class Arsenal:
             mouse_x, mouse_y = pygame.mouse.get_pos()
             weapon_img = self.weapon_img
 
-            scale = 0.1
+            scale = 50
             w, h = weapon_img.get_size()
-            scaled_w = max(1, int(w * scale * SCREEN_SCALE_X))
-            scaled_h = max(1, int(h * scale * SCREEN_SCALE_Y))
+            scaled_w = scale*SCREEN_SCALE_X
+            scaled_h = h * (self.scale / w)*SCREEN_SCALE_Y
             weapon_img = pygame.transform.scale(weapon_img, (scaled_w, scaled_h))
 
             weapon_img = pygame.transform.flip(weapon_img, True, False)
