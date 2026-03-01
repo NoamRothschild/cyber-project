@@ -66,6 +66,7 @@ class Player(pygame.sprite.Sprite):
         self.inventory.add_item_toThe_Inventory(Arsenal("rock"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
+        self.inventory.add_item_toThe_Inventory(Arsenal("Assault rifle"), "weapon")
         self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
 
     def current_Weapon(self):
@@ -142,6 +143,7 @@ class Player(pygame.sprite.Sprite):
                             self.rect.centerx - WIDTH / 2,
                             self.rect.centery - HEIGHT / 2,
                         ]
+                        self.current_Weapon().on_fire()
                         bullet=Bullets(
                                 self.current_Weapon().GetBulletType(),
                                 self.display_surface.get_width() / 2,
