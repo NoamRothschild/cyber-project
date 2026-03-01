@@ -266,7 +266,7 @@ def event_handler(
             inc_bullets = update.bullet_shot
             for bullet in inc_bullets:
                 Bullets.BulletLS.append(Bullets(
-                    bullet.gun_type + '_bullet',
+                    bullet.gun_type,
                     bullet.x, bullet.y,
                     angle=bullet.angle,
                     from_network=True)

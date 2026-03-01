@@ -44,6 +44,7 @@ class Bullets:
         )
     }
 
+
     def __init__(
         self,
         bullet_type: str,

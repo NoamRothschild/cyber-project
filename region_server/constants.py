@@ -15,10 +15,17 @@ CLIENT_ASPECT_RATIO = CLIENT_WIDTH / CLIENT_HEIGHT
 
 # TODO: might parse this from a bullets config json file
 BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
-    "Ak-7": {
+    "AK-7_bullet": {
         "ttl": 50,
         "speed": 20,
-        "damage": 1,
+        "damage": 25,
+        "range": 50,
+    },
+    "arrow": {
+        "ttl": 50,
+        "speed": 20,
+        "damage": 50,
         "range": 50,
     }
+
 }
