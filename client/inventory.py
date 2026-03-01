@@ -3,6 +3,14 @@ from mapset import WIDTH,HEIGHT
 from mapset import *
 from arsenal import *
 
+# ==========================================
+# --- THE TRANSLATOR (ROSETTA STONE) ---
+# This dictionary will map the database numbers to Pygame strings.
+# ==========================================
+WEAPON_MAP = {
+    1: "Ak-7",
+}
+
 class Inventory(pygame.sprite.Sprite):
 
     def __init__(self):
@@ -16,17 +24,21 @@ class Inventory(pygame.sprite.Sprite):
         #self.unused_weapons=pygame.sprite.Group()
         #self.potions=pygame.sprite.Group()
 
-        self.inventory=["Ak-7"]
+        # --- FIX 1: Start with an empty inventory ---
+        # The database will fill this up later.
+        self.inventory = []
         self.inventory_pointer = 0
 
     def add_item_toThe_Inventory(self, item):
         self.inventory.append(item)
 
     def items_hendeling(self, player):
-        #for item in self.inventory:
-            #for keyGunType in Arsenal.Arsenal_gunType.keys():
-                #if item == keyGunType:
-        Arsenal("Ak-7").draw(WIDTH/2,HEIGHT/2)
+        # --- FIX 2: Safe Drawing Logic ---
+        # Only try to draw an Arsenal object if the player actually has a weapon.
+        # This prevents the game from crashing if the list is empty [].
+        if len(self.inventory) > 0:
+            current_weapon = self.inventory[self.inventory_pointer]
+            Arsenal(current_weapon).draw(WIDTH/2,HEIGHT/2)
 
     def open(self):
         self.display.blit(self.image, self.rect)
@@ -36,4 +48,3 @@ class Inventory(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_p] and keys[pygame.K_1]:
             print("P and 1 are being pressed together!")
-
