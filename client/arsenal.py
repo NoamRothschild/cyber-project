@@ -105,7 +105,7 @@ class Arsenal:
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
         self.weapon_img.set_colorkey((23, 130, 184))
-        self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
+
         self.offset_x, self.offset_y = coordinates
 
         self.rect = self.weapon_img.get_rect()
@@ -127,8 +127,10 @@ class Arsenal:
 
     def draw_for_inventory(self, i, low_x, low_y):
         if (i < 10):
+            img = pygame.transform.scale(self.weapon_img, (30, 30))
+
             self.display.blit(
-                self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
+                img, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
         weapon_img_src = self.weapon_img
