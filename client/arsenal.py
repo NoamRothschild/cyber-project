@@ -105,7 +105,7 @@ class Arsenal:
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
         self.weapon_img.set_colorkey((23, 130, 184))
-
+        self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
         self.offset_x, self.offset_y = coordinates
 
         self.rect = self.weapon_img.get_rect()
