@@ -105,7 +105,7 @@ class Arsenal:
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
         self.weapon_img.set_colorkey((23, 130, 184))
-        self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
+
         self.offset_x, self.offset_y = coordinates
 
         self.rect = self.weapon_img.get_rect()
@@ -124,11 +124,6 @@ class Arsenal:
     def refill_mag(self):
         weapon_path,img_num, bullet, movement, coordinates, scale, mag, fire_cooldown,pivot = Arsenal.Arsenal_gunType[self.gun_type]
         self.mag = mag
-
-    def draw_for_inventory(self, i, low_x, low_y):
-        if (i < 10):
-            self.display.blit(
-                self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
         weapon_img_src = self.weapon_img
@@ -217,6 +212,51 @@ class Arsenal:
         rotated_rect = rotated_image.get_rect(center=new_center)
 
         self.display.blit(rotated_image, rotated_rect)
+
+    def draw_for_inventory(self, i, low_x, low_y):
+        if i >= 10:
+            return
+
+        # imag
+        img = None
+        if getattr(self, "weapon_frames", None):
+            if 0 <= self.weapon_frame_i < len(self.weapon_frames):
+                img = self.weapon_frames[self.weapon_frame_i]
+        if img is None:
+            img = self.weapon_img
+        if img is None:
+            return
+
+        # ---------------slot settings---------------
+        slot_w = 30
+        slot_h = 30
+        gap = 3
+        x0 = low_x + 10
+        y0 = low_y + 20
+        padding = 2
+        # -------------------------------------------
+
+        slot_rect = pygame.Rect(
+            x0 + i * (slot_w + gap),
+            y0,
+            slot_w,
+            slot_h
+        )
+
+        target_w = slot_rect.w - padding * 2
+        target_h = slot_rect.h - padding * 2
+
+        iw, ih = img.get_size()
+        if iw <= 0 or ih <= 0:
+            return
+
+        scale = min(target_w / iw, target_h / ih)
+        new_size = (max(1, int(iw * scale)), max(1, int(ih * scale)))
+
+        scaled = pygame.transform.smoothscale(img, new_size)
+        draw_rect = scaled.get_rect(center=slot_rect.center)
+        self.display.blit(scaled, draw_rect)
+
 
     def get_image(self):
         return self.weapon_img
