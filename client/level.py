@@ -25,6 +25,8 @@ colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
 BUSH_FRIQWENTY=30
+
+map_for_d = {}
 def preload_all_trees():
     folder_path = "Pixel Trees"
     if not os.path.exists(folder_path):
@@ -96,26 +98,35 @@ class Level:
                 pixel = pixels[x, y]
                 r, g, b = pixel[:3]
 
+                world_pos = (x * SIZE, y * SIZE)
+                grid_pos = (x, y)
+                s = None
+
                 if r == 0 and g == 162 and b == 232:
                     ground_count = 0
-                    Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites], self.image[2], 'water')
+                    s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites], self.image[2], 'water')
                 elif r == 120 and g == 67 and b == 21:
                     ground_count = 0
-                    Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites], self.image[0], "rock")
+                    s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites], self.image[0], "rock")
+                    map_for_d[(x, y)] = self.image[0]
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 7 == 0:
-                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
-                             get_trees(), "tree")
+                        t=get_trees()
+                        s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
+                             t, "tree")
 
                     else:
-                        Rock((x * SIZE, y * SIZE), [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
+                        s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
                              self.image[1], "tree")
                     tree_count += 1
                     ground_count = 0
                 else:
                     ground_count += 1
-
-
+                    if random.randint(0,BUSH_FRIQWENTY) == 1 :
+                        b=get_bushes()
+                        s=Rock(world_pos, [self.visible_sprites],b, " "," ")
+                if s is not None:
+                    map_for_d[grid_pos] = s
         self.player = Player( [self.visible_sprites],
                              [self.obstacle_sprites, self.harmfull_sprites,self.colectible_sprite])
 
