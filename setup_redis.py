@@ -12,8 +12,11 @@ REGION_SERVERS = {
 
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
+r.delete('server_ips')
 r.sadd('server_ips', *(REGION_SERVERS.keys()))
 for region_server, nodes in REGION_SERVERS.items():
-    r.sadd(f'region:{region_server}', *nodes)
+    region_key = f'region:{region_server}'
+    r.delete(region_key)
+    r.sadd(region_key, *nodes)
 
 print("Done setting up redis!")
