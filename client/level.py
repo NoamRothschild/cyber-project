@@ -114,8 +114,6 @@ class Level:
                     ground_count = 0
                 else:
                     ground_count += 1
-                    if random.randint(0,BUSH_FRIQWENTY) == 1 :
-                        Rock((x * SIZE+SIZE/2, y * SIZE+SIZE/2), [self.visible_sprites],get_bushes(), " "," ")
 
 
         self.player = Player( [self.visible_sprites],
@@ -150,7 +148,7 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
         self.point.x = player.rect.centerx - self.half_width
         self.point.y = player.rect.centery - self.half_height
         screen_rect = pygame.Rect(self.point.x, self.point.y, self.view_width, self.view_height)
-        visible_now = [s for s in self.sprites() if s!=None and hasattr(s, 'rect') and s.rect.colliderect(screen_rect)]
+        visible_now = [s for s in self.sprites() if s.rect!=None and hasattr(s, 'rect') and s.rect.colliderect(screen_rect)]
 
         for sprite in sorted(visible_now, key=lambda s: s.rect.bottom):
             if hasattr(sprite, 'image') and sprite.image is not None:
