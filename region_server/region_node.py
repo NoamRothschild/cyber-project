@@ -282,39 +282,6 @@ class RegionNode:
         from region_server_extras import Client  # lazy to avoid circular import
         raw_x, raw_y = pos_update.x, pos_update.y
 
-        # moved to another node
-        if not self.contains(raw_x, raw_y):
-            # remove proxies this client had on other neighboring nodes,
-            # but seed a proxy on THIS node so same-node clients still see the player
-            for direction in getattr(client, '_proxied_directions', set()):
-                node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
-                await remove_proxy(self.node_pos, node_pos, client.user_id, client.session_id)
-            client._proxied_directions = set()
-            self.detach_client(client)
-            proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
-                pos=region_net.LocationBlock(x=client.state.x, y=client.state.y),
-                player_id=client.user_id,
-                session_id=client.session_id,
-                HP=client.state.hp,
-            ))
-            await self.receive_proxy_event(proxy_event)
-            node_pos = RegionNode.which_node(raw_x, raw_y)
-            # node is on this device
-            if new_node := nodes.get(node_pos):
-                await new_node.register_client(client, (raw_x, raw_y))
-                client.node = new_node
-            else:
-                print(f"Client on node {node_pos} that is not on this server.")
-                # node is on another physical server
-                # TODO: connect client to the new server
-                # TODO: set client.node to some other thing
-                # r = get_redis()
-                # channel = str(RegionNode.node_pos_to_idx(*node_pos))
-                # message = region_net.RegionUpdate(location_block=pos_update).SerializeToString()
-                # await r.publish(channel, message)
-                pass
-            return
-
         old_cell_x, old_cell_y = client.state.cell_x, client.state.cell_y
         old_x, old_y = client.state.x, client.state.y
         client.state.x = raw_x
