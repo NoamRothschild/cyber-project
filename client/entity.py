@@ -52,3 +52,4 @@ class Entities:
         with self.lock:
             if e := self.entities.pop(entity_id, None):
                 e.kill()
+                e.hp_b.kill()

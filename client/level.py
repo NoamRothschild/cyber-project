@@ -186,15 +186,7 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
             view_offset_y = (sprite.rect.y - self.point.y) * self.scale_y
 
             if hasattr(sprite, 'image') and sprite.image:
-                # --- אופטימיזציה קריטית: שימוש ב-scaled_image מוכן מראש ---
-                # אם אין לספרייט תמונה מוקטנת, או שהקנה מידה השתנה - רק אז נחשב
-                if not hasattr(sprite, 'cached_scale') or sprite.cached_scale != (self.scale_x, self.scale_y):
-                    sw = max(1, int(sprite.rect.width * self.scale_x))
-                    sh = max(1, int(sprite.rect.height * self.scale_y))
-                    sprite.scaled_image = pygame.transform.scale(sprite.image, (sw, sh))
-                    sprite.cached_scale = (self.scale_x, self.scale_y)
-
-                self.display.blit(sprite.scaled_image, (view_offset_x, view_offset_y))
+                self.display.blit(sprite.image, (view_offset_x, view_offset_y))
 
             elif hasattr(sprite, 'plus_rect'):
                 sprite.draw(self.point.x, self.point.y)
