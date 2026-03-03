@@ -49,11 +49,16 @@ class Client:
         # TODO: verify the session id with the auth server && cache it
         session_id = handshake.session_id
 
-        # TODO: get this one from the auth server
-        user_id = randint(0, 2**31 - 1)
-
-
         r = get_redis()
+
+        # TODO: get this one from the auth server
+        uid_key = f"client:{session_id}:user_id"
+        if stored_uid := await r.get(uid_key):
+            user_id = int(stored_uid)
+        else:
+            user_id = randint(0, 2**31 - 1)
+            await r.set(uid_key, str(user_id).encode())
+
         initial_pos = (74000, 32600)
         if pos := await r.get(f"client:{session_id}:pos"):
             p = pos.decode().split(",")
@@ -236,6 +241,9 @@ class Client:
             self.conn_state.udp_conn = None
 
     async def write_udp(self, data: region_net.ServerResponse) -> None:
+        if data.HasField("other_data") and (data.other_data.player_id == self.user_id or data.other_data.player_id == 0):
+            return
+
         data.seq_num = self.conn_state.last_sent_seq
         raw = data.SerializeToString()
         if conn := self.conn_state.udp_conn:

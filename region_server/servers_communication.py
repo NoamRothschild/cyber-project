@@ -52,6 +52,7 @@ def start_redis_listener() -> None:
     async def listener() -> None:
         from region_node import HORIZONAL_NODE_COUNT
         from nodes import nodes, update_global_client_state, remove_global_client
+        from region_server_extras import Client, NULL_NODE
         ps = get_pubsub()
         while True:
             msg = await ps.get_message(ignore_subscribe_messages=True, timeout=None)
@@ -102,20 +103,29 @@ def start_redis_listener() -> None:
 
                     if payload_type == 'bullet_shot':
                         bs = update.bullet_shot
-                        resp = region_net.ServerResponse(sender_id=update.sender_id)
-                        resp.bullet_shot.add(
-                            gun_type=bs.gun_type,
-                            angle=bs.angle,
-                            count=bs.count,
-                            x=bs.x,
-                            y=bs.y,
-                            ttl=bs.ttl,
-                            speed=bs.speed,
+                        dummy = Client(
+                            reader=None,
+                            writer=None,
+                            session_id=None,
+                            user_id=update.sender_id,
+                            node=NULL_NODE
                         )
-                        relay_data = resp.SerializeToString()
+                        dummy.state.x = bs.x
+                        dummy.state.y = bs.y
+                        update_bytes, new_projs = await node.projectile_handler.add(bs, dummy)
+                        if not update_bytes:
+                            continue
+                        
+                        for proj in new_projs:
+                            for cli in node.clients.values():
+                                proj["seen_by"].add(cli.user_id)
+                        # await node.projectile_handler.broadcast_to_adjacent(new_projs)
+
                         for cli in node.clients.values():
+                            if cli.user_id == update.sender_id:
+                                continue
                             try:
-                                await cli.write(relay_data)
+                                await cli.write(update_bytes)
                             except Exception as e:
                                 print(f"Failed to relay bullet to {cli.user_id}: {e}")
                     # TODO: handle location_block from external servers
