@@ -21,8 +21,6 @@ class Game:
         ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        self.image = pygame.image.load("grass.png")  # the background should be changed and moved to level
-        self.image = pygame.transform.scale(self.image, (WIDTH, HEIGHT))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(FONT, 30, bold=True)
