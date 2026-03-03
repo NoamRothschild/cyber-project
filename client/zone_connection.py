@@ -7,9 +7,11 @@ from typing import Tuple, List, Dict, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
 
 if TYPE_CHECKING:
-    # Imported only for type checking to avoid circular imports at runtime
     from game import Game
 BUFF_SIZE = 1024
+
+_TCP = 0
+_UDP = 1
 
 class ZoneConnection:
     def __init__(self, game: Game, host: str, reliable_port: int, fast_port: int) -> None:
@@ -88,9 +90,9 @@ class ZoneConnection:
         self._event_handler_thread.start()
 
     def stop(self) -> None:
-        """Signal listener and event_handler threads to exit, then join them. Call when client exits."""
+        """Signal listener and event_handler threads to exit, then join them."""
         self._stop_event.set()
-        self.message_queue.put(None)  # unblock event_handler
+        self.message_queue.put(None)
         if self._listener_thread is not None:
             self._listener_thread.join(timeout=2.0)
         if self._event_handler_thread is not None:
@@ -98,12 +100,11 @@ class ZoneConnection:
 
     def send_udp(self, update: region_net.RegionUpdate) -> None:
         update.seq_num = self.last_sent_seq
-        try:
-            self.fast_conn.sendto(update.SerializeToString(), (self.host, self.fast_port))
-        except Exception as e:
-            print(f"[WARN]: failed sending UDP update: {e}, falling back to TCP")
-            self.reliable_conn.sendall(update.SerializeToString())
+        ZoneConnectionSingleton.enqueue_send(_UDP, update.SerializeToString())
         self.last_sent_seq += 1
+
+    def send_tcp(self, data: bytes) -> None:
+        ZoneConnectionSingleton.enqueue_send(_TCP, data)
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         if not should_update_location(self.server_known_pos, pos):
@@ -119,15 +120,13 @@ class ZoneConnection:
         self.send_udp(update)
 
     def try_send_bullet(self, gun_type: str, angle: float, count: int) -> None:
-        """NOTE: currently uses TCP. TODO: move to udp"""
         update = region_net.RegionUpdate()
         update.bullet_shot.CopyFrom(
             region_net.BulletShot(
                 gun_type=gun_type, angle=angle, count=count
             )
         )
-
-        self.reliable_conn.sendall(update.SerializeToString())
+        self.send_tcp(update.SerializeToString())
 
 
 class ZoneConnectionSingleton:
@@ -140,12 +139,40 @@ class ZoneConnectionSingleton:
     zone: ZoneConnection | None = None
     zone_connections: Dict[str, ZoneConnection] | None = None
 
+    _send_queue: Queue[Tuple[int, bytes] | None] = Queue()
+    _send_stop = threading.Event()
+    _sender_thread: threading.Thread | None = None
+
     @staticmethod
     def set_creds(game: Game, hosts: List[str], reliable_port: int, fast_port: int):
         ZoneConnectionSingleton._config_game = game
         ZoneConnectionSingleton._config_hosts = hosts
         ZoneConnectionSingleton._config_reliable_port = reliable_port
         ZoneConnectionSingleton._config_fast_port = fast_port
+
+    @staticmethod
+    def enqueue_send(protocol: int, data: bytes):
+        ZoneConnectionSingleton._send_queue.put((protocol, data))
+
+    @staticmethod
+    def start_sender():
+        if ZoneConnectionSingleton._sender_thread is not None:
+            return
+        ZoneConnectionSingleton._send_stop.clear()
+        ZoneConnectionSingleton._sender_thread = threading.Thread(
+            target=_sender_worker,
+            args=(ZoneConnectionSingleton._send_queue, ZoneConnectionSingleton._send_stop),
+            daemon=True,
+        )
+        ZoneConnectionSingleton._sender_thread.start()
+
+    @staticmethod
+    def stop_sender():
+        ZoneConnectionSingleton._send_stop.set()
+        ZoneConnectionSingleton._send_queue.put(None)
+        if ZoneConnectionSingleton._sender_thread is not None:
+            ZoneConnectionSingleton._sender_thread.join(timeout=2.0)
+            ZoneConnectionSingleton._sender_thread = None
 
     @staticmethod
     def move_zone(new_host: str):
@@ -167,6 +194,32 @@ class ZoneConnectionSingleton:
                 cls._instance.zone_connections = zone_connections
                 cls._instance.zone = zone_connections[cls._config_hosts[0]]
         return cls._instance
+
+
+def _sender_worker(send_queue: Queue, stop_event: threading.Event):
+    """Single background thread that drains the shared send queue for all zones."""
+    while not stop_event.is_set():
+        try:
+            item = send_queue.get(timeout=0.5)
+        except Empty:
+            continue
+        if item is None:
+            break
+        protocol, data = item
+        zone = ZoneConnectionSingleton().zone
+        try:
+            if protocol == _UDP:
+                zone.fast_conn.sendto(data, (zone.host, zone.fast_port))
+            else:
+                zone.reliable_conn.sendall(data)
+        except Exception as e:
+            if protocol == _UDP:
+                try:
+                    zone.reliable_conn.sendall(data)
+                except Exception:
+                    print(f"[WARN]: failed sending (both UDP and TCP fallback): {e}")
+            else:
+                print(f"[WARN]: failed sending TCP: {e}")
 
 
 def should_update_location(old_pos: Tuple[int, int], new_pos: Tuple[int, int], min_dst=5) -> bool:

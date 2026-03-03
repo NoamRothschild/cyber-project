@@ -6,10 +6,18 @@ import pygame
 # TODO: display entitys hp bar above them
 
 class Entity(pygame.sprite.Sprite):
+    _cached_image: pygame.Surface | None = None
+
+    @classmethod
+    def _get_image(cls) -> pygame.Surface:
+        if cls._cached_image is None:
+            cls._cached_image = pygame.image.load('player.png').convert_alpha()
+            cls._cached_image.set_colorkey(PINK)
+        return cls._cached_image
+
     def __init__(self, groups: Any, pos: Tuple[int, int]) -> None:
         super().__init__(groups)
-        self.image = pygame.image.load('player.png').convert_alpha()
-        self.image.set_colorkey(PINK)
+        self.image = Entity._get_image()
         self.rect = self.image.get_rect()
         # pos is the hitbox position (matching what Player sends)
         self.hitbox = pygame.Rect(pos[0], pos[1], self.rect.width - 20, self.rect.height - 10)

@@ -43,6 +43,7 @@ class Game:
             print(f'trying {zone.host}')
             zone.open_connections(self.session_id)
         
+        ZoneConnectionSingleton.start_sender()
         self.zone().start_event_handler()
         self.is_running = True
 
@@ -74,6 +75,7 @@ class Game:
             pygame.display.update()
             self.clock.tick(FPS)
 
+        ZoneConnectionSingleton.stop_sender()
         self.zone().stop()
         pygame.quit()
         #sys.exit()
