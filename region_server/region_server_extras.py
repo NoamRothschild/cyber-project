@@ -10,7 +10,6 @@ from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
 from servers_communication import get_redis
 from region_node import RegionNode
-from proxy import create_proxy
 
 NULL_NODE = RegionNode((-1, -1))
 
@@ -176,6 +175,14 @@ class Client:
     def can_see_static(player_pos: Tuple[int, int], object_pos: Tuple[int, int]) -> bool:
         return abs(player_pos[0] - object_pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(player_pos[1] - object_pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)
 
+    def to_proxy_event(self) -> region_net.ProxyEvent:
+        return region_net.ProxyEvent(client=region_net.ClientProxy(
+            pos=region_net.LocationBlock(x=self.state.x, y=self.state.y),
+            player_id=self.user_id,
+            session_id=self.session_id,
+            HP=self.state.hp,
+        ))
+
     async def hit(self, count: int, hitter_id: int) -> None:
         self.state.hp -= count
         update = region_net.ServerResponse()
@@ -185,18 +192,7 @@ class Client:
         )
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
-
-        for direction in self.node.possible_bounding_nodes(self.state.x, self.state.y):
-            node_pos = (self.node.node_pos[0] + direction.value[0], self.node.node_pos[1] + direction.value[1])
-
-            # proxy this update to the other nodes
-            proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
-                pos=region_net.LocationBlock(x=self.state.x, y=self.state.y),
-                player_id=self.user_id,
-                session_id=self.session_id,
-                HP=self.state.hp,
-            ))
-            await create_proxy(self.node.node_pos, node_pos, proxy_event)
+        await self.node.propagate_entity(self)
 
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
@@ -216,9 +212,9 @@ class Client:
             node_pos = RegionNode.which_node(update.location_block.x, update.location_block.y)
             node = nodes.get(node_pos)
             if node is None:
-                # moved to a node on another server
-                await self.node.unregister_client(self)
-                self.node = NULL_NODE
+                if self.node != NULL_NODE:
+                    await self.node.unregister_client(self)
+                    self.node = NULL_NODE
                 return
             
             if self.node != node:

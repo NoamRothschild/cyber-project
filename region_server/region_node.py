@@ -278,33 +278,30 @@ class RegionNode:
         self.detach_client(client)
         await broadcast_disconnect(client.user_id, client.session_id)
 
-    async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
-        from region_server_extras import Client  # lazy to avoid circular import
-        raw_x, raw_y = pos_update.x, pos_update.y
-
-        old_cell_x, old_cell_y = client.state.cell_x, client.state.cell_y
-        old_x, old_y = client.state.x, client.state.y
-        client.state.x = raw_x
-        client.state.y = raw_y
-        cell_x, cell_y = self.to_cell_pos((raw_x, raw_y))
-        client.state.cell_x, client.state.cell_y = cell_x, cell_y
-
-        bounds = self.possible_bounding_nodes(raw_x, raw_y)
+    async def propagate_entity(self, entity) -> None:
+        """Sync this entity's proxy state to all relevant neighboring nodes.
+        Removes stale proxies from directions we moved away from and
+        creates/updates proxies on directions we're currently near."""
+        bounds = self.possible_bounding_nodes(entity.state.x, entity.state.y)
         new_proxied = set(bounds)
-        old_proxied: set = getattr(client, '_proxied_directions', set())
-        print(f"possible bounding nodes: {bounds}")
+        old_proxied: set = getattr(entity, '_proxied_directions', set())
 
-        # remove proxies for directions we're no longer near
         for direction in old_proxied - new_proxied:
             node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
-            await remove_proxy(self.node_pos, node_pos, client.user_id, client.session_id)
-        client._proxied_directions = new_proxied
+            await remove_proxy(self.node_pos, node_pos, entity.user_id, entity.session_id)
+        entity._proxied_directions = new_proxied
 
-        # checking who can we see and who can see us
         for direction in bounds:
             node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+            await create_proxy(self.node_pos, node_pos, entity.to_proxy_event())
 
-            # show proxy events in the found node to the client sent the packet
+    async def check_neighbor_spawns(self, client: Client) -> None:
+        """Show the moving client any proxied entities from neighboring nodes
+        that they haven't seen yet."""
+        from region_server_extras import Client
+        bounds = self.possible_bounding_nodes(client.state.x, client.state.y)
+        for direction in bounds:
+            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
             for seen, obj in self.proxies[Direction.to_proxy_pos(direction)]:
                 if client.user_id in seen:
                     continue
@@ -319,17 +316,12 @@ class RegionNode:
                 else:
                     ... # TODO: handle other proxy objects
 
-            # proxy this movement to the other node
-            proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
-                pos=region_net.LocationBlock(x=pos_update.x, y=pos_update.y),
-                player_id=client.user_id,
-                session_id=client.session_id,
-                HP=client.state.hp,
-            ))
-            await create_proxy(self.node_pos, node_pos, proxy_event)
+    async def update_local_visibility(self, client: Client, old_pos: Tuple[int, int]) -> None:
+        """Handle spawn/despawn for same-node entities around a moving client."""
+        from region_server_extras import Client
+        new_pos = (client.state.x, client.state.y)
 
-        # notify player about same-node objects they haven't seen yet
-        for grid_field in self.objects_in_view((raw_x, raw_y)):
+        for grid_field in self.objects_in_view(new_pos):
             obj = grid_field.obj
             if not isinstance(obj, Client):
                 continue
@@ -337,13 +329,12 @@ class RegionNode:
                 continue
             if client.user_id in grid_field.seen:
                 continue
-            if not Client.can_see_static((client.state.x, client.state.y), (obj.state.x, obj.state.y)):
+            if not Client.can_see_static(new_pos, (obj.state.x, obj.state.y)):
                 continue
             grid_field.seen.add(client.user_id)
             await client.saw_client((obj.state.x, obj.state.y), obj.user_id)
 
-        # despawn: entities that left the moving player's viewport
-        for grid_field in self.objects_in_view((old_x, old_y)):
+        for grid_field in self.objects_in_view(old_pos):
             obj = grid_field.obj
             if not isinstance(obj, Client):
                 continue
@@ -351,21 +342,34 @@ class RegionNode:
                 continue
             if client.user_id not in grid_field.seen:
                 continue
-            if Client.can_see_static((raw_x, raw_y), (obj.state.x, obj.state.y)):
+            if Client.can_see_static(new_pos, (obj.state.x, obj.state.y)):
                 continue
             grid_field.seen.discard(client.user_id)
             await client.entity_despawned(obj.user_id)
 
-        self.grid_move(client, old_cell_x, old_cell_y, cell_x, cell_y)
-
-        # despawn: other clients who lost sight of the moving player
         for cli in self.clients.values():
             if cli.user_id == client.user_id:
                 continue
-            could_see = Client.can_see_static((cli.state.x, cli.state.y), (old_x, old_y))
-            can_see = Client.can_see_static((cli.state.x, cli.state.y), (raw_x, raw_y))
+            could_see = Client.can_see_static((cli.state.x, cli.state.y), old_pos)
+            can_see = Client.can_see_static((cli.state.x, cli.state.y), new_pos)
             if could_see and not can_see:
                 await cli.entity_despawned(client.user_id)
+
+    async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
+        from region_server_extras import Client
+        old_pos = (client.state.x, client.state.y)
+        old_cell = (client.state.cell_x, client.state.cell_y)
+
+        client.state.x = pos_update.x
+        client.state.y = pos_update.y
+        cell_x, cell_y = self.to_cell_pos((pos_update.x, pos_update.y))
+        client.state.cell_x, client.state.cell_y = cell_x, cell_y
+
+        await self.propagate_entity(client)
+        await self.check_neighbor_spawns(client)
+        await self.update_local_visibility(client, old_pos)
+
+        self.grid_move(client, *old_cell, cell_x, cell_y)
 
         resp = region_net.ServerResponse()
         resp.sender_id = client.user_id
