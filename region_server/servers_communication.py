@@ -124,6 +124,8 @@ def start_redis_listener() -> None:
                         for cli in node.clients.values():
                             if cli.user_id == update.sender_id:
                                 continue
+                            if cli.user_id in bs.seen_players:
+                                continue
                             try:
                                 await cli.write(update_bytes)
                             except Exception as e:

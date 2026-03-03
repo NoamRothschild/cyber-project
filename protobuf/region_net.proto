@@ -24,6 +24,7 @@ message BulletShot {
   optional int32 y = 5;     // only set from server -> client
   optional int32 ttl =  6;  // only set from server -> client
   optional int32 speed = 7; // only set from server -> client
+  repeated int32 seen_players = 8;
 }
 
 message HandshakeStart {
