@@ -65,10 +65,11 @@ message ServerResponse {
 }
 
 message ClientProxy {
-  int32 player_id = 1;
-  LocationBlock pos = 2;
-  int32 HP = 3;
-  OtherState state = 4;
+  int32 session_id = 1;
+  int32 player_id = 2;
+  LocationBlock pos = 3;
+  int32 HP = 4;
+  OtherState state = 5;
 
   enum OtherState {
     WALKING = 0;

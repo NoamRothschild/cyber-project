@@ -260,7 +260,7 @@ class RegionNode:
         """Full disconnect: remove from node and purge proxies on all servers."""
         client._proxied_directions = set()
         self.detach_client(client)
-        await broadcast_disconnect(client.user_id)
+        await broadcast_disconnect(client.user_id, client.session_id)
 
     async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
         from region_server_extras import Client  # lazy to avoid circular import
@@ -272,12 +272,13 @@ class RegionNode:
             # but seed a proxy on THIS node so same-node clients still see the player
             for direction in getattr(client, '_proxied_directions', set()):
                 node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
-                await remove_proxy(self.node_pos, node_pos, client.user_id)
+                await remove_proxy(self.node_pos, node_pos, client.user_id, client.session_id)
             client._proxied_directions = set()
             self.detach_client(client)
             proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
                 pos=region_net.LocationBlock(x=client.state.x, y=client.state.y),
                 player_id=client.user_id,
+                session_id=client.session_id,
                 HP=client.state.hp,
             ))
             await self.receive_proxy_event(proxy_event)
@@ -313,7 +314,7 @@ class RegionNode:
         # remove proxies for directions we're no longer near
         for direction in old_proxied - new_proxied:
             node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
-            await remove_proxy(self.node_pos, node_pos, client.user_id)
+            await remove_proxy(self.node_pos, node_pos, client.user_id, client.session_id)
         client._proxied_directions = new_proxied
 
         # checking who can we see and who can see us
@@ -339,6 +340,7 @@ class RegionNode:
             proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
                 pos=region_net.LocationBlock(x=pos_update.x, y=pos_update.y),
                 player_id=client.user_id,
+                session_id=client.session_id,
                 HP=client.state.hp,
             ))
             await create_proxy(self.node_pos, node_pos, proxy_event)

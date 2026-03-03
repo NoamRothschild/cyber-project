@@ -42,8 +42,8 @@ async def create_proxy_on(node_idx: str, message: bytes):
 async def remove_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
 
-async def publish_player_disconnect(sender_id: int):
-    event = region_net.ProxyEvent(client=region_net.ClientProxy(player_id=sender_id))
+async def publish_player_disconnect(sender_id: int, session_id: int):
+    event = region_net.ProxyEvent(client=region_net.ClientProxy(player_id=sender_id, session_id=session_id))
     await get_redis().publish(GLOBAL_CHANNEL, PROXY_REMOVE_PREFIX + event.SerializeToString())
 
 def start_redis_listener() -> None:
@@ -51,7 +51,7 @@ def start_redis_listener() -> None:
 
     async def listener() -> None:
         from region_node import HORIZONAL_NODE_COUNT
-        from nodes import nodes
+        from nodes import nodes, update_global_client_state, remove_global_client
         ps = get_pubsub()
         while True:
             msg = await ps.get_message(ignore_subscribe_messages=True, timeout=None)
@@ -78,10 +78,13 @@ def start_redis_listener() -> None:
             )
 
             if data.startswith(PROXY_CREATE_PREFIX):
+                print(f"got proxy create event to {node_pos}")
                 event = region_net.ProxyEvent()
                 event.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
                 if node := nodes.get(node_pos):
                     await node.receive_proxy_event(event)
+                    if event.HasField("client"):
+                        await update_global_client_state(event.client.session_id, event.client)
 
             if data.startswith(PROXY_REMOVE_PREFIX):
                 event = region_net.ProxyEvent()

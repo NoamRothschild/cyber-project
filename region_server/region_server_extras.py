@@ -7,11 +7,11 @@ import aioudp
 import protobuf.region_net_pb2 as region_net
 from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
 
-from state import get_client
-from nodes import nodes
+from nodes import nodes, register_global_client, remove_global_client, get_global_client
 from servers_communication import get_redis
 from region_node import RegionNode
 
+NULL_NODE = RegionNode((-1, -1))
 
 @dataclass
 class PlayerState:
@@ -56,14 +56,18 @@ class Client:
         r = get_redis()
         initial_pos = (74000, 32600)
         if pos := await r.get(f"client:{session_id}:pos"):
-            initial_pos = tuple(map(int, pos.decode().split(",")))
+            p = pos.decode().split(",")
+            initial_pos = (int(p[0]), int(p[1]))
         else:
             await r.set(f"client:{session_id}:pos", f"{initial_pos[0]},{initial_pos[1]}".encode())
         
         node_pos = RegionNode.which_node(*initial_pos)
         node = nodes.get(node_pos)
-        self = Client(reader, writer, session_id, user_id, node)
+        if node is None:
+            node = NULL_NODE
 
+        self = Client(reader, writer, session_id, user_id, node)
+        await register_global_client(session_id, self)
         await node.register_client(self, initial_pos)
         
         handshake.Clear()
@@ -81,6 +85,7 @@ class Client:
             await self.handle_tcp()
         finally:
             self.conn_state.stop_udp_conn.set()
+            await remove_global_client(self.session_id)
             await node.unregister_client(self)
 
     @staticmethod
@@ -90,7 +95,7 @@ class Client:
         handshake.ParseFromString(handshake_raw)
 
         session_id = handshake.session_id
-        cli = get_client(session_id)
+        cli = await get_global_client(session_id)
         if cli is not None:
             handshake.Clear()
             handshake.CopyFrom(
@@ -167,6 +172,9 @@ class Client:
         await self.write(update.SerializeToString())
 
     async def handle_region_update(self, data: bytes, source: int) -> None:
+        if self.node == NULL_NODE:
+            return
+
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
         print(f"received: {update}")

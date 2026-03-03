@@ -3,7 +3,7 @@ from queue import Empty, Queue
 import select
 import socket
 import threading
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple, List, Dict, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
 
 if TYPE_CHECKING:
@@ -137,6 +137,8 @@ class ZoneConnectionSingleton:
     _config_hosts: List[str] | None = None
     _config_reliable_port: int | None = None
     _config_fast_port: int | None = None
+    zone: ZoneConnection | None = None
+    zone_connections: Dict[str, ZoneConnection] | None = None
 
     @staticmethod
     def set_creds(game: Game, hosts: List[str], reliable_port: int, fast_port: int):

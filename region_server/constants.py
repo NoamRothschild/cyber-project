@@ -1,8 +1,10 @@
 from __future__ import annotations
 from typing import Dict, Tuple, Union
+import os
 
 BUFF_SIZE = 1024
-THIS_SERVER_IP = '127.0.0.1' # TODO: move to somewhere else
+THIS_SERVER_IP = os.getenv('region_server_ip', '127.0.0.2')
+print(f'{THIS_SERVER_IP=}')
 
 # 60Hz tick rate
 TICK_INTERVAL_SEC = 1.0 / 60

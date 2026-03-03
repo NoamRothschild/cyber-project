@@ -10,7 +10,7 @@ from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
 import traceback
-from typing import List
+from typing import List, cast
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
@@ -27,7 +27,7 @@ class Game:
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(FONT, 30, bold=True)
-        self.zone = ZoneConnectionSingleton().zone
+        self.zone: ZoneConnection = cast(ZoneConnection, ZoneConnectionSingleton().zone)
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
         self.level = Level()
@@ -35,6 +35,14 @@ class Game:
 
     def run(self):
         self.user_id = self.zone.open_connections(self.session_id)
+        print(f'trying {self.zone.host}')
+
+        for zone in cast(Dict[str, ZoneConnection], ZoneConnectionSingleton().zone_connections).values():
+            if self.zone == zone:
+                continue # we already connected there a second ago
+            print(f'trying {zone.host}')
+            zone.open_connections(self.session_id)
+        
         self.zone.start_event_handler()
         self.is_running = True
 
