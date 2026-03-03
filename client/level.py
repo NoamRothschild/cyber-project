@@ -17,6 +17,7 @@ from mapset import (
     VERTICAL_NODE_COUNT,
     HORIZONAL_NODE_COUNT,
 )
+from nodes import fetch_zone_map, pos_to_zone_index
 
 
 class Level:
@@ -31,6 +32,9 @@ class Level:
                       pygame.image.load('water.png').convert()]
 
         self.entities = Entities()
+        self.zone_map = fetch_zone_map()
+        self.current_zone_index: int | None = None
+        self.current_host: str | None = None
 
         self.draw_map()
 
@@ -67,6 +71,23 @@ class Level:
         self.player.inventory.items_hendeling(self.player)
 
         self.visible_sprites.update()
+        self._check_zone_change()
+
+    def _check_zone_change(self):
+        hb = self.player.hitbox
+        zone_index = pos_to_zone_index(hb.x, hb.y)
+        if zone_index == self.current_zone_index:
+            return
+        self.current_zone_index = zone_index
+        host = self.zone_map.get(zone_index)
+        if host is None or host == self.current_host:
+            self.current_host = host
+            return
+        self.current_host = host
+        from zone_connection import ZoneConnectionSingleton
+        ZoneConnectionSingleton.move_zone(host)
+        print(f"[ZONE] Switched to host {host} (zone index {zone_index})")
+
 
 class Camera(pygame.sprite.Group):  # a group that has every visible sprite that should be moved when the player does
     def __init__(self):

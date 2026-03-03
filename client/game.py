@@ -27,23 +27,23 @@ class Game:
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(FONT, 30, bold=True)
-        self.zone: ZoneConnection = cast(ZoneConnection, ZoneConnectionSingleton().zone)
+        self.zone = lambda: cast(ZoneConnection, ZoneConnectionSingleton().zone)
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
         self.level = Level()
         self.is_running = False
 
     def run(self):
-        self.user_id = self.zone.open_connections(self.session_id)
-        print(f'trying {self.zone.host}')
+        self.user_id = self.zone().open_connections(self.session_id)
+        print(f'trying {self.zone().host}')
 
         for zone in cast(Dict[str, ZoneConnection], ZoneConnectionSingleton().zone_connections).values():
-            if self.zone == zone:
+            if self.zone() == zone:
                 continue # we already connected there a second ago
             print(f'trying {zone.host}')
             zone.open_connections(self.session_id)
         
-        self.zone.start_event_handler()
+        self.zone().start_event_handler()
         self.is_running = True
 
         while self.is_running:
@@ -61,7 +61,7 @@ class Game:
             self.screen.blit(fps_surface,fps_screen_pos )
             hb = self.level.player.hitbox
             # Report precise world position to the server
-            self.zone.try_send_update_pos((hb.x, hb.y))
+            self.zone().try_send_update_pos((hb.x, hb.y))
 
             # Show current region node near the FPS bar (0-based indices)
             node_x = int(hb.x // NODE_WIDTH)
@@ -74,7 +74,7 @@ class Game:
             pygame.display.update()
             self.clock.tick(FPS)
 
-        self.zone.stop()
+        self.zone().stop()
         pygame.quit()
         #sys.exit()
 
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         game.run()
     except Exception as e:
         print(f"[FATAL]: {e}")
-        game.zone.stop()
+        game.zone().stop()
         pygame.quit()
         print(f"[TRACEBACK]: {traceback.format_exc()}")
         sys.exit(1)

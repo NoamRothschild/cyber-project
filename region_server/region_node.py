@@ -43,6 +43,9 @@ class RegionNode:
 
     def contains(self, x: int, y: int) -> bool:
         """True if (x, y) is inside this node's bounds."""
+        if self.topleft == (-1, -1):
+            return False
+        
         return (
             self.x_range[0] <= x <= self.x_range[1]
             and self.y_range[0] <= y <= self.y_range[1]
@@ -253,8 +256,11 @@ class RegionNode:
     
     def detach_client(self, client: Client):
         """Remove client from this node's grid and client list without global cleanup."""
-        self.grid_remove(client, client.state.cell_x, client.state.cell_y)
-        self.clients.pop(client.session_id, None)
+        try:
+            self.grid_remove(client, client.state.cell_x, client.state.cell_y)
+            self.clients.pop(client.session_id, None)
+        except:
+            pass
 
     async def unregister_client(self, client: Client):
         """Full disconnect: remove from node and purge proxies on all servers."""

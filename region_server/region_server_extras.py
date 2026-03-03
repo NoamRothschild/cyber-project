@@ -68,7 +68,8 @@ class Client:
 
         self = Client(reader, writer, session_id, user_id, node)
         await register_global_client(session_id, self)
-        await node.register_client(self, initial_pos)
+        if node != NULL_NODE:
+            await node.register_client(self, initial_pos)
         
         handshake.Clear()
         handshake.CopyFrom(
@@ -172,9 +173,6 @@ class Client:
         await self.write(update.SerializeToString())
 
     async def handle_region_update(self, data: bytes, source: int) -> None:
-        if self.node == NULL_NODE:
-            return
-
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
         print(f"received: {update}")
@@ -189,6 +187,21 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
+            node_pos = RegionNode.which_node(update.location_block.x, update.location_block.y)
+            node = nodes.get(node_pos)
+            if node is None:
+                # moved to a node on another server
+                await self.node.unregister_client(self)
+                self.node = NULL_NODE
+                return
+            
+            if self.node != node:
+                if self.node != NULL_NODE:
+                    await self.node.unregister_client(self)
+
+                self.node = node
+                await self.node.register_client(self, (update.location_block.x, update.location_block.y))
+
             await self.node.handle_movement(self, update.location_block)
         elif payload_type == "bullet_shot":
             update_bytes, new_projs = await self.node.projectile_handler.add(
