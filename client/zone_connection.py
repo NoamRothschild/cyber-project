@@ -134,25 +134,36 @@ class ZoneConnectionSingleton:
     _instance: None | ZoneConnectionSingleton = None
     _lock = threading.Lock()
     _config_game: Game | None = None
-    _config_host: str | None = None
+    _config_hosts: List[str] | None = None
     _config_reliable_port: int | None = None
     _config_fast_port: int | None = None
 
     @staticmethod
-    def set_creds(game: Game, host: str, reliable_port: int, fast_port: int):
+    def set_creds(game: Game, hosts: List[str], reliable_port: int, fast_port: int):
         ZoneConnectionSingleton._config_game = game
-        ZoneConnectionSingleton._config_host = host
+        ZoneConnectionSingleton._config_hosts = hosts
         ZoneConnectionSingleton._config_reliable_port = reliable_port
         ZoneConnectionSingleton._config_fast_port = fast_port
+
+    @staticmethod
+    def move_zone(new_host: str):
+        if new_host not in ZoneConnectionSingleton._config_hosts:
+            raise RuntimeError(f"Invalid host: {new_host}")
+        ZoneConnectionSingleton._instance.zone = ZoneConnectionSingleton._instance.zone_connections[new_host]
 
     def __new__(cls):
         with cls._lock:
             if cls._instance is None:
-                if cls._config_game is None or cls._config_host is None or cls._config_reliable_port is None or cls._config_fast_port is None:
+                if cls._config_game is None or cls._config_hosts is None or cls._config_reliable_port is None or cls._config_fast_port is None:
                     raise RuntimeError("A field value was missing while trying to construct ZoneConnection")
 
                 cls._instance = super(ZoneConnectionSingleton, cls).__new__(cls)
-                cls.zone = ZoneConnection(cls._config_game, cls._config_host, cls._config_reliable_port, cls._config_fast_port)
+                zone_connections = {}
+                for host in cls._config_hosts:
+                    zone_connections[host] = ZoneConnection(cls._config_game, host, cls._config_reliable_port, cls._config_fast_port)
+                
+                cls._instance.zone_connections = zone_connections
+                cls._instance.zone = zone_connections[cls._config_hosts[0]]
         return cls._instance
 
 

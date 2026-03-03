@@ -48,15 +48,14 @@ class RegionNode:
             and self.y_range[0] <= y <= self.y_range[1]
         )
     
-    async def receive_proxy_event(self, proxy_update: region_net.RegionUpdate) -> None:
+    async def receive_proxy_event(self, event: region_net.ProxyEvent) -> None:
         from region_server_extras import Client
-        payload_type = proxy_update.WhichOneof("payload")
-        if payload_type == "location_block":
-            proxy = ProxyClient(proxy_update.location_block.x, proxy_update.location_block.y, proxy_update.sender_id)
-        elif payload_type == "bullet_shot":
-            raise NotImplementedError("Bullet shots are not supported yet")
+        payload_type = event.WhichOneof("payload")
+        if payload_type == "client":
+            cp = event.client
+            proxy = ProxyClient(cp.pos.x, cp.pos.y, cp.player_id, cp.HP)
         else:
-            raise ValueError(f"Unknown proxy update type: {payload_type}")
+            return
 
         try:
             direction = Direction.from_diff(self.node_pos, RegionNode.which_node(*proxy.pos))
@@ -276,11 +275,12 @@ class RegionNode:
                 await remove_proxy(self.node_pos, node_pos, client.user_id)
             client._proxied_directions = set()
             self.detach_client(client)
-            proxy_update = region_net.RegionUpdate(
-                location_block=region_net.LocationBlock(x=client.state.x, y=client.state.y),
-                sender_id=client.user_id,
-            )
-            await self.receive_proxy_event(proxy_update)
+            proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
+                pos=region_net.LocationBlock(x=client.state.x, y=client.state.y),
+                player_id=client.user_id,
+                HP=client.state.hp,
+            ))
+            await self.receive_proxy_event(proxy_event)
             node_pos = RegionNode.which_node(raw_x, raw_y)
             # node is on this device
             if new_node := nodes.get(node_pos):
@@ -336,8 +336,12 @@ class RegionNode:
                     ... # TODO: handle other proxy objects
 
             # proxy this movement to the other node
-            proxy_update = region_net.RegionUpdate(location_block=pos_update, sender_id=client.user_id)
-            await create_proxy(self.node_pos, node_pos, proxy_update)
+            proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
+                pos=region_net.LocationBlock(x=pos_update.x, y=pos_update.y),
+                player_id=client.user_id,
+                HP=client.state.hp,
+            ))
+            await create_proxy(self.node_pos, node_pos, proxy_event)
 
         # notify player about same-node objects they haven't seen yet
         for grid_field in self.objects_in_view((raw_x, raw_y)):

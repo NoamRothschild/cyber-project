@@ -9,9 +9,8 @@ from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
 
 from state import get_client
 from nodes import nodes
-
-if TYPE_CHECKING:
-    from region_node import RegionNode
+from servers_communication import get_redis
+from region_node import RegionNode
 
 
 @dataclass
@@ -53,6 +52,20 @@ class Client:
         # TODO: get this one from the auth server
         user_id = randint(0, 2**31 - 1)
 
+
+        r = get_redis()
+        initial_pos = (74000, 32600)
+        if pos := await r.get(f"client:{session_id}:pos"):
+            initial_pos = tuple(map(int, pos.decode().split(",")))
+        else:
+            await r.set(f"client:{session_id}:pos", f"{initial_pos[0]},{initial_pos[1]}".encode())
+        
+        node_pos = RegionNode.which_node(*initial_pos)
+        node = nodes.get(node_pos)
+        self = Client(reader, writer, session_id, user_id, node)
+
+        await node.register_client(self, initial_pos)
+        
         handshake.Clear()
         handshake.CopyFrom(
             region_net.HandshakeStart(
@@ -63,13 +76,6 @@ class Client:
 
         writer.write(handshake.SerializeToString())
         await writer.drain()
-
-        # For now: assign to the single whole-map node
-        node = nodes[(16, 14)]  # NOTE: this is the node the player was constructed at (see Player class construction on client code)
-        initial_pos = (74000, 32600)
-        self = Client(reader, writer, session_id, user_id, node)
-        
-        await node.register_client(self, initial_pos)
 
         try:
             await self.handle_tcp()

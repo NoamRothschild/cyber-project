@@ -10,6 +10,7 @@ from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
 import traceback
+from typing import List
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
@@ -17,8 +18,8 @@ fps_screen_pos = (10, 10)
 
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
-    def __init__(self, host: str, tcp_port: int, udp_port: int):
-        ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
+    def __init__(self, hosts: List[str], tcp_port: int, udp_port: int):
+        ZoneConnectionSingleton.set_creds(self, hosts, tcp_port, udp_port)
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.image = pygame.image.load("grass.png")  # the background should be changed and moved to level
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     print(YELLOW + f"connecting to server at {ZONE_HOSTS[0]}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
 
     try:
-        game = Game(ZONE_HOSTS[0], ZONE_TCP_PORT, ZONE_UDP_PORT)
+        game = Game(ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT)
         game.run()
     except Exception as e:
         print(f"[FATAL]: {e}")

@@ -63,3 +63,23 @@ message ServerResponse {
   repeated BulletShot bullet_shot = 4;
   optional uint64 seq_num = 5;
 }
+
+message ClientProxy {
+  int32 player_id = 1;
+  LocationBlock pos = 2;
+  int32 HP = 3;
+  OtherState state = 4;
+
+  enum OtherState {
+    WALKING = 0;
+    ATTACKING = 1;
+    DESPAWNED = 2;
+  }
+}
+
+message ProxyEvent {
+  oneof payload {
+    ClientProxy client = 1;
+    // In the future: BulletShot bullet_shot = 2;
+  }
+}

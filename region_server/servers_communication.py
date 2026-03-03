@@ -43,8 +43,8 @@ async def remove_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
 
 async def publish_player_disconnect(sender_id: int):
-    update = region_net.RegionUpdate(sender_id=sender_id)
-    await get_redis().publish(GLOBAL_CHANNEL, PROXY_REMOVE_PREFIX + update.SerializeToString())
+    event = region_net.ProxyEvent(client=region_net.ClientProxy(player_id=sender_id))
+    await get_redis().publish(GLOBAL_CHANNEL, PROXY_REMOVE_PREFIX + event.SerializeToString())
 
 def start_redis_listener() -> None:
     """Must be called after initializing the node list"""
@@ -65,10 +65,11 @@ def start_redis_listener() -> None:
 
             if channel == GLOBAL_CHANNEL:
                 if data.startswith(PROXY_REMOVE_PREFIX):
-                    update = region_net.RegionUpdate()
-                    update.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
-                    for node in nodes.values():
-                        await node.receive_proxy_remove(update.sender_id)
+                    event = region_net.ProxyEvent()
+                    event.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
+                    if event.HasField("client"):
+                        for node in nodes.values():
+                            await node.receive_proxy_remove(event.client.player_id)
                 continue
 
             node_pos =  (
@@ -77,16 +78,17 @@ def start_redis_listener() -> None:
             )
 
             if data.startswith(PROXY_CREATE_PREFIX):
-                update = region_net.RegionUpdate()
-                update.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
+                event = region_net.ProxyEvent()
+                event.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
                 if node := nodes.get(node_pos):
-                    await node.receive_proxy_event(update)
+                    await node.receive_proxy_event(event)
 
             if data.startswith(PROXY_REMOVE_PREFIX):
-                update = region_net.RegionUpdate()
-                update.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
+                event = region_net.ProxyEvent()
+                event.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
                 if node := nodes.get(node_pos):
-                    await node.receive_proxy_remove(update.sender_id)
+                    if event.HasField("client"):
+                        await node.receive_proxy_remove(event.client.player_id)
 
             if data.startswith(BROADCAST_PREFIX):
                 update = region_net.RegionUpdate()
