@@ -47,6 +47,8 @@ class Inventory(pygame.sprite.Sprite):
 
     def is_wep_empty(self):
         return len(self.wep_inventory) == 0
+    def is_wep_in_1(self):
+        return len(self.wep_inventory) == 1
 
     def is_potion_empty(self):
         return len(self.potion_inventory) == 0
@@ -57,7 +59,7 @@ class Inventory(pygame.sprite.Sprite):
             key_constant = getattr(pygame, f"K_{i}")
             if keys[key_constant] and i - 1 != self.current_weapon and i - 1 < len(self.wep_inventory):
                 self.current_weapon = i - 1
-        if keys[pygame.K_DELETE]:
+        if keys[pygame.K_DELETE] and self.is_wep_in_1() == False:
             self.delete_w(group, prect)
 
     def delete_w(self, group, prect):

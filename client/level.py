@@ -173,10 +173,11 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
         for x in range(start_x, end_x):
             for y in range(start_y, end_y):
                 item = map_for_d.get((x, y))
-                if item: visible_now.append(item)
+                if item and item.rect and item.rect.bottom : visible_now.append(item)
 
         # אובייקטים דינמיים (הקבוצה הזו קטנה ממילא)
-        visible_now.extend(self.sprites())
+        for item in self.sprites():
+            if item and item.rect and item.rect.bottom: visible_now.append(item)
 
         # 3. לולאת ציור ללא חישובים כבדים
         # אנחנו ממיינים פעם אחת ומציירים
