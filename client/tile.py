@@ -1,10 +1,11 @@
 import pygame
 from mapset import *
 class Rock(pygame.sprite.Sprite):#rock obstacle sprites
-    def __init__(self,pos,groups,image,name,scale=None):
-        super().__init__(groups)
+    def __init__(self,pos,image,name,groups=None):
+        if groups is not None:
+            super().__init__(groups)
         self.image = image
-        if scale == None:
+        if True:
             self.image = pygame.transform.scale(self.image,(SIZE,SIZE))
         self.image.set_colorkey(PINK)
         self.rect = self.image.get_rect(topleft=pos)

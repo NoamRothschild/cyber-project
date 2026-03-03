@@ -104,27 +104,27 @@ class Level:
 
                 if r == 0 and g == 162 and b == 232:
                     ground_count = 0
-                    s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites], self.image[2], 'water')
+                    s=Rock(world_pos, self.image[2], 'water', [ self.obstacle_sprites])
                 elif r == 120 and g == 67 and b == 21:
                     ground_count = 0
-                    s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites], self.image[0], "rock")
+                    s=Rock(world_pos, self.image[0], "rock", [ self.obstacle_sprites])
                     map_for_d[(x, y)] = self.image[0]
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 7 == 0:
                         t=get_trees()
-                        s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
-                             t, "tree")
+                        s=Rock(world_pos,
+                             t, "tree", [self.obstacle_sprites,self.harmfull_sprites])
 
                     else:
-                        s=Rock(world_pos, [self.visible_sprites, self.obstacle_sprites,self.harmfull_sprites],
-                             self.image[1], "tree")
+                        s=Rock(world_pos,
+                             self.image[1], "tree", [self.obstacle_sprites,self.harmfull_sprites])
                     tree_count += 1
                     ground_count = 0
                 else:
                     ground_count += 1
                     if random.randint(0,BUSH_FRIQWENTY) == 1 :
                         b=get_bushes()
-                        s=Rock(world_pos, [self.visible_sprites],b, " "," ")
+                        s=Rock(world_pos,b, " ")
                 if s is not None:
                     map_for_d[grid_pos] = s
         self.player = Player( [self.visible_sprites],
@@ -156,26 +156,50 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
         self.node_box_thickness = 4
 
     def custom_draw(self, player):
+        # 1. עדכון המצלמה
         self.point.x = player.rect.centerx - self.half_width
         self.point.y = player.rect.centery - self.half_height
-        screen_rect = pygame.Rect(self.point.x, self.point.y, self.view_width, self.view_height)
-        visible_now = [s for s in self.sprites() if s.rect!=None and hasattr(s, 'rect') and s.rect.colliderect(screen_rect)]
 
+        # חישוב גבולות הגריד פעם אחת
+        start_x = int(self.point.x // SIZE)
+        end_x = int((self.point.x + self.view_width) // SIZE) + 1
+        start_y = int(self.point.y // SIZE)
+        end_y = int((self.point.y + self.view_height) // SIZE) + 1
+
+        # 2. איסוף אובייקטים (ללא colliderect מיותר על המפה הסטטית)
+        visible_now = []
+
+        # אובייקטים מהמפה
+        for x in range(start_x, end_x):
+            for y in range(start_y, end_y):
+                item = map_for_d.get((x, y))
+                if item: visible_now.append(item)
+
+        # אובייקטים דינמיים (הקבוצה הזו קטנה ממילא)
+        visible_now.extend(self.sprites())
+
+        # 3. לולאת ציור ללא חישובים כבדים
+        # אנחנו ממיינים פעם אחת ומציירים
         for sprite in sorted(visible_now, key=lambda s: s.rect.bottom):
-            if hasattr(sprite, 'image') and sprite.image is not None:
-                view_offset = sprite.rect.topleft - self.point
-                screen_x = view_offset[0] * self.scale_x
-                screen_y = view_offset[1] * self.scale_y
-                scaled_w = max(1, int(sprite.rect.width * self.scale_x))
-                scaled_h = max(1, int(sprite.rect.height * self.scale_y))
-                scaled_image = pygame.transform.scale(sprite.image, (scaled_w, scaled_h))
-                self.display.blit(scaled_image, (screen_x, screen_y))
-            elif hasattr(sprite, 'plus_rect') and sprite.plus_rect is not None:
+            view_offset_x = (sprite.rect.x - self.point.x) * self.scale_x
+            view_offset_y = (sprite.rect.y - self.point.y) * self.scale_y
+
+            if hasattr(sprite, 'image') and sprite.image:
+                # --- אופטימיזציה קריטית: שימוש ב-scaled_image מוכן מראש ---
+                # אם אין לספרייט תמונה מוקטנת, או שהקנה מידה השתנה - רק אז נחשב
+                if not hasattr(sprite, 'cached_scale') or sprite.cached_scale != (self.scale_x, self.scale_y):
+                    sw = max(1, int(sprite.rect.width * self.scale_x))
+                    sh = max(1, int(sprite.rect.height * self.scale_y))
+                    sprite.scaled_image = pygame.transform.scale(sprite.image, (sw, sh))
+                    sprite.cached_scale = (self.scale_x, self.scale_y)
+
+                self.display.blit(sprite.scaled_image, (view_offset_x, view_offset_y))
+
+            elif hasattr(sprite, 'plus_rect'):
                 sprite.draw(self.point.x, self.point.y)
 
-        # Draw bold light-green bounding boxes around all visible region nodes
-        self._draw_region_node_grid()
-
+        # 4. ייעול ה-Grid (שימוש בטווחים שכבר חישבנו)
+        self._draw_optimized_grid(start_x, end_x, start_y, end_y)
         # Draw a centered red border box that mimics the original (unscaled)
         # WIDTH x HEIGHT viewport within the currently zoomed-out view.
         box_w = WIDTH / VIEW_SCALE_X
@@ -204,33 +228,16 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
             2,
         )
 
-    def _draw_region_node_grid(self):
-        # Current camera view in world coordinates
-        view_rect = pygame.Rect(self.point.x, self.point.y, self.view_width, self.view_height)
+    def _draw_optimized_grid(self, start_x, end_x, start_y, end_y):
+        # המרת הקואורדינטות של המפה לקואורדינטות של ה-Nodes
+        # (בהנחה ש-NODE_WIDTH הוא כפולה של SIZE)
+        for nx in range(int(self.point.x // NODE_WIDTH), int((self.point.x + self.view_width) // NODE_WIDTH) + 1):
+            for ny in range(int(self.point.y // NODE_HEIGHT),
+                            int((self.point.y + self.view_height) // NODE_HEIGHT) + 1):
+                screen_x = (nx * NODE_WIDTH - self.point.x) * self.scale_x
+                screen_y = (ny * NODE_HEIGHT - self.point.y) * self.scale_y
+                screen_w = NODE_WIDTH * self.scale_x
+                screen_h = NODE_HEIGHT * self.scale_y
 
-        for node_x in range(HORIZONAL_NODE_COUNT):
-            for node_y in range(VERTICAL_NODE_COUNT):
-                world_rect = pygame.Rect(
-                    node_x * NODE_WIDTH,
-                    node_y * NODE_HEIGHT,
-                    NODE_WIDTH,
-                    NODE_HEIGHT,
-                )
-
-                if not world_rect.colliderect(view_rect):
-                    continue
-
-                # Convert world rect to screen space using the same scaling as sprites
-                view_offset_x = world_rect.x - self.point.x
-                view_offset_y = world_rect.y - self.point.y
-                screen_x = view_offset_x * self.scale_x
-                screen_y = view_offset_y * self.scale_y
-                screen_w = world_rect.width * self.scale_x
-                screen_h = world_rect.height * self.scale_y
-
-                pygame.draw.rect(
-                    self.display,
-                    self.node_box_color,
-                    pygame.Rect(screen_x, screen_y, screen_w, screen_h),
-                    self.node_box_thickness,
-                )
+                pygame.draw.rect(self.display, self.node_box_color,
+                                 (screen_x, screen_y, screen_w, screen_h), self.node_box_thickness)

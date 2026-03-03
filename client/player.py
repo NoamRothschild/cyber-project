@@ -180,7 +180,6 @@ class Player(pygame.sprite.Sprite):
         collision_sprites = pygame.sprite.spritecollide(self, self.obstacle_sprites, False)
 
         for sprite in collision_sprites:
-
             if sprite.hitbox.colliderect(self.hitbox):
                 if direction == 'horizontal':
 
