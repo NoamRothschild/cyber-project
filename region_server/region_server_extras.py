@@ -10,6 +10,7 @@ from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
 from servers_communication import get_redis
 from region_node import RegionNode
+from proxy import create_proxy
 
 NULL_NODE = RegionNode((-1, -1))
 
@@ -151,6 +152,14 @@ class Client:
         )
         resp.other_data.player_id = client_user_id
         await self.write_udp(resp)
+    
+    async def update_other_hp(self, other_user_id: int, new_hp: int):
+        """Notify this player about a client's hp change"""
+        resp = region_net.ServerResponse()
+        resp.sender_id = other_user_id
+        resp.other_data.HP = new_hp
+        resp.other_data.player_id = other_user_id
+        await self.write_udp(resp)
 
     async def entity_despawned(self, entity_user_id: int) -> None:
         """Notify this player that an entity left their viewport"""
@@ -176,6 +185,18 @@ class Client:
         )
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
+
+        for direction in self.node.possible_bounding_nodes(self.state.x, self.state.y):
+            node_pos = (self.node.node_pos[0] + direction.value[0], self.node.node_pos[1] + direction.value[1])
+
+            # proxy this update to the other nodes
+            proxy_event = region_net.ProxyEvent(client=region_net.ClientProxy(
+                pos=region_net.LocationBlock(x=self.state.x, y=self.state.y),
+                player_id=self.user_id,
+                session_id=self.session_id,
+                HP=self.state.hp,
+            ))
+            await create_proxy(self.node.node_pos, node_pos, proxy_event)
 
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()

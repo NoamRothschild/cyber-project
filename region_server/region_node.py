@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Any, Dict, Generator, Tuple, Set, List
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from enum import Enum
 
 if TYPE_CHECKING:
@@ -68,11 +68,18 @@ class RegionNode:
         # remove the old proxy entry, capturing its seen set for despawn checks
         old_seen: set[int] = set()
         lookup = ProxyField(proxy, set())
+        moved = True
+        old_hp: int = 0
+   
         for prx in self.proxies:
             for existing in prx:
-                if existing == lookup:
-                    old_seen = existing.seen
-                    break
+                if existing != lookup:
+                    continue
+                old_seen = existing.seen
+                if existing.proxy.pos == proxy.pos and isinstance(lookup, ProxyClient):
+                    moved = False
+                    old_hp = cast(ProxyClient, existing.proxy).hp
+                break
             prx.discard(lookup)
 
         field = ProxyField(proxy, set())
@@ -88,7 +95,10 @@ class RegionNode:
             if not Client.can_see_static((cli.state.x, cli.state.y), proxy.pos):
                 continue
             field.seen.add(cli.user_id)
-            await cli.saw_client(proxy.pos, proxy.id)
+            if moved:
+                await cli.saw_client(proxy.pos, proxy.id)
+            if old_hp != proxy.hp:
+                await cli.update_other_hp(proxy.id, proxy.hp)
 
         # despawn for clients who could see the old proxy but can't see the new position
         for uid in old_seen - field.seen:
