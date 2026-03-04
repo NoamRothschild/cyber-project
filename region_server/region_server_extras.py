@@ -56,6 +56,14 @@ class ProjectileHandler:
         dst_squared = (client.pos[0] - proj["x"]) ** 2 + (client.pos[1] - proj["y"]) ** 2
         return dst_squared < proj["range"] ** 2
 
+    def bullet_hit_enemy(self, proj: dict, enemy: EnemyModel) -> bool:
+        # Hit test against enemy center
+        ex = enemy.x + enemy.w / 2
+        ey = enemy.y + enemy.h / 2
+        dx = ex - proj["x"]
+        dy = ey - proj["y"]
+        return (dx * dx + dy * dy) < (proj["range"] ** 2)
+
     async def tick(self) -> None:
         to_remove: list[dict] = []
         global clients
