@@ -21,14 +21,15 @@ class Player(pygame.sprite.Sprite):
         super().__init__(groups)  # the groups for now is only visable sprite
 
         self.display_surface=pygame.display.get_surface()
+        self.color="golden knight"
+        #self.color="king"
 
         self.animation = Animation(
-            "Player_Skins/mordred.png",
+            f"Player_Skins/{self.color}.png",
             frame_w=32, frame_h=32,
             rows={"idle": 0, "run": 3},
             frames_per_row={"idle": 4, "run": 4},
             scale=3,
-            colorkey=(23, 130, 184),
             speed_ms=180
         )
         self.image = self.animation.image()

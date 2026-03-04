@@ -19,7 +19,7 @@ class Animation:
         self.sheet = pygame.image.load(sheet_path).convert()
 
         if colorkey == "AUTO":
-            self.colorkey = self.sheet.get_at((0, 0))  # צבע רקע מהפינה
+            self.colorkey = self.sheet.get_at((0, 0))
         else:
             self.colorkey = colorkey
 
