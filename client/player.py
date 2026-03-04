@@ -2,6 +2,7 @@ from helth import HealthBar
 from inventory import *
 from client.arsenal import Arsenal
 from bullets import Bullets
+from zone_connection import ZoneConnectionSingleton
 from zone_connection import *
 from game import *
 from mapset import *
@@ -154,8 +155,7 @@ class Player(pygame.sprite.Sprite):
                             )
 
                         self.current_Weapon().mag -= 1
-                        print("1")
-                        #ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
+                        ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
                         Bullets.BulletLS.append(bullet)
             except:
                 print("error")

@@ -4,7 +4,6 @@ import pygame
 import math
 from functools import cache
 
-from client import game
 from weapon_anim import WeaponAnim
 
 # need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
@@ -16,11 +15,11 @@ class Arsenal:
                  12,
                  "AK 47 bullet",
                  "not fixed",
-                 (0, 27),  # relative offset from the player
+                 (15, 47),  # relative offset from the player
                  120,  # scale
                  15,  # magzin
                  250,  # fire_cooldown in ms (0.25s)
-                 (20, 45)  #rotating point
+                 (40, 26)  #rotating point
                  ),
 
         "bow": ("arsenal-images/guns/bow.png",
@@ -28,7 +27,7 @@ class Arsenal:
                 "arrow",
                 "not fixed",
                 (-10, 20),  # relative offset from the player
-                22,  # scale
+                50,  # scale
                 5,  # magzin
                 500,  # fire_cooldown
                 (20, 45)  #rotating point
@@ -155,11 +154,12 @@ class Arsenal:
 
                 offset_x = self.offset_x*-1
 
+
             if mouse_y < player_y and mouse_x>player_x:
-                offset_x,offset_y =offset_x+4,self.offset_y-11
+                offset_x,offset_y =offset_x+4,offset_y-11
 
             if mouse_y < player_y and mouse_x<player_x :
-                offset_x,offset_y =offset_x-7,self.offset_y-11
+                offset_x,offset_y =offset_x-7,offset_y-11
 
 
             x_r, y_r = mouse_x - player_x, mouse_y - player_y
@@ -282,6 +282,8 @@ class Arsenal:
             font = pygame.font.SysFont(None, 36)
             bullet_left_txt = font.render(str(bullet_left), True, 'black')
             x -= bullet_left_txt.get_width()
+
+            from client import game
             game.SCREEN.blit(bullet_left_txt, (x + offset_x, y))
             x-=10
             img_bullet = pygame.image.load(
