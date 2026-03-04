@@ -1,7 +1,7 @@
 # Provides utility functions for the client for easier communication with server
 from __future__ import annotations
 import asyncio
-from random import randint
+from random import randint, random
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import math
