@@ -53,6 +53,9 @@ class EnemyModel:
     direction_x: float = 1.0
     direction_y: float = 0.0
 
+    max_hp: int =10
+    hp: int = 10
+
     patrol_index: int = 0
     patrol_switch_ms: int = 600
     next_patrol_switch_ms: int = 0
