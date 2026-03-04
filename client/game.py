@@ -1,6 +1,5 @@
 # the main game loop
 # basic rejister and login loop
-from entity import Entities
 import protobuf.region_net_pb2 as region_net
 import pygame, sys
 from mapset import *

@@ -3,6 +3,8 @@ from typing import Any
 import pygame
 import math
 from functools import cache
+
+from client import game
 from weapon_anim import WeaponAnim
 
 # need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
@@ -12,7 +14,7 @@ class Arsenal:
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
         "Ak 47": ("arsenal-images/guns/Ak 47.png",
                  12,
-                 "AK-7_bullet",
+                 "AK 47 bullet",
                  "not fixed",
                  (0, 27),  # relative offset from the player
                  120,  # scale
@@ -44,7 +46,7 @@ class Arsenal:
         "Assault rifle":
                 ("arsenal-images/guns/Assault rifle.png",
                  24,
-                  "AK-7_bullet",
+                  "AK 47 bullet",
                   "not fixed",
                   (10, 35),  # relative offset from the player
                   130,  # scale
@@ -55,7 +57,7 @@ class Arsenal:
         "Pistol":
             ("arsenal-images/guns/Pistol.png",
              12,
-             "AK-7_bullet",
+             "AK 47 bullet",
              "not fixed",
              (15, 25),  # relative offset from the player
              100,  # scale
@@ -88,7 +90,6 @@ class Arsenal:
             x = i * frame_w
             frame = pygame.Surface((frame_w, sheet_h), pygame.SRCALPHA).convert_alpha()
             frame.blit(sheet, (0, 0), (x, 0, frame_w, sheet_h))
-            frame.set_colorkey((23, 130, 184))  # אותו colorkey כמו אצלך
             out.append(frame)
 
         return out
@@ -104,7 +105,6 @@ class Arsenal:
             Arsenal.Arsenal_gunType[gun_type]
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
-        self.weapon_img.set_colorkey((23, 130, 184))
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
         self.offset_x, self.offset_y = coordinates
 
@@ -276,39 +276,27 @@ class Arsenal:
 
         if not self.bullet == "null":
             bullet_left = self.mag
-            numLs = []
-            while bullet_left > 0:
-                numLs.append(bullet_left % 10)
-                bullet_left //= 10
-
-            if len(numLs) == 0:
-                numLs = [0]
 
             offset_x = 0
 
-            for num in numLs:
-                img_num = pygame.image.load(
-                    "numbers-image/" + f"{num}.png").convert_alpha()
-                img_num.set_colorkey((23, 130, 184))
-                img_num = pygame.transform.scale(img_num, (17, 18))
-
-                self.display.blit(img_num, (x + offset_x, y))
-                offset_x -= img_num.get_width()
-
-            offset_x -= 10
-
+            font = pygame.font.SysFont(None, 36)
+            bullet_left_txt = font.render(str(bullet_left), True, 'black')
+            x -= bullet_left_txt.get_width()
+            game.SCREEN.blit(bullet_left_txt, (x + offset_x, y))
+            x-=10
             img_bullet = pygame.image.load(
                 "arsenal-images/bullets/" + f"{self.bullet}.png").convert_alpha()
-            img_bullet.set_colorkey((23, 130, 184))
 
             img_bullet = pygame.transform.rotate(img_bullet, 90 * 3)
 
             w, h = img_bullet.get_size()
-            scale = 15
+            if self.bullet=="arrow": scale = 10
+            else: scale = 15
+
             img_bullet = pygame.transform.scale(
                 img_bullet, (scale, int(h * (scale / w))))
 
-            self.display.blit(img_bullet, (x + offset_x, y - 15))
+            self.display.blit(img_bullet, (x-img_bullet.get_width()+5 + offset_x, y - 15))
             return
         else:
             weapon_img = self.weapon_img

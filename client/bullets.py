@@ -26,13 +26,13 @@ class Bullets:
     BulletLS = []
 
     bullet_types = {
-        "AK-7_bullet": (
-            pygame.image.load("arsenal-images/bullets/AK-7_bullet.png").convert_alpha(),
+        "AK 47 bullet": (
+            pygame.image.load("arsenal-images/bullets/AK 47 bullet.png").convert_alpha(),
             (-15, 15),  # relative offset from the player
             20,  # ttl
             25,  # speed
             2,  # damage
-            0.2  # scale
+            0.1 #scale
         ),
         "arrow": (
             pygame.image.load("arsenal-images/bullets/arrow.png").convert_alpha(),
@@ -63,8 +63,8 @@ class Bullets:
         # Scale and set transparency
         w, h = self.image_bullet.get_size()
         self.image_bullet = pygame.transform.scale(
-            self.image_bullet, (int(w * self.scale), int(h * self.scale)))
-        self.image_bullet.set_colorkey(blue)
+        self.image_bullet, (int(w * self.scale), int(h * self.scale)))
+
         self.image_bullet = pygame.transform.flip(self.image_bullet, True, False)
         self.rect = self.image_bullet.get_rect()
         if from_network:

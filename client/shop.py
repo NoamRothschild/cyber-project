@@ -21,7 +21,7 @@ class ShopUI:
 
         #  bullet_name -- (price, amount)
         self.ammo_packs = {
-            "AK-7_bullet": (15, 5),
+            "AK 47 bullet": (15, 5),
             "arrow": (10, 10)
         }
 

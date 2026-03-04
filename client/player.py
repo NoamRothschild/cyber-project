@@ -1,11 +1,10 @@
 from helth import HealthBar
 from inventory import *
-from bullets import *
+from client.arsenal import Arsenal
 from bullets import Bullets
+from zone_connection import *
 from game import *
-from zone_connection import ZoneConnectionSingleton
 from mapset import *
-from arsenal import Arsenal
 from inventory import *
 from bullets import *
 from shop import ShopUI
@@ -154,15 +153,12 @@ class Player(pygame.sprite.Sprite):
                                 from_network=False,
                             )
 
-
-
                         self.current_Weapon().mag -= 1
-                        ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
+                        print("1")
+                        #ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
                         Bullets.BulletLS.append(bullet)
             except:
                 print("error")
-            if self.current_Weapon().gun_type == "domain_expansion":
-                Domain_Expansion.run(self)
 
 
 
