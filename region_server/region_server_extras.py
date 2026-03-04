@@ -156,6 +156,89 @@ class EnemyHandler:
         self.enemies = {}  # key: enemy_id -> value: EnemyModel
         self.lock = asyncio.Lock()
 
+        # Maintain a constant population
+        self.target_enemy_count = 100
+
+        # TODO: edit this according to our map
+        self.world_min_x = 0
+        self.world_min_y = 0
+        self.world_max_x = 3000
+        self.world_max_y = 3000
+
+        self.next_enemy_id = 1
+
+    def random_spawn(self) -> Tuple[float, float]:
+        x = self.world_min_x + (self.world_max_x - self.world_min_x) * random()
+        y = self.world_min_y + (self.world_max_y - self.world_min_y) * random()
+        return x, y
+
+    def spawn_enemy(self, enemy_id: int | None = None) -> EnemyModel:
+        if enemy_id is None:
+            enemy_id = self.next_enemy_id
+            self.next_enemy_id += 1
+
+        x, y = self.random_spawn()
+        e = EnemyModel(enemy_id=enemy_id, x=x, y=y)
+        e.reset_combat()
+        e.last_sent_x = e.x
+        e.last_sent_y = e.y
+        self.enemies[enemy_id] = e
+        return e
+
+    async def ensure_population(self) -> None:
+        """Create enemies until we have target_enemy_count."""
+        async with self.lock:
+            missing = self.target_enemy_count - len(self.enemies)
+            if missing <= 0:
+                return
+            spawned = [self.spawn_enemy() for _ in range(missing)]
+
+        # broadcast outside lock
+        for e in spawned:
+            await self.broadcast_enemy_spawn(e)
+
+    async def respawn_enemy(self, enemy_id: int) -> None:
+        """Respawn an enemy at a random location with full HP."""
+        async with self.lock:
+            enemy = self.enemies.get(enemy_id)
+            if enemy is None:
+                enemy = self.spawn_enemy(enemy_id)
+            else:
+                enemy.x, enemy.y = self.random_spawn()
+                enemy.reset_combat()
+                enemy.last_sent_x = enemy.x
+                enemy.last_sent_y = enemy.y
+
+        await self.broadcast_enemy_spawn(enemy)
+
+    async def broadcast_enemy_spawn(self, enemy: EnemyModel) -> None:
+        """Broadcast enemy location (spawn/respawn)."""
+        global clients
+        update = region_net.ServerResponse()
+        update.sender_id = enemy.enemy_id
+        update.other_data.new_location.CopyFrom(
+            region_net.LocationBlock(
+                x=int(enemy.x),
+                y=int(enemy.y))
+        )
+        for c in clients:
+            await c.write(update.SerializeToString())
+
+        await self.broadcast_enemy_hp(enemy)
+
+    async def broadcast_enemy_hp(self, enemy: EnemyModel) -> None:
+        """Broadcast HP (reuses OtherPlayerData payload)."""
+        global clients
+        update = region_net.ServerResponse()
+        update.sender_id = enemy.enemy_id
+        update.other_data.CopyFrom(
+            region_net.OtherPlayerData(
+                HP=int(enemy.hp),
+                player_id=enemy.enemy_id)
+        )
+        for c in clients:
+            await c.write(update.SerializeToString())
+
     def create_background_task(self) -> None:
         asyncio.create_task(self.ticker())
 
@@ -163,6 +246,7 @@ class EnemyHandler:
         loop = asyncio.get_running_loop()
         while True:
             start_time = loop.time()
+            await self.ensure_population()
             await self.tick()
             sleep_time = self.tick_intervals - (loop.time() - start_time)
             if sleep_time > 0:
