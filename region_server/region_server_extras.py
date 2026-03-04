@@ -67,6 +67,8 @@ class ProjectileHandler:
     async def tick(self) -> None:
         to_remove: list[dict] = []
         global clients
+        global enemy_handler
+
         async with self.lock:
             for proj in self.projectiles:
                 proj["ttl"] -= 1
@@ -88,6 +90,22 @@ class ProjectileHandler:
                     if self.bullet_hit(proj, client):
                         await client.hit(proj["damage"], proj["owner_uuid"])
                         proj["already_hit"].add(client.user_id)
+
+        async with enemy_handler.lock:
+            for proj in self.projectiles:
+                for enemy in enemy_handler.enemies.values():
+                    # prevent multi-hits from same bullet
+                    if enemy.enemy_id in proj["already_hit"]:
+                        continue
+
+                    if self.bullet_hit_enemy(proj, enemy):
+                        died = enemy.take_damage(int(proj["damage"]))
+                        proj["already_hit"].add(enemy.enemy_id)
+
+                        await enemy_handler.broadcast_enemy_hp(enemy)
+
+                        if died:
+                            await enemy_handler.respawn_enemy(enemy.enemy_id)
 
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
         template = BULLET_TYPES.get(bullet_shot.gun_type)
