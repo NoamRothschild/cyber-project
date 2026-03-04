@@ -40,13 +40,18 @@ class EnemyModel:
     enemy_id: int
     x: float
     y: float
+
     last_sent_x: float = 0
     last_sent_y: float = 0
+
     w: float = 30
     h: float = 40
-
     speed: float = 4.0  # pixels per tick
+
     state: str = "PATROL"  # PATROL|CHASE|ATTACK
+    # direction as normalized vector
+    direction_x: float = 1.0
+    direction_y: float = 0.0
 
     patrol_index: int = 0
     patrol_switch_ms: int = 600
@@ -57,10 +62,6 @@ class EnemyModel:
 
     attack_cooldown_ms: int = 700
     next_attack_time_ms: int = 0
-
-    # direction as normalized vector
-    direction_x: float = 1.0
-    direction_y: float = 0.0
 
     @property
     def aabb(self) -> AABB:
