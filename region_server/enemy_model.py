@@ -70,6 +70,15 @@ class EnemyModel:
     def aabb(self) -> AABB:
         return AABB(self.x, self.y, self.w, self.h)
 
+    def reset_combat(self) -> None:
+        self.hp = self.max_hp
+
+    def take_damage(self, amount: int) -> bool:
+        if amount <= 0:
+            return False
+        self.hp -= amount
+        return self.hp <= 0
+
     def closest_player(self, players: Sequence[PlayerSnapshot]) -> Optional[PlayerSnapshot]:
         if not players:
             return None
