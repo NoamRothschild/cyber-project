@@ -90,15 +90,6 @@ class EnemyModel:
         dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
         self.direction_x, self.direction_y = dirs[self.patrol_index]
 
-    def normalize_dir(self) -> None:
-        enemy_threshold = 1e-9
-        magnitude_2 = self.direction_x * self.direction_x + self.direction_y * self.direction_y
-        if magnitude_2 <= enemy_threshold:
-            self.direction_x, self.direction_y = 0.0, 0.0
-            return
-        magnitude = math.sqrt(magnitude_2)
-        self.direction_x /= magnitude
-        self.direction_y /= magnitude
 
     def update_state_machine(self, now_ms: int, players: Sequence[PlayerSnapshot]) -> Optional[int]:
         """
@@ -143,6 +134,17 @@ class EnemyModel:
             return target.player_id
 
         return None
+
+
+    def normalize_dir(self) -> None:
+        enemy_threshold = 1e-9
+        magnitude_2 = self.direction_x * self.direction_x + self.direction_y * self.direction_y
+        if magnitude_2 <= enemy_threshold:
+            self.direction_x, self.direction_y = 0.0, 0.0
+            return
+        magnitude = math.sqrt(magnitude_2)
+        self.direction_x /= magnitude
+        self.direction_y /= magnitude
 
     def move_and_collide(self, obstacles: Sequence[AABB]) -> None:
         self.normalize_dir()
