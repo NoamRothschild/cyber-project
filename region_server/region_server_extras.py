@@ -274,7 +274,7 @@ class EnemyHandler:
 
                 if not should_update_location((enemy.last_sent_x, enemy.last_sent_y),
                                               (enemy.x, enemy.y)):
-                    return
+                    continue
 
                 # Broadcast new location
                 update = region_net.ServerResponse()
