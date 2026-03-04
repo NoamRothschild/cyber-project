@@ -53,7 +53,7 @@ class EnemyModel:
     direction_x: float = 1.0
     direction_y: float = 0.0
 
-    max_hp: int =10
+    max_hp: int = 10
     hp: int = 10
 
     patrol_index: int = 0
@@ -99,7 +99,6 @@ class EnemyModel:
         dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
         self.direction_x, self.direction_y = dirs[self.patrol_index]
 
-
     def update_state_machine(self, now_ms: int, players: Sequence[PlayerSnapshot]) -> Optional[int]:
         """
         Returns attacked_player_id if an attack happened, else None.
@@ -143,7 +142,6 @@ class EnemyModel:
             return target.player_id
 
         return None
-
 
     def normalize_dir(self) -> None:
         enemy_threshold = 1e-9
