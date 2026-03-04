@@ -141,6 +141,7 @@ class ProjectileHandler:
 
         return update.SerializeToString()
 
+
 def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, float], min_dst=5) -> bool:
     """returns true when the distance between the two pos are above min_dst"""
     if old_pos == new_pos:
@@ -149,6 +150,7 @@ def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, f
     min_dst_squared = min_dst ** 2
 
     return traveled_dst_squared > min_dst_squared
+
 
 class EnemyHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
@@ -297,6 +299,7 @@ clients: Set[Client] = set()
 
 projectile_handler = ProjectileHandler()
 enemy_handler = EnemyHandler()
+
 
 class Client:
     @staticmethod
