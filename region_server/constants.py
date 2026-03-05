@@ -3,7 +3,7 @@ from typing import Dict, Tuple, Union
 import os
 
 BUFF_SIZE = 1024
-THIS_SERVER_IP = os.getenv('region_server_ip', '127.0.0.2')
+THIS_SERVER_IP = os.getenv('region_server_ip', '127.0.0.1')
 print(f'{THIS_SERVER_IP=}')
 SERVER_COUNT = 5
 

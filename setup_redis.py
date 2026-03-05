@@ -4,8 +4,8 @@ REDIS_PORT = 6379
 
 # region server -> handled nodes
 REGION_SERVERS = {
-    "127.0.0.1": [i for i in range(340) if i % 2 == 0],
-    "127.0.0.2": [i for i in range(340) if i % 2 == 1]
+    "127.0.0.1": [i for i in range(340)],
+
     # "192.168.1.1",
     # ...
 }
