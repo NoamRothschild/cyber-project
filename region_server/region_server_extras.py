@@ -209,7 +209,7 @@ class Client:
                     break
                 await self.handle_region_update(data, Client.FROM_TCP)
         except (ConnectionResetError, ConnectionAbortedError, OSError):
-            passhendeling
+            pass
 
     async def handle_udp(self, conn: aioudp.Connection) -> None:
         try:
