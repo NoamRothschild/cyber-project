@@ -11,28 +11,38 @@ from level import *
 from random import randint
 from zone_connection import *
 import traceback
+from typing import List, cast
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
 SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
-    def __init__(self, host: str, tcp_port: int, udp_port: int):
-        ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
+    def __init__(self, hosts: List[str], tcp_port: int, udp_port: int):
+        ZoneConnectionSingleton.set_creds(self, hosts, tcp_port, udp_port)
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(FONT, 30, bold=True)
-        self.zone = ZoneConnectionSingleton().zone
+        self.zone = lambda: cast(ZoneConnection, ZoneConnectionSingleton().zone)
         # randomized for now, will get generated from the auth server.
         self.session_id = randint(0, 2 ** 31 - 1)
         self.level = Level(self.session_id)
         self.is_running = False
 
     def run(self):
-        self.user_id = self.zone.open_connections(self.session_id)
-        self.zone.start_event_handler()
+        self.user_id = self.zone().open_connections(self.session_id)
+        print(f'trying {self.zone().host}')
+
+        for zone in cast(Dict[str, ZoneConnection], ZoneConnectionSingleton().zone_connections).values():
+            if self.zone() == zone:
+                continue # we already connected there a second ago
+            print(f'trying {zone.host}')
+            zone.open_connections(self.session_id)
+        
+        ZoneConnectionSingleton.start_sender()
+        self.zone().start_event_handler()
         self.is_running = True
 
         while self.is_running:
@@ -52,7 +62,7 @@ class Game:
             self.screen.blit(fps_surface,fps_screen_pos )
             hb = self.level.player.hitbox
             # Report precise world position to the server
-            self.zone.try_send_update_pos((hb.x, hb.y))
+            self.zone().try_send_update_pos((hb.x, hb.y))
 
             # Show current region node near the FPS bar (0-based indices)
             node_x = int(hb.x // NODE_WIDTH)
@@ -65,7 +75,8 @@ class Game:
             pygame.display.update()
             self.clock.tick(FPS)
 
-        self.zone.stop()
+        ZoneConnectionSingleton.stop_sender()
+        self.zone().stop()
         pygame.quit()
         # sys.exit()
 
@@ -78,11 +89,11 @@ if __name__ == '__main__':
     print(YELLOW + f"connecting to server at {ZONE_HOSTS[0]}:{ZONE_TCP_PORT}. If this is incorrect, please re-run setup_dev.py" + RESET)
 
     try:
-        game = Game(ZONE_HOSTS[0], ZONE_TCP_PORT, ZONE_UDP_PORT)
+        game = Game(ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT)
         game.run()
     except Exception as e:
         print(f"[FATAL]: {e}")
-        game.zone.stop()
+        game.zone().stop()
         pygame.quit()
         print(f"[TRACEBACK]: {traceback.format_exc()}")
         sys.exit(1)

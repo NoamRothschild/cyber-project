@@ -18,6 +18,7 @@ from mapset import (
     VERTICAL_NODE_COUNT,
     HORIZONAL_NODE_COUNT,
 )
+from nodes import fetch_zone_map, pos_to_zone_index
 import random
 import os
 from chat import *
@@ -75,6 +76,10 @@ class Level:
                       pygame.image.load('water.png').convert()]
         self.chat=Chat(session_id)
         self.entities = Entities()
+        self.zone_map = fetch_zone_map()
+        self.current_zone_index: int | None = None
+        self.current_host: str | None = None
+
         preload_all_bushes()
         preload_all_trees()
         self.draw_map()
@@ -136,10 +141,28 @@ class Level:
 
         self.player.inventory.items_hendeling(self.player)
 
-        self.visible_sprites.update(self.chat.is_open)
+        self.visible_sprites.update()
         self.chat.draw()
         Green_hit.draw_fill()
         Red_hit.draw_fill()
+
+        self._check_zone_change()
+
+    def _check_zone_change(self):
+        hb = self.player.hitbox
+        zone_index = pos_to_zone_index(hb.x, hb.y)
+        if zone_index == self.current_zone_index:
+            return
+        self.current_zone_index = zone_index
+        host = self.zone_map.get(zone_index)
+        if host is None or host == self.current_host:
+            self.current_host = host
+            return
+        self.current_host = host
+        from zone_connection import ZoneConnectionSingleton
+        ZoneConnectionSingleton.move_zone(host)
+        print(f"[ZONE] Switched to host {host} (zone index {zone_index})")
+
 
 class Camera(pygame.sprite.Group):  # a group that has every visible sprite that should be moved when the player does
     def __init__(self):
@@ -157,7 +180,6 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
         self.node_box_thickness = 4
 
     def custom_draw(self, player):
-        # 1. עדכון המצלמה
         self.point.x = player.rect.centerx - self.half_width
         self.point.y = player.rect.centery - self.half_height
 

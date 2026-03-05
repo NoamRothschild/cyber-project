@@ -7,14 +7,6 @@ from nodes import nodes
 from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL
 
 
-def get_client(session_id: int) -> Optional[Any]:
-    """Return the Client for session_id if connected to any node."""
-    for node in nodes.values():
-        if session_id in node.clients:
-            return node.clients[session_id]
-    return None
-
-
 async def create_initial_nodes() -> None:
     """Create the single whole-map node. Call once at startup."""
     r = get_redis()

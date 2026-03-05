@@ -3,9 +3,11 @@ import asyncio
 import itertools
 import math
 import protobuf.region_net_pb2 as region_net
-from constants import BULLET_TYPES, TICK_INTERVAL_SEC
+from constants import BULLET_TYPES, TICK_INTERVAL_SEC, SERVER_COUNT
+import os
 
-_next_projectile_id = itertools.count()
+_proj_start_id = (2**31 // SERVER_COUNT) * int(os.getenv('server_id', '0'))
+_next_projectile_id = itertools.count(start=_proj_start_id)
 
 
 class Projectile(dict):
@@ -141,6 +143,7 @@ class ProjectileHandler:
                 bs.y = int(proj["y"])
                 bs.ttl = int(proj["ttl"])
                 bs.speed = int(proj["speed"])
+                bs.seen_players.extend(proj["seen_by"])
                 await broadcast_on(node_idx, update.SerializeToString())
                 print(
                     f"projectile left to off-server node {new_node_pos}, forwarding via Redis"
@@ -174,7 +177,7 @@ class ProjectileHandler:
             for i in range(bullet_shot.count):
                 blt = Projectile(bullet)
                 blt["already_hit"] = set()
-                blt["seen_by"] = {client.user_id}
+                blt["seen_by"] = {client.user_id} | set(bullet_shot.seen_players)
                 blt["id"] = next(_next_projectile_id)
                 blt["x"] += i * blt["velocity_x"]
                 blt["y"] += i * blt["velocity_y"]
@@ -250,6 +253,7 @@ class ProjectileHandler:
                     bs.y = int(proj["y"])
                     bs.ttl = int(proj["ttl"])
                     bs.speed = int(proj["speed"])
+                    bs.seen_players.extend(proj["seen_by"])
                     await broadcast_on(node_idx, update.SerializeToString())
                     print(
                         f"projectile left to off-server node {node_pos}, forwarding via Redis"

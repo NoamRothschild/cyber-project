@@ -49,6 +49,7 @@ message BulletShot {
   optional int32 y = 5;     // only set from server -> client
   optional int32 ttl =  6;  // only set from server -> client
   optional int32 speed = 7; // only set from server -> client
+  repeated int32 seen_players = 8;
 }
 
 message HandshakeStart {
@@ -88,4 +89,25 @@ message ServerResponse {
   }
   repeated BulletShot bullet_shot = 4;
   optional uint64 seq_num = 5;
+}
+
+message ClientProxy {
+  int32 session_id = 1;
+  int32 player_id = 2;
+  LocationBlock pos = 3;
+  int32 HP = 4;
+  OtherState state = 5;
+
+  enum OtherState {
+    WALKING = 0;
+    ATTACKING = 1;
+    DESPAWNED = 2;
+  }
+}
+
+message ProxyEvent {
+  oneof payload {
+    ClientProxy client = 1;
+    // In the future: BulletShot bullet_shot = 2;
+  }
 }

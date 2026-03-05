@@ -7,12 +7,11 @@ import aioudp
 import protobuf.region_net_pb2 as region_net
 from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
 
-from state import get_client
-from nodes import nodes
+from nodes import nodes, register_global_client, remove_global_client, get_global_client
+from servers_communication import get_redis
+from region_node import RegionNode
 
-if TYPE_CHECKING:
-    from region_node import RegionNode
-
+NULL_NODE = RegionNode((-1, -1))
 
 @dataclass
 class PlayerState:
@@ -50,9 +49,33 @@ class Client:
         # TODO: verify the session id with the auth server && cache it
         session_id = handshake.session_id
 
-        # TODO: get this one from the auth server
-        user_id = randint(0, 2**31 - 1)
+        r = get_redis()
 
+        # TODO: get this one from the auth server
+        uid_key = f"client:{session_id}:user_id"
+        if stored_uid := await r.get(uid_key):
+            user_id = int(stored_uid)
+        else:
+            user_id = randint(0, 2**31 - 1)
+            await r.set(uid_key, str(user_id).encode())
+
+        initial_pos = (74000, 32600)
+        if pos := await r.get(f"client:{session_id}:pos"):
+            p = pos.decode().split(",")
+            initial_pos = (int(p[0]), int(p[1]))
+        else:
+            await r.set(f"client:{session_id}:pos", f"{initial_pos[0]},{initial_pos[1]}".encode())
+        
+        node_pos = RegionNode.which_node(*initial_pos)
+        node = nodes.get(node_pos)
+        if node is None:
+            node = NULL_NODE
+
+        self = Client(reader, writer, session_id, user_id, node)
+        await register_global_client(session_id, self)
+        if node != NULL_NODE:
+            await node.register_client(self, initial_pos)
+        
         handshake.Clear()
         handshake.CopyFrom(
             region_net.HandshakeStart(
@@ -64,17 +87,11 @@ class Client:
         writer.write(handshake.SerializeToString())
         await writer.drain()
 
-        # For now: assign to the single whole-map node
-        node = nodes[(16, 14)]  # NOTE: this is the node the player was constructed at (see Player class construction on client code)
-        initial_pos = (74000, 32600)
-        self = Client(reader, writer, session_id, user_id, node)
-        
-        await node.register_client(self, initial_pos)
-
         try:
             await self.handle_tcp()
         finally:
             self.conn_state.stop_udp_conn.set()
+            await remove_global_client(self.session_id)
             await node.unregister_client(self)
 
     @staticmethod
@@ -84,7 +101,7 @@ class Client:
         handshake.ParseFromString(handshake_raw)
 
         session_id = handshake.session_id
-        cli = get_client(session_id)
+        cli = await get_global_client(session_id)
         if cli is not None:
             handshake.Clear()
             handshake.CopyFrom(
@@ -134,6 +151,14 @@ class Client:
         )
         resp.other_data.player_id = client_user_id
         await self.write_udp(resp)
+    
+    async def update_other_hp(self, other_user_id: int, new_hp: int):
+        """Notify this player about a client's hp change"""
+        resp = region_net.ServerResponse()
+        resp.sender_id = other_user_id
+        resp.other_data.HP = new_hp
+        resp.other_data.player_id = other_user_id
+        await self.write_udp(resp)
 
     async def entity_despawned(self, entity_user_id: int) -> None:
         """Notify this player that an entity left their viewport"""
@@ -150,6 +175,14 @@ class Client:
     def can_see_static(player_pos: Tuple[int, int], object_pos: Tuple[int, int]) -> bool:
         return abs(player_pos[0] - object_pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(player_pos[1] - object_pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)
 
+    def to_proxy_event(self) -> region_net.ProxyEvent:
+        return region_net.ProxyEvent(client=region_net.ClientProxy(
+            pos=region_net.LocationBlock(x=self.state.x, y=self.state.y),
+            player_id=self.user_id,
+            session_id=self.session_id,
+            HP=self.state.hp,
+        ))
+
     async def hit(self, count: int, hitter_id: int) -> None:
         self.state.hp -= count
         update = region_net.ServerResponse()
@@ -159,6 +192,7 @@ class Client:
         )
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
+        await self.node.propagate_entity(self)
 
     async def item_hendeling(self, name: str,kind: str,x: int,y: int, hitter_id: int) -> None:
         update = region_net.ServerResponse()
@@ -184,6 +218,21 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
+            node_pos = RegionNode.which_node(update.location_block.x, update.location_block.y)
+            node = nodes.get(node_pos)
+            if node is None:
+                if self.node != NULL_NODE:
+                    await self.node.unregister_client(self)
+                    self.node = NULL_NODE
+                return
+            
+            if self.node != node:
+                if self.node != NULL_NODE:
+                    await self.node.unregister_client(self)
+
+                self.node = node
+                await self.node.register_client(self, (update.location_block.x, update.location_block.y))
+
             await self.node.handle_movement(self, update.location_block)
         elif payload_type == "potion_use":
             if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
@@ -223,6 +272,9 @@ class Client:
             self.conn_state.udp_conn = None
 
     async def write_udp(self, data: region_net.ServerResponse) -> None:
+        if data.HasField("other_data") and (data.other_data.player_id == self.user_id or data.other_data.player_id == 0):
+            return
+
         data.seq_num = self.conn_state.last_sent_seq
         raw = data.SerializeToString()
         if conn := self.conn_state.udp_conn:
