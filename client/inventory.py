@@ -4,6 +4,7 @@ from mapset import *
 from arsenal import *
 import time
 from colectibes import Colectible_sprite
+from zone_connection import *
 class Inventory(pygame.sprite.Sprite):
 
 
@@ -67,6 +68,7 @@ class Inventory(pygame.sprite.Sprite):
         if current_time - self.delete_last_action_time >= self.delete_interval and self.is_wep_empty() == False:
             Colectible_sprite((prect.x + 70, prect.y + 70), group, self.wep_inventory[self.current_weapon].get_name(),
                               "weapon")
+            ZoneConnectionSingleton().zone.try_send_item("weapon", self.wep_inventory[self.current_weapon].get_name(), prect.x + 70, prect.y + 70)
             del self.wep_inventory[self.current_weapon]
             if self.current_weapon != 0:
                 self.current_weapon = self.current_weapon - 1

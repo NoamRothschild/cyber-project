@@ -203,7 +203,7 @@ class Player(pygame.sprite.Sprite):
 
     def check_if_collect(self):
         for sprite in self.colect_sprite:
-            if sprite.rect.colliderect(self.hitbox):
+            if sprite and sprite.rect.colliderect(self.hitbox):
                 if sprite.kind == "weapon":
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "weapon")
                 elif sprite.kind == "potion":

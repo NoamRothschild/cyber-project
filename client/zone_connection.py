@@ -139,6 +139,14 @@ class ZoneConnection:
             )
         )
         self.reliable_conn.sendall(update.SerializeToString())
+    def try_send_item(self, item_kind: str,item_name: str,x: int,y: int,) -> None:
+        update = region_net.RegionUpdate()
+        update.item_pickup.CopyFrom(
+            region_net.Item(
+                Kind=item_kind, Name=item_name, x=x, y=y
+            )
+        )
+        self.reliable_conn.sendall(update.SerializeToString())
 
 
 class ZoneConnectionSingleton:
@@ -245,6 +253,9 @@ def event_handler(
             if payload_type == "new_location":
                 pos = update.other_data.new_location
                 game.level.entities.add_or_update([game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y))
+            elif payload_type == "New_Item":
+                item = update.other_data.New_Item
+                game.level.add_c((item.x, item.y), str(item.Name), str(item.Kind))
             elif payload_type == "HP":
                 health_elem = game.level.player.health
                 new_hp = update.other_data.HP

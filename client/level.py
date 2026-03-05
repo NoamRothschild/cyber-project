@@ -78,7 +78,8 @@ class Level:
         preload_all_bushes()
         preload_all_trees()
         self.draw_map()
-
+    def add_c(self,pos,n,k):
+        Colectible_sprite(pos,[self.visible_sprites,self.colectible_sprite],n,k)
     def handle_event(self, event):
         self.player.shop_ui.handle_event(event, self.player)
         self.chat.handle_event(event)

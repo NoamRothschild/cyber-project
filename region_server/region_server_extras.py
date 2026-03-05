@@ -160,6 +160,15 @@ class Client:
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
 
+    async def item_hendeling(self, name: str,kind: str,x: int,y: int, hitter_id: int) -> None:
+        update = region_net.ServerResponse()
+        update.sender_id = hitter_id
+        update.other_data.CopyFrom(
+            region_net.OtherPlayerData(New_Item=region_net.Item(Kind=kind,Name=name,x=x,y=y), player_id=self.user_id)
+        )
+        await self.broadcast(update.SerializeToString())
+        await self.write(update.SerializeToString())
+
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
@@ -179,6 +188,8 @@ class Client:
         elif payload_type == "potion_use":
             if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
                 await self.hit(-update.potion_use.HowMuch, self.user_id)
+        elif payload_type == "item_pickup":
+            await self.item_hendeling(update.item_pickup.Name, update.item_pickup.Kind, update.item_pickup.x, update.item_pickup.y, self.user_id)
         elif payload_type == "bullet_shot":
             update_bytes, new_projs = await self.node.projectile_handler.add(
                 update.bullet_shot, self
@@ -198,7 +209,7 @@ class Client:
                     break
                 await self.handle_region_update(data, Client.FROM_TCP)
         except (ConnectionResetError, ConnectionAbortedError, OSError):
-            pass
+            passhendeling
 
     async def handle_udp(self, conn: aioudp.Connection) -> None:
         try:
