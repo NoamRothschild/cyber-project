@@ -101,6 +101,8 @@ class Player(pygame.sprite.Sprite):
         }
 
         self.health = HealthBar(HEALTH_BAR_POS,HEALTH_BAR_SCALE)
+        self.injured_until = 0
+
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak 47"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
@@ -236,6 +238,7 @@ class Player(pygame.sprite.Sprite):
     def check_harm_done(self, sprite):
         if sprite in self.harmfull_sprites:
             self.health.sub_life(30)
+            self.injured_until = pygame.time.get_ticks() + 400
 
 
     def check_if_collect(self):
@@ -255,17 +258,21 @@ class Player(pygame.sprite.Sprite):
             self.hitbox.center=self.rect.center
 
     def playerState(self):
-        if self.direction.x != 0 or self.direction.y != 0:
+        now = pygame.time.get_ticks()
+
+        if now < self.injured_until:
+            self.animation.set_state("injured")
+
+        elif self.direction.x != 0 or self.direction.y != 0:
             self.animation.set_state("run")
+
         else:
             self.animation.set_state("idle")
 
         self.animation.update()
 
         old_center = self.rect.center
-
-        self.image = self.animation.image(flip_x=(not self.facing=="RIGHT"))
-
+        self.image = self.animation.image(flip_x=(not self.facing == "RIGHT"))
         self.rect = self.image.get_rect(center=old_center)
 
 
