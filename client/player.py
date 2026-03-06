@@ -206,7 +206,7 @@ class Player(pygame.sprite.Sprite):
                                 ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
 
 
-                            self.current_Weapon().mag -= 1
+                            self.current_Weapon().mag -= 3
                 except:
                     print("error")
 

@@ -28,7 +28,7 @@ class Arsenal:
                 "not fixed",
                 (30, 30),  # relative offset from the player
                 30,  # scale
-                5,  # magzin
+                3,  # magzin
                 500,  # fire_cooldown
                 (25, 40),  #rotating point
 
@@ -184,9 +184,10 @@ class Arsenal:
                 angle = 0
 
         # DEBUG
-        debug_img = weapon_img_src.copy()
-        pygame.draw.circle(debug_img, (255, 0, 0), self.pivot, 5)
-        self.display.blit(debug_img, (50, 50))
+
+        #debug_img = weapon_img_src.copy()
+        #pygame.draw.circle(debug_img, (255, 0, 0), self.pivot, 5)
+        #self.display.blit(debug_img, (50, 50))
 
 
         w, h = weapon_img_src.get_size()
