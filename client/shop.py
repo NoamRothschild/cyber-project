@@ -7,9 +7,9 @@ from client.bullets import Bullets
 from potion import Potion
 
 class ShopUI:
+
     def __init__(self):
         self.open = False
-
         # price
         self.weapon_prices = {
             "Ak 47": 300,
@@ -21,8 +21,8 @@ class ShopUI:
 
         #  bullet_name -- (price, amount)
         self.ammo_packs = {
-            "AK 47 bullet": (15, 5),
-            "arrow": (10, 10)
+            "AK 47 bullets": (15, 5),
+            "arrows": (10, 10)
         }
 
         #  bullet_name -- (price)
@@ -32,6 +32,7 @@ class ShopUI:
             "super_speed": 140
         }
 
+        self.category = "weapon"  # current category you on: weapon or potion or ammo
 
         self.font_title = pygame.font.SysFont(None, 36)
         self.font = pygame.font.SysFont(None, 26)
@@ -41,16 +42,22 @@ class ShopUI:
         self.buy_button_rect = None
         self.bg_alpha = 180
 
+
     def all_items(self):
         items = []
-        for w in self.weapon_prices:
-            items.append(("weapon", w))
 
-        for p in self.potion:
-            items.append(("potion", p))
+        if self.category == "weapon":
+            for w in self.weapon_prices:
+                items.append(("weapon", w))
 
-        for b in self.ammo_packs:
-            items.append(("ammo", b))
+        elif self.category == "potion":
+            for p in self.potion:
+                items.append(("potion", p))
+
+        elif self.category == "ammo":
+            for b in self.ammo_packs:
+                items.append(("ammo", b))
+
         return items
 
     def item_price(self, item):
@@ -107,13 +114,23 @@ class ShopUI:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = event.pos
 
+            # category tabs
+            for cat, rect in getattr(self, "category_rects", []):
+                if rect.collidepoint(mx, my):
+                    self.category = cat
+                    self.item_rects = []
+                    return
+
+            # items
             for item, rect, icon, icon_rect in self.item_rects:
                 if rect.collidepoint(mx, my):
                     self.selected = item
                     return
 
+            # buy button
             if self.buy_button_rect and self.buy_button_rect.collidepoint(mx, my):
                 self.buy(player)
+
 
     def buy(self, player):
         if not self.selected:
@@ -143,6 +160,46 @@ class ShopUI:
 
     # ᓚᘏᗢ
 
+    def draw_categories(self, screen, left):
+
+        tabs = ["weapon", "potion", "ammo"]
+
+        tab_w = 110
+        tab_h = 36
+        gap = 8
+
+        total_w = len(tabs) * tab_w + (len(tabs) - 1) * gap
+        start_x = left.centerx - total_w // 2
+        y = left.y + 60
+
+        self.category_rects = []
+
+        mx, my = pygame.mouse.get_pos()
+
+        for i, tab in enumerate(tabs):
+
+            x = start_x + i * (tab_w + gap)
+            rect = pygame.Rect(x, y, tab_w, tab_h)
+
+            hovered = rect.collidepoint(mx, my)
+            selected = self.category == tab
+
+            if selected:
+                color = (90, 120, 200)
+            elif hovered:
+                color = (70, 70, 70)
+            else:
+                color = (50, 50, 50)
+
+            pygame.draw.rect(screen, color, rect, border_radius=8)
+            pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=8)
+
+            text = self.font.render(tab.upper(), True, (255, 255, 255))
+            screen.blit(text, text.get_rect(center=rect.center))
+
+            self.category_rects.append((tab, rect))
+
+
     def build_grid(self, left):
         if self.item_rects:
             return
@@ -154,7 +211,7 @@ class ShopUI:
         cols = 3
         # ᓚᘏᗢ
         x0 = left.x + padding
-        y0 = left.y + 78  # lower then titel
+        y0 = left.y + 130  # lower then titel
 
         items = self.all_items()
         for i, item in enumerate(items):
@@ -255,10 +312,12 @@ class ShopUI:
         pygame.draw.rect(screen, (32, 32, 32), left, border_radius=14)
         pygame.draw.rect(screen, (32, 32, 32), right, border_radius=14)
 
+        self.draw_categories(screen, left)
         # -=-=-=-=-=-=-titale-=-=-=-=-=-#
         title = self.font_title.render("SHOP", True, (255, 255, 255))
-        money = self.font.render(f"Money: {player.money}$", True, (220, 220, 220))
         screen.blit(title, (left.x + 12, left.y + 12))
+
+        money = self.font.render(f"Money: {player.money}$", True, (220, 220, 220))
         screen.blit(money, (left.x + 12, left.y + 38))
 
         # -=-=-=-=-=-=-GREED-=-=-=-=-=-#
