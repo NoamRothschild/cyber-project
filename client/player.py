@@ -96,8 +96,10 @@ class Player(pygame.sprite.Sprite):
         self.shop_ui = ShopUI()
 
         self.ammo_collection = {
-            "AK-7_bullet": 1,
-            "arrow": 1
+            "AK 47 bullets": 104,
+            "arrows": 103,
+            "Assault rifle bullets": 102,
+            "Pistol bullets":101
         }
 
         self.health = HealthBar(HEALTH_BAR_POS,HEALTH_BAR_SCALE)
@@ -111,7 +113,8 @@ class Player(pygame.sprite.Sprite):
         self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
 
     def current_Weapon(self):
-        return self.inventory.wep_inventory[self.inventory.current_weapon]
+            return self.inventory.wep_inventory[self.inventory.current_weapon]
+
 
     def input(self,is_c_o):  # check if you want to move with your player
         keys = pygame.key.get_pressed()
@@ -152,54 +155,60 @@ class Player(pygame.sprite.Sprite):
                     self.last_b_press = now
                     self.shop_ui.toggle()
 
-            if keys[pygame.K_r]:
-                w = self.current_Weapon()
-                now = pygame.time.get_ticks()
-                if now - self.last_r_press >= w.fire_cooldown:
-                    self.last_r_press = now
-
-                    if w.bullet != "null":
-                        if w.bullet!="sword hit":
-                            capability = Arsenal.Arsenal_gunType[w.gun_type][6]
-                            need = max(0, capability - w.mag)
-                            have = self.ammo_collection[w.bullet]
-
-                            take = min(need, have)
-
-                            w.mag += take
-                            self.ammo_collection[w.bullet] = have - take
-
-        mouse_buttons = pygame.mouse.get_pressed()
-
-        if mouse_buttons[0] and not self.inventory.is_wep_empty():
-            try:
-                if self.current_Weapon().mag > 0:
-
+            if len(self.inventory.wep_inventory)!=0:
+                if keys[pygame.K_r]:
+                    w = self.current_Weapon()
                     now = pygame.time.get_ticks()
-                    if now - self.last_shoot >= self.current_Weapon().fire_cooldown:
-                        self.last_shoot = now
+                    if now - self.last_r_press >= w.fire_cooldown:
+                        self.last_r_press = now
 
-                        mouse_x, mouse_y = pygame.mouse.get_pos()
-                        scroll = [
-                            self.rect.centerx - WIDTH / 2,
-                            self.rect.centery - HEIGHT / 2,
-                        ]
-                        self.current_Weapon().on_fire()
-                        bullet=Bullets(
-                                self.current_Weapon().GetBulletType(),
-                                self.display_surface.get_width() / 2,
-                                self.display_surface.get_height() / 2,
-                                mouse_x=mouse_x,
-                                mouse_y=mouse_y,
-                                scroll=scroll,
-                                from_network=False,
-                            )
+                        if w.bullet != "null":
+                            if w.bullet!="sword hit":
+                                capability = Arsenal.Arsenal_gunType[w.gun_type][6]
+                                need = max(0, capability - w.mag)
+                                have = self.ammo_collection[w.bullet]
 
-                        self.current_Weapon().mag -= 1
-                        ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
-                        Bullets.BulletLS.append(bullet)
-            except:
-                print("error")
+                                take = min(need, have)
+
+                                w.mag += take
+                                self.ammo_collection[w.bullet] = have - take
+
+            mouse_buttons = pygame.mouse.get_pressed()
+
+            if mouse_buttons[0] and not self.inventory.is_wep_empty():
+                try:
+                    if self.current_Weapon().mag > 0:
+
+                        now = pygame.time.get_ticks()
+                        if now - self.last_shoot >= self.current_Weapon().fire_cooldown:
+                            self.last_shoot = now
+
+                            mouse_x, mouse_y = pygame.mouse.get_pos()
+                            scroll = [
+                                self.rect.centerx - WIDTH / 2,
+                                self.rect.centery - HEIGHT / 2,
+                            ]
+                            self.current_Weapon().on_fire()
+                            weapon = self.current_Weapon()
+
+                            for x,y in weapon.spawn_points:
+                                #print(ox, oy)
+                                bullet = Bullets(
+                                    weapon.GetBulletType(),
+                                    self.display_surface.get_width() / 2 + x,
+                                    self.display_surface.get_height() / 2 + y,
+                                    mouse_x,
+                                    mouse_y,
+                                    scroll=scroll,
+                                    from_network=False
+                                )
+                                Bullets.BulletLS.append(bullet)
+                                ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
+
+
+                            self.current_Weapon().mag -= 1
+                except:
+                    print("error")
 
 
 
@@ -283,7 +292,10 @@ class Player(pygame.sprite.Sprite):
         self.playerState()
 
         draw_AND_update_Bullets(self)
-        self.current_Weapon().draw_mag_stat()
+
+        if len(self.inventory.wep_inventory) != 0:
+            self.current_Weapon().draw_mag_stat()
+
         self.shop_ui.draw(self.display_surface, self)
 
         self.move()

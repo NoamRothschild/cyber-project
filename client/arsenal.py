@@ -6,8 +6,6 @@ from functools import cache
 
 from weapon_anim import WeaponAnim
 
-# need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
-
 
 class Arsenal:
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
@@ -19,50 +17,60 @@ class Arsenal:
                  120,  # scale
                  15,  # magzin
                  250,  # fire_cooldown in ms (0.25s)
-                 (40, 26)  #rotating point
+                 (40, 26),  #rotating point
+
+                  [(0, 0)]  # spawn points (multy shot)
                  ),
 
         "bow": ("arsenal-images/guns/bow.png",
                 1,
                 "arrows",
                 "not fixed",
-                (-10, 20),  # relative offset from the player
-                50,  # scale
+                (30, 30),  # relative offset from the player
+                30,  # scale
                 5,  # magzin
                 500,  # fire_cooldown
-                (20, 45)  #rotating point
+                (25, 40),  #rotating point
+
+                [(0, 0), (0, -60), (0, 60)]  # spawn points (multy shot)
                 ),
         "sword": ("arsenal-images/guns/sword.png",
                   1,
                   "sword hit",
                   "fixed",
-                  (-10, -40),  # relative offset from the player
-                  100,  # scale
+                  (60, -35),  # relative offset from the player
+                  30,  # scale
                   1000,  # magzin
-                  2000,  # fire_cooldown
-                  (0, 0)  #rotating point
+                  1000,  # fire_cooldown
+                  (0, 0),  #rotating point
+
+                  [(0, 0)]  # spawn points (multy shot)
                   ),
         "Assault rifle":
                 ("arsenal-images/guns/Assault rifle.png",
                  24,
-                  "AK 47 bullets",
+                  "Assault rifle bullets",
                   "not fixed",
                   (10, 35),  # relative offset from the player
                   130,  # scale
                   30,  # magzin
                   100,  # fire_cooldown
-                 (35, 26) #rotating point
+                 (35, 26), #rotating point
+
+                 [(0, 0)]  # spawn points (multy shot)
                   ),
         "Pistol":
             ("arsenal-images/guns/Pistol.png",
              12,
-             "AK 47 bullets",
+             "Pistol bullets",
              "not fixed",
-             (15, 25),  # relative offset from the player
+             (26, 28),  # relative offset from the player
              100,  # scale
              10,  # magzin
              100,  # fire_cooldown
-             (15, 16) #rotating point
+             (25, 25), #rotating point
+
+             [(0, 0)]  # spawn points (multy shot)
              )
     }
 
@@ -100,7 +108,7 @@ class Arsenal:
         # gun type - type of the gun c:
         self.display = pygame.display.get_surface()
         self.gun_type = gun_type
-        self.weapon_path,self.img_num, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown,self.pivot = \
+        self.weapon_path,self.img_num, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown,self.pivot,self.spawn_points = \
             Arsenal.Arsenal_gunType[gun_type]
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
@@ -176,9 +184,9 @@ class Arsenal:
                 angle = 0
 
         # DEBUG
-        #debug_img = weapon_img.copy()
-        #pygame.draw.circle(debug_img, (255, 0, 0), self.pivot, 5)
-        #self.display.blit(debug_img, (50, 50))
+        debug_img = weapon_img_src.copy()
+        pygame.draw.circle(debug_img, (255, 0, 0), self.pivot, 5)
+        self.display.blit(debug_img, (50, 50))
 
 
         w, h = weapon_img_src.get_size()
@@ -292,7 +300,7 @@ class Arsenal:
             img_bullet = pygame.transform.rotate(img_bullet, 90 * 3)
 
             w, h = img_bullet.get_size()
-            if self.bullet=="arrow": scale = 10
+            if self.bullet=="arrows": scale = 8
             else: scale = 15
 
             img_bullet = pygame.transform.scale(
