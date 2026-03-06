@@ -6,10 +6,11 @@ from zone_connection import ZoneConnectionSingleton
 from zone_connection import *
 from game import *
 from mapset import *
-from inventory import *
+from inventory import Inventory
 from bullets import *
 from shop import ShopUI
 from potion import Potion
+from animation import Animation
 
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE=400
@@ -17,21 +18,58 @@ HEALTH_BAR_POS =[WIDTH-HEALTH_BAR_SCALE-10,10]
 Starting_POS = (370 * SIZE, 163 * SIZE)
 class Player(pygame.sprite.Sprite):
 
+    player_skins_and_animatiom=\
+                {
+                    "blue golden knight":Animation(
+                                "Player_Skins/blue golden knight.png",
+                                frame_w=32, frame_h=32,
+                                rows={"idle": 0, "run": 4,"injured": 8},
+                                frames_per_row={"idle": 4, "run": 4, "injured": 4},
+                                scale=3,
+                                speed_ms=180
+                                ),
+                    "fiona":Animation(
+                                "Player_Skins/fiona.png",
+                                frame_w=32, frame_h=32,
+                                rows={"idle": 0, "run": 3,"injured": 5},
+                                frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                                scale=3,
+                                speed_ms=180
+                                ),
+                    "golden knight":Animation(
+                                "Player_Skins/golden knight.png",
+                                frame_w=32, frame_h=32,
+                                rows={"idle": 0, "run": 4,"injured": 8},
+                                frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                                scale=3,
+                                speed_ms=180
+                                ),
+                    "red knight":Animation(
+                        "Player_Skins/red knight.png",
+                        frame_w=32, frame_h=32,
+                        rows={"idle": 0, "run": 3,"injured": 9},
+                        frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                        scale=3,
+                        speed_ms=180
+                    ),
+                    "king":Animation(
+                                "Player_Skins/king.png",
+                                frame_w=32, frame_h=32,
+                                rows={"idle": 0, "run": 3,"injured": 5},
+                                frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                                scale=3,
+                                speed_ms=180
+                                )
+                }
+
     def __init__(self, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
 
         self.display_surface=pygame.display.get_surface()
-        self.color="golden knight"
-        #self.color="king"
 
-        self.animation = Animation(
-            f"Player_Skins/{self.color}.png",
-            frame_w=32, frame_h=32,
-            rows={"idle": 0, "run": 3},
-            frames_per_row={"idle": 4, "run": 4},
-            scale=3,
-            speed_ms=180
-        )
+        self.skin="golden knight"
+        self.animation = Player.player_skins_and_animatiom[self.skin]
+
         self.image = self.animation.image()
         self.facing = "RIGHT"
 
