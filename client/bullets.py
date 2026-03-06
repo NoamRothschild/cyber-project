@@ -34,6 +34,7 @@ class Bullets:
             2,  # damage
             0.1 #scale
         ),
+
         "arrow": (
             pygame.image.load("arsenal-images/bullets/arrow.png").convert_alpha(),
             (-15, 5),  # relative offset from the player

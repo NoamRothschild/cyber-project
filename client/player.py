@@ -67,7 +67,7 @@ class Player(pygame.sprite.Sprite):
 
         self.display_surface=pygame.display.get_surface()
 
-        self.skin="golden knight"
+        self.skin="fiona"
         self.animation = Player.player_skins_and_animatiom[self.skin]
 
         self.image = self.animation.image()
@@ -158,12 +158,11 @@ class Player(pygame.sprite.Sprite):
                 if now - self.last_r_press >= w.fire_cooldown:
                     self.last_r_press = now
 
-                    if w.bullet == "null":
-                        w.refill_mag()
-                    else:
-                        capability = Arsenal.Arsenal_gunType[w.gun_type][5]
+                    if w.bullet != "null":
+                        capability = Arsenal.Arsenal_gunType[w.gun_type][6]
                         need = max(0, capability - w.mag)
-                        have = self.ammo_collection.get(w.bullet, 0)
+                        have = self.ammo_collection[w.bullet]
+
                         take = min(need, have)
 
                         w.mag += take
