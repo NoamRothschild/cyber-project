@@ -238,7 +238,7 @@ class Player(pygame.sprite.Sprite):
     def check_harm_done(self, sprite):
         if sprite in self.harmfull_sprites:
             self.health.sub_life(30)
-            self.injured_until = pygame.time.get_ticks() + 400
+            self.injured_until = pygame.time.get_ticks() + 600 #0.6s of red skin :c
 
 
     def check_if_collect(self):
