@@ -159,14 +159,15 @@ class Player(pygame.sprite.Sprite):
                     self.last_r_press = now
 
                     if w.bullet != "null":
-                        capability = Arsenal.Arsenal_gunType[w.gun_type][6]
-                        need = max(0, capability - w.mag)
-                        have = self.ammo_collection[w.bullet]
+                        if w.bullet!="sword hit":
+                            capability = Arsenal.Arsenal_gunType[w.gun_type][6]
+                            need = max(0, capability - w.mag)
+                            have = self.ammo_collection[w.bullet]
 
-                        take = min(need, have)
+                            take = min(need, have)
 
-                        w.mag += take
-                        self.ammo_collection[w.bullet] = have - take
+                            w.mag += take
+                            self.ammo_collection[w.bullet] = have - take
 
         mouse_buttons = pygame.mouse.get_pressed()
 

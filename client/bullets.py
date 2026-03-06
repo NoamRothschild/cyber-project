@@ -26,22 +26,48 @@ class Bullets:
     BulletLS = []
 
     bullet_types = {
-        "AK 47 bullet": (
-            pygame.image.load("arsenal-images/bullets/AK 47 bullet.png").convert_alpha(),
+        "AK 47 bullets": (
+            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
             (-15, 15),  # relative offset from the player
             20,  # ttl
             25,  # speed
-            2,  # damage
+            40,  # damage
             0.1 #scale
         ),
+        "Assault rifle bullets": (
+            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
+            (-15, 15),  # relative offset from the player
+            15,  # ttl
+            30,  # speed
+            25,  # damage
+            0.1  # scale
+        ),
 
-        "arrow": (
-            pygame.image.load("arsenal-images/bullets/arrow.png").convert_alpha(),
+        "Pistol bullets": (
+            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
+            (-15, 15),  # relative offset from the player
+            10,  # ttl
+            19,  # speed
+            30,  # damage
+            0.1  # scale
+        ),
+
+        "arrows": (
+            pygame.image.load("arsenal-images/bullets/arrows.png").convert_alpha(),
             (-15, 5),  # relative offset from the player
             50,  # ttl
             20,  # speed
-            5,  # damage
+            40,  # damage
             1  # scale
+        ),
+
+        "sword hit":(
+            pygame.image.load("arsenal-images/bullets/sword hit.png").convert_alpha(),
+            (-15, 5),  # relative offset from the player
+            1,  # ttl
+            20,  # speed
+            60,  # damage
+            0.3  # scale
         )
     }
 

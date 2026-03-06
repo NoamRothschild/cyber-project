@@ -13,7 +13,7 @@ class Arsenal:
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
         "Ak 47": ("arsenal-images/guns/Ak 47.png",
                  12,
-                 "AK 47 bullet",
+                 "AK 47 bullets",
                  "not fixed",
                  (15, 47),  # relative offset from the player
                  120,  # scale
@@ -24,7 +24,7 @@ class Arsenal:
 
         "bow": ("arsenal-images/guns/bow.png",
                 1,
-                "arrow",
+                "arrows",
                 "not fixed",
                 (-10, 20),  # relative offset from the player
                 50,  # scale
@@ -34,18 +34,18 @@ class Arsenal:
                 ),
         "sword": ("arsenal-images/guns/sword.png",
                   1,
-                  "arrow",
+                  "sword hit",
                   "fixed",
                   (-10, -40),  # relative offset from the player
                   100,  # scale
-                  10,  # magzin
-                  10,  # fire_cooldown
+                  1000,  # magzin
+                  2000,  # fire_cooldown
                   (0, 0)  #rotating point
                   ),
         "Assault rifle":
                 ("arsenal-images/guns/Assault rifle.png",
                  24,
-                  "AK 47 bullet",
+                  "AK 47 bullets",
                   "not fixed",
                   (10, 35),  # relative offset from the player
                   130,  # scale
@@ -56,7 +56,7 @@ class Arsenal:
         "Pistol":
             ("arsenal-images/guns/Pistol.png",
              12,
-             "AK 47 bullet",
+             "AK 47 bullets",
              "not fixed",
              (15, 25),  # relative offset from the player
              100,  # scale
