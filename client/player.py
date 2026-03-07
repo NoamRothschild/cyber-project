@@ -191,12 +191,19 @@ class Player(pygame.sprite.Sprite):
                             self.current_Weapon().on_fire()
                             weapon = self.current_Weapon()
 
+                            #to alain the gun with the bullet
+                            if mouse_x>self.display_surface.get_width() / 2: const_x= -35
+                            else: const_x=0
+
+                            if mouse_y>self.display_surface.get_height() / 2: const_y= +15
+                            else: const_y=0
+
                             for x,y in weapon.spawn_points:
                                 #print(ox, oy)
                                 bullet = Bullets(
                                     weapon.GetBulletType(),
-                                    self.display_surface.get_width() / 2 + x,
-                                    self.display_surface.get_height() / 2 + y,
+                                    self.display_surface.get_width() / 2 + x +const_x,
+                                    self.display_surface.get_height() / 2 + y+const_y,
                                     mouse_x,
                                     mouse_y,
                                     scroll=scroll,
@@ -204,9 +211,7 @@ class Player(pygame.sprite.Sprite):
                                 )
                                 Bullets.BulletLS.append(bullet)
                                 ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
-
-
-                            self.current_Weapon().mag -= 3
+                                self.current_Weapon().mag -= 1
                 except:
                     print("error")
 
