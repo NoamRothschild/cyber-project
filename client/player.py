@@ -23,40 +23,40 @@ class Player(pygame.sprite.Sprite):
                     "blue golden knight":Animation(
                                 "Player_Skins/blue golden knight.png",
                                 frame_w=32, frame_h=32,
-                                rows={"idle": 0, "run": 4,"injured": 8},
-                                frames_per_row={"idle": 4, "run": 4, "injured": 4},
+                                rows={"idle": 0, "run": 4,"injured": 8,"dead":9},
+                                frames_per_row={"idle": 4, "run": 4, "injured": 4,"dead": 4},
                                 scale=3,
                                 speed_ms=180
                                 ),
                     "fiona":Animation(
                                 "Player_Skins/fiona.png",
                                 frame_w=32, frame_h=32,
-                                rows={"idle": 0, "run": 3,"injured": 5},
-                                frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                                rows={"idle": 0, "run": 3,"injured": 5,"dead":6},
+                                frames_per_row={"idle": 4, "run": 4,"injured": 4,"dead": 4},
                                 scale=3,
                                 speed_ms=180
                                 ),
                     "golden knight":Animation(
                                 "Player_Skins/golden knight.png",
                                 frame_w=32, frame_h=32,
-                                rows={"idle": 0, "run": 4,"injured": 8},
-                                frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                                rows={"idle": 0, "run": 4,"injured": 8,"dead":9},
+                                frames_per_row={"idle": 4, "run": 4,"injured": 4,"dead": 4},
                                 scale=3,
                                 speed_ms=180
                                 ),
                     "red knight":Animation(
                         "Player_Skins/red knight.png",
                         frame_w=32, frame_h=32,
-                        rows={"idle": 0, "run": 3,"injured": 9},
-                        frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                        rows={"idle": 0, "run": 3,"injured": 9,"dead":10},
+                        frames_per_row={"idle": 4, "run": 4,"injured": 4,"dead": 4},
                         scale=3,
                         speed_ms=180
                     ),
                     "king":Animation(
                                 "Player_Skins/king.png",
                                 frame_w=32, frame_h=32,
-                                rows={"idle": 0, "run": 3,"injured": 5},
-                                frames_per_row={"idle": 4, "run": 4,"injured": 4},
+                                rows={"idle": 0, "run": 3,"injured": 5,"dead":6},
+                                frames_per_row={"idle": 4, "run": 4,"injured": 4,"dead": 4},
                                 scale=3,
                                 speed_ms=180
                                 )
@@ -104,6 +104,12 @@ class Player(pygame.sprite.Sprite):
 
         self.health = HealthBar(HEALTH_BAR_POS,HEALTH_BAR_SCALE)
         self.injured_until = 0
+
+        self.is_dead = False
+        self.death_time = 0
+
+        self.death_animation_time = 750
+        self.respawn_delay = 2000
 
         self.inventory.add_item_toThe_Inventory(Arsenal("Ak 47"), "weapon")
         self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
@@ -264,17 +270,38 @@ class Player(pygame.sprite.Sprite):
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "potion")
                 sprite.kill()
                 break
+
     def dead(self):
-        if not self.health.is_alive():
-            self.inventory.delete_w([self.colect_sprite,self.groups[0]],self.rect)
-            self.health.add_life(HEALTH_BAR_SCALE,True)
-            self.rect.topleft = Starting_POS
-            self.hitbox.center=self.rect.center
+        now = pygame.time.get_ticks()
+
+        if not self.health.is_alive() and not self.is_dead:
+            self.is_dead = True
+            self.death_time = now
+            self.animation.set_state("dead")
+
+        if self.is_dead:
+
+            if now - self.death_time > self.death_animation_time:
+                self.direction.x = 0
+                self.direction.y = 0
+
+            if now - self.death_time > self.death_animation_time + self.respawn_delay:
+                self.is_dead = False
+
+                self.inventory.delete_w([self.colect_sprite, self.groups[0]], self.rect)
+                self.health.add_life(HEALTH_BAR_SCALE, True)
+
+                self.rect.topleft = Starting_POS
+                self.hitbox.center = self.rect.center
+
 
     def playerState(self):
         now = pygame.time.get_ticks()
 
-        if now < self.injured_until:
+        if self.is_dead:
+            self.animation.set_state("dead")
+
+        elif now < self.injured_until:
             self.animation.set_state("injured")
 
         elif self.direction.x != 0 or self.direction.y != 0:
