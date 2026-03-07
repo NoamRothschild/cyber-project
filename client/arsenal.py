@@ -41,7 +41,7 @@ class Arsenal:
                   (60, -35),  # relative offset from the player
                   30,  # scale
                   1000,  # magzin
-                  1000,  # fire_cooldown
+                  700,  # fire_cooldown
                   (0, 0),  #rotating point
 
                   [(0, 0)]  # spawn points (multy shot)
