@@ -42,8 +42,8 @@ def preload_all_bushes():
             ALL_BUSH_IMAGES.append(img)
 
 def get_bushes():
-
     return random.choice(ALL_BUSH_IMAGES)
+
 class Level:
     Domain_Expansion_ls = []
 
