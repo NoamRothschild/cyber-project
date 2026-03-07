@@ -30,10 +30,6 @@ class Inventory(pygame.sprite.Sprite):
         elif kind == "weapon":
             self.wep_inventory.append(item)
 
-    def items_hendeling(self, player):
-        if not self.is_wep_empty():
-            self.wep_inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
-
     def open(self, group, player):
         self.display.blit(self.image, self.rect)
         prect=player.rect
