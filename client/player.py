@@ -325,20 +325,18 @@ class Player(pygame.sprite.Sprite):
         draw_AND_update_Bullets(self)
 
         if not self.is_dead:
-            print("1")
             self.input(is_c_o)
 
             if len(self.inventory.wep_inventory) != 0:
                 if not self.is_dead:
-                    print("2")
-                    #self.current_Weapon().draw(self.rect.centerx, self.rect.centery)
-                    #self.current_Weapon().draw_mag_stat()
+                    print("hell")
+                    self.current_Weapon().draw(WIDTH / 2, HEIGHT / 2)
 
-            if not self.is_dead:
-                print("3")
-                self.move()
-                self.inventory.open([self.colect_sprite, self.groups[0]], self)
-            self.check_if_collect()
+                    self.current_Weapon().draw_mag_stat()
+
+        self.move()
+        self.inventory.open([self.colect_sprite, self.groups[0]], self)
+        self.check_if_collect()
 
         self.shop_ui.draw(self.display_surface, self)
         self.health.draw()

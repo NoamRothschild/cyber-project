@@ -109,8 +109,6 @@ class Level:
     def run(self):
         self.visible_sprites.custom_draw(self.player)
 
-        self.player.inventory.items_hendeling(self.player)
-
         self.visible_sprites.update(self.chat.is_open)
         self.chat.draw()
 
