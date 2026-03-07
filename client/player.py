@@ -288,7 +288,7 @@ class Player(pygame.sprite.Sprite):
             if now - self.death_time > self.death_animation_time + self.respawn_delay:
                 self.is_dead = False
 
-                self.inventory.delete_w([self.colect_sprite, self.groups[0]], self.rect)
+                self.inventory.drop_all_items([self.colect_sprite,self.groups[0]], self.rect)
                 self.health.add_life(HEALTH_BAR_SCALE, True)
 
                 self.rect.topleft = Starting_POS
