@@ -308,12 +308,3 @@ class Arsenal:
                 img_bullet, (scale, int(h * (scale / w))))
 
             self.display.blit(img_bullet, (x-img_bullet.get_width()+5 + offset_x, y - 15))
-            return
-        else:
-            weapon_img = self.weapon_img
-            w, h = weapon_img.get_size()
-            scale = 35
-            weapon_img = pygame.transform.scale(
-                weapon_img, (scale, int(h * (scale / w))))
-
-            self.display.blit(weapon_img, (x - w / 2, y))

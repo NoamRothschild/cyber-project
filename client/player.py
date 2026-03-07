@@ -240,7 +240,6 @@ class Player(pygame.sprite.Sprite):
 
             if sprite.hitbox.colliderect(self.hitbox):
                 self.check_harm_done(sprite)
-                self.check_harm_done(sprite)
                 if direction == 'horizontal':
 
                     if self.direction.x > 0:
@@ -316,21 +315,30 @@ class Player(pygame.sprite.Sprite):
         self.image = self.animation.image(flip_x=(not self.facing == "RIGHT"))
         self.rect = self.image.get_rect(center=old_center)
 
+    def update(self, is_c_o):
 
-    def update(self,is_c_o):
         self.dead()
-        self.input(is_c_o)
 
         self.playerState()
 
+
         draw_AND_update_Bullets(self)
 
-        if len(self.inventory.wep_inventory) != 0:
-            self.current_Weapon().draw_mag_stat()
+        if not self.is_dead:
+            print("1")
+            self.input(is_c_o)
+
+            if len(self.inventory.wep_inventory) != 0:
+                if not self.is_dead:
+                    print("2")
+                    #self.current_Weapon().draw(self.rect.centerx, self.rect.centery)
+                    #self.current_Weapon().draw_mag_stat()
+
+            if not self.is_dead:
+                print("3")
+                self.move()
+                self.inventory.open([self.colect_sprite, self.groups[0]], self)
+            self.check_if_collect()
 
         self.shop_ui.draw(self.display_surface, self)
-
-        self.move()
-        self.inventory.open([self.colect_sprite,self.groups[0]],self)
         self.health.draw()
-        self.check_if_collect()
