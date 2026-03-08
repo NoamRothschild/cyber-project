@@ -21,9 +21,14 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
     "Ak-7": {
         "ttl": 50,
         "speed": 20,
-        "damage": 1,
+        "damage": 30,
         "range": 50,
-    }
+    },
+    "bow": {
+        "ttl": 50,  # ttl
+        "speed": 20,  # speed
+        "damage": 5,  # damage
+        "range": 50,    }
 }
 
 
@@ -239,6 +244,12 @@ class Client:
                 resp.sender_id = self.user_id
                 resp.other_data.new_location.CopyFrom(region_net.LocationBlock(x=pos[0], y=pos[1]))
                 await self.broadcast(resp.SerializeToString())
+            elif payload_type == "potion_use":
+                print("should + h")
+                if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
+
+                    await self.hit(-update.potion_use.HowMuch,self.user_id)
+
             elif payload_type == "bullet_shot":
                 global projectile_handler
                 update_bytes = await projectile_handler.add(update.bullet_shot, self)

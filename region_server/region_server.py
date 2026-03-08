@@ -1,5 +1,4 @@
 from __future__ import annotations
-import protobuf.region_net_pb2 as region_net
 from region_server_extras import *
 import asyncio
 from config import ZONE_HOST, ZONE_TCP_PORT

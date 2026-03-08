@@ -18,8 +18,7 @@ fps_screen_pos = (10, 10)
 
 class Game:
     SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
-
-    def __init__(self, host: str, tcp_port: int, udp_port: int, session_id: str):
+    def __init__(self, host: str, tcp_port: int, udp_port: int):
         ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
 
         pygame.init()
@@ -53,6 +52,7 @@ class Game:
 
                 if not self.is_running:
                     break
+            if not self.is_running: break
 
                 # 2. Drawing
                 self.screen.fill(GREEN)
@@ -73,14 +73,8 @@ class Game:
                 pygame.display.update()
                 self.clock.tick(FPS)
 
-        except Exception as e:
-            print(f"Game Loop Error: {e}")
-
-        finally:
-            # THIS IS THE FIX: Ensure these run when the loop ends
-            print("Closing Game...")
-            pygame.quit()
-            sys.exit()
+        pygame.quit()
+        #sys.exit()
 
 
 if __name__ == "__main__":

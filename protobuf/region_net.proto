@@ -6,6 +6,15 @@ message RegionUpdate {
   oneof payload {
     LocationBlock location_block = 1;
     BulletShot bullet_shot = 2;
+    PotionUse potion_use = 3;
+  }
+}
+message PotionUse {
+  PotionType potion_type = 1;
+  int32 HowMuch=2;
+
+  enum PotionType {
+    health = 0;
   }
 }
 

@@ -4,6 +4,7 @@ import threading
 from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
 from inventory import WEAPON_MAP
+from arsenal import Arsenal
 
 if TYPE_CHECKING:
     # Imported only for type checking to avoid circular imports at runtime
@@ -91,7 +92,15 @@ class ZoneConnection:
         )
 
         self.reliable_conn.sendall(update.SerializeToString())
-
+    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+        print("hi avram")
+        update = region_net.RegionUpdate()
+        update.potion_use.CopyFrom(
+            region_net.PotionUse(
+                potion_type = potion_kind,HowMuch = how_much
+            )
+        )
+        self.reliable_conn.sendall(update.SerializeToString())
 
 class ZoneConnectionSingleton:
     _instance: None | ZoneConnectionSingleton = None
@@ -178,7 +187,7 @@ def server_listener(game: Game, zone: ZoneConnection):
             inc_bullets = parsed.bullet_shot
             for bullet in inc_bullets:
                 Bullets.BulletLS.append(Bullets(
-                    bullet.gun_type + '_bullet',
+                    Arsenal.bullet_from_gun(bullet.gun_type),
                     bullet.x, bullet.y,
                     angle=bullet.angle,
                     from_network=True)
