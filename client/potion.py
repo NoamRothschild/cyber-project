@@ -2,40 +2,48 @@ import pygame
 import time
 from functools import cache
 
-SERF = pygame.display.get_surface()
-class Potion(pygame.sprite.Sprite):
 
-    potions = {
+class Potion(pygame.sprite.Sprite):
+    # Start with None. We will load the images safely AFTER the window is created.
+    potions = None
+
+    @classmethod
+    def load_assets(cls):
+        if cls.potions is None:
+            # We only load these the first time a potion is requested
+            cls.potions = {
                 "healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
-                           "health_bar",
-                           15, 15),
-               "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
-                         "speed", # on what the potion has effect
-                         10, #how much it does
-                         1),# for how much time
-               "super_speed": (pygame.image.load("Potion/super_speed.png").convert_alpha(),
-                               "speed",
-                               40,
-                               10)
-               }
+                            "health_bar", 15, 15),
+                "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
+                          "speed", 10, 1),
+                "super_speed": (pygame.image.load("Potion/super_speed.png").convert_alpha(),
+                                "speed", 40, 10)
+            }
 
     def __init__(self, potion_type):
+        super().__init__()
+        # Ensure the assets are loaded before we try to use them!
+        Potion.load_assets()
+
         self.potion_type = potion_type
-        self.display_surface = SERF
+        # Safely grab the surface here, inside the init!
+        self.display_surface = pygame.display.get_surface()
+
         self.image, self.what, self.how_much, self.ttl = Potion.potions[potion_type]
         self.smaller_v = pygame.transform.scale(self.image, (30, 30))
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
 
-
     @staticmethod
     def get_potion_img(potion: str) -> pygame.Surface:
-        image, what, how_much, ttl  = Potion.potions[potion]
+        Potion.load_assets()
+        image, what, how_much, ttl = Potion.potions[potion]
         return image
 
     @staticmethod
-    def effect_time(potion: str) -> pygame.Surface:
-        image, what, how_much, ttl  = Potion.potions[potion]
+    def effect_time(potion: str) -> int:
+        Potion.load_assets()
+        image, what, how_much, ttl = Potion.potions[potion]
         return how_much
 
     def draw_for_inventory(self, i, low_x, low_y):
@@ -51,11 +59,12 @@ class Potion(pygame.sprite.Sprite):
     def purpose(self, player):
         """doing the potion purpose"""
         if self.what == "health_bar":
-            player.health.add_life(self.how_much,True)
+            player.health.add_life(self.how_much, True)
             if self.is_potion_is == False:
                 self.is_potion_is = True
-                self.last_heal= time.time()
+                self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
+
         if self.what == "speed":
             player.speed += self.how_much
             self.old_speed = player.speed
@@ -74,6 +83,5 @@ class Potion(pygame.sprite.Sprite):
                     player.speed -= self.how_much
                 self.delete_last_action_time = current_time
                 return True
-
 
         return False
