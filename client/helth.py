@@ -33,13 +33,19 @@ class HealthBar(pygame.sprite.Sprite):
     def get_life(self):
         return self.plus_rect.width
 
-    def sub_life(self, num):
-        # TODO: add a red flash effect when getting hit
+    def sub_life(self, num, is_send=False):
         current_time = time.time()
 
         if current_time - self.last_sub_life >= self.shield_time:
             if num > self.plus_rect.width:
-                num = abs(0 - self.plus_rect.width)
+                num = self.plus_rect.width
+
+            # --- ADDED FOR NETWORK SYNC ---
+            # THE HACK: We reuse the "potion_use" Protobuf packet to send damage to the server.
+            # To tell the server it's taking damage and not healing, we send the number as a NEGATIVE!
+            if is_send:
+                ZoneConnectionSingleton().zone.try_send_potion_use("health", -num)
+
             self.plus_rect.width -= num
             self.minus_rect.width += num
             self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
@@ -56,17 +62,21 @@ class HealthBar(pygame.sprite.Sprite):
             self.minus_rect.width -= num
             self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
             self.last_sub_life = current_time
+
     def move(self,pos):
         self.plus_rect.x = pos[0]
         self.plus_rect.y = pos[1]
         self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
         self.minus_rect.y = pos[1]
+
     def is_alive(self):
         return self.plus_rect.width > 0
 
     def set_life(self, num):
         # A direct override for loading from the database.
         # It bypasses the shield and hit effects.
+
+        # Clamp the database numbers just in case of glitches
         if num > 400:
             num = 400
         if num < 0:
