@@ -183,6 +183,7 @@ class Player(pygame.sprite.Sprite):
 
             if mouse_buttons[0] and not self.inventory.is_wep_empty():
                 try:
+                    # Check client-side ammo before allowing the shot
                     if self.current_Weapon().mag > 0:
 
                         now = pygame.time.get_ticks()
@@ -194,6 +195,8 @@ class Player(pygame.sprite.Sprite):
                                 self.rect.centerx - WIDTH / 2,
                                 self.rect.centery - HEIGHT / 2,
                             ]
+
+                            # Sync local UI and send authoritative shot to server
                             self.current_Weapon().on_fire()
                             weapon = self.current_Weapon()
 
@@ -217,6 +220,8 @@ class Player(pygame.sprite.Sprite):
                                 )
                                 Bullets.BulletLS.append(bullet)
                                 ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
+
+                                # Subtract from local magazine to match server state
                                 self.current_Weapon().mag -= 1
                 except:
                     print("error")
@@ -256,7 +261,8 @@ class Player(pygame.sprite.Sprite):
 
     def check_harm_done(self, sprite):
         if sprite in self.harmfull_sprites:
-            self.health.sub_life(30)
+            # We hit a tree! Tell the health bar to tell the server.
+            self.health.sub_life(30, is_send=True)
             self.injured_until = pygame.time.get_ticks() + 600 #0.6s of red skin :c
 
 
@@ -329,7 +335,6 @@ class Player(pygame.sprite.Sprite):
 
             if len(self.inventory.wep_inventory) != 0:
                 if not self.is_dead:
-                    print("hell")
                     self.current_Weapon().draw(WIDTH / 2, HEIGHT / 2)
 
                     self.current_Weapon().draw_mag_stat()
