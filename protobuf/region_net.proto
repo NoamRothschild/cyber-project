@@ -7,14 +7,22 @@ message RegionUpdate {
     LocationBlock location_block = 1;
     BulletShot bullet_shot = 2;
     PotionUse potion_use = 3;
+    ItemDrop item_drop = 4;
   }
 }
+
+message ItemDrop {
+  int32 inventory_index = 1;
+  string item_kind = 2;
+}
+
 message PotionUse {
   PotionType potion_type = 1;
   int32 HowMuch=2;
 
   enum PotionType {
     health = 0;
+    damage = 1;
   }
 }
 
@@ -46,6 +54,7 @@ message HandshakeStart {
 
   repeated int32 weapons = 8;
   repeated int32 potions = 9;
+  repeated int32 ammo = 10; // NEW: Added to track ammo per weapon slot
 
   enum Kind {
     LOGIN = 0;
