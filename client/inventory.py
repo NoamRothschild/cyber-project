@@ -8,7 +8,7 @@ from arsenal import *
 # This dictionary will map the database numbers to Pygame strings.
 # ==========================================
 WEAPON_MAP = {
-    1: "Ak-7",
+    1: "Ak-7"
 }
 
 class Inventory(pygame.sprite.Sprite):
