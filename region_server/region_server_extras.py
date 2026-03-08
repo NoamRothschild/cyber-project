@@ -31,7 +31,22 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,    }
 }
 
+SERVER_WEAPON_MAP = {
+    "Ak 47": 1,
+    "bow": 2,
+    "sword": 3,
+    "Assault rifle": 4,
+    "Pistol": 5
+}
 
+# The absolute maximum ammo allowed for each weapon ID
+SERVER_MAX_AMMO = {
+    1: 15,    # Ak 47
+    2: 3,     # bow
+    3: 1000,  # sword
+    4: 30,    # Assault rifle
+    5: 10     # Pistol
+}
 class ProjectileHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.lock = asyncio.Lock()
@@ -158,10 +173,28 @@ class Client:
                 "health": 400,
                 "money": 0,
                 "weapons": [0] * 10,
+                "ammo": [30] * 10,  # <-- NEW: Fallback ammo
                 "potions": [0] * 10,
                 "spawn_x": 74010,
                 "spawn_y": 32605
             }
+        else:
+            # --- THE DATABASE CLEANER ---
+            # Scrub the DB data BEFORE we send it to the client!
+            # Clamps illegal ammo values during login
+            for i in range(len(player_stats["weapons"])):
+                weapon_id = player_stats["weapons"][i]
+                if weapon_id != 0:
+                    max_ammo = SERVER_MAX_AMMO.get(weapon_id, 30)
+
+                    if player_stats["ammo"][i] > max_ammo:
+                        player_stats["ammo"][i] = max_ammo
+                        print(f"[SECURITY] Clamped over-cap ammo for User {user_id} down to {max_ammo}")
+                    elif player_stats["ammo"][i] < 0:
+                        player_stats["ammo"][i] = 0
+                        print(f"[SECURITY] Clamped negative ammo for User {user_id} up to 0")
+                else:
+                    player_stats["ammo"][i] = 0
 
         handshake.Clear()
         response = region_net.HandshakeStart(
@@ -175,6 +208,7 @@ class Client:
 
         response.weapons.extend(player_stats["weapons"])
         response.potions.extend(player_stats["potions"])
+        response.ammo.extend(player_stats["ammo"])  # <-- NEW: Send ammo to client!
 
         writer.write(response.SerializeToString())
         await writer.drain()
@@ -187,15 +221,15 @@ class Client:
             await self.handle()
         finally:
             clients.remove(self)
-
             print(f"User {user_id} disconnected. Saving state to database...")
 
-            # Package the live memory back into a dictionary
+            # <-- NEW: Add self.ammo to the save function!
             db.save_player(
                 player_id=self.user_id,
                 health=self.hp,
                 money=self.money,
                 weapons_list=list(self.weapons),
+                ammo_list=list(self.ammo),
                 potions_list=list(self.potions),
                 spawn_x=int(self.pos[0]),
                 spawn_y=int(self.pos[1])
@@ -216,12 +250,22 @@ class Client:
         self.money = stats["money"]
         self.weapons = stats["weapons"]
         self.potions = stats["potions"]
+        self.ammo = stats["ammo"] # <-- NEW: Server tracks ammo in RAM
+
+
 
     async def hit(self, count, hitter_id: int):
         self.hp -= count
+
+        if self.hp > 400:
+            self.hp = 400
+        elif self.hp < 0:
+            self.hp = 0
+
         update = region_net.ServerResponse()
         update.sender_id = hitter_id
         update.other_data.CopyFrom(region_net.OtherPlayerData(HP=self.hp, player_id=self.user_id))
+
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
 
@@ -236,6 +280,7 @@ class Client:
             print(f"received: {update}")
 
             payload_type = update.WhichOneof("payload")
+
             if payload_type == "location_block":
                 pos = (update.location_block.x, update.location_block.y)
                 self.pos = pos
@@ -244,17 +289,55 @@ class Client:
                 resp.sender_id = self.user_id
                 resp.other_data.new_location.CopyFrom(region_net.LocationBlock(x=pos[0], y=pos[1]))
                 await self.broadcast(resp.SerializeToString())
-            elif payload_type == "potion_use":
-                print("should + h")
-                if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
 
-                    await self.hit(-update.potion_use.HowMuch,self.user_id)
+            elif payload_type == "potion_use":
+                # HowMuch is positive for healing (+15) and negative for damage (-30).
+                # Since hit() subtracts the number, we flip the sign here so the math works perfectly.
+                await self.hit(-update.potion_use.HowMuch, self.user_id)
+                print(f"Server: Player {self.user_id} HP changed! HP is now {self.hp}")
+
+            elif payload_type == "item_drop":
+                idx = update.item_drop.inventory_index
+                kind = update.item_drop.item_kind
+
+                if kind == "weapon":
+                    current_idx = 0
+                    for i in range(len(self.weapons)):
+                        if self.weapons[i] != 0:
+                            if current_idx == idx:
+                                print(f"Server: Player {self.user_id} dropped weapon ID {self.weapons[i]}")
+                                self.weapons[i] = 0  # Clear it from the database memory!
+                                break
+                            current_idx += 1
+
+
 
             elif payload_type == "bullet_shot":
-                global projectile_handler
-                update_bytes = await projectile_handler.add(update.bullet_shot, self)
-                if update_bytes:
-                    await self.broadcast(update_bytes)
+                gun_type = update.bullet_shot.gun_type
+                weapon_id = SERVER_WEAPON_MAP.get(gun_type)
+
+                # We start by assuming the shot is illegal
+                can_shoot = False
+
+                # NEW: Server Authority - Validate ammo in RAM before spawning bullet
+                if weapon_id and weapon_id in self.weapons:
+                    slot_index = self.weapons.index(weapon_id)
+
+                    # --- SERVER SECURITY: Do they actually have enough bullets? ---
+                    if self.ammo[slot_index] >= update.bullet_shot.count:
+                        self.ammo[slot_index] -= update.bullet_shot.count
+                        can_shoot = True  # The math checks out, approve the shot!
+
+                    else:
+                        print(f"[SECURITY] Player {self.user_id} tried to shoot {gun_type} without ammo!")
+
+                # Only spawn the bullet if the server approved it
+                if can_shoot:
+                    global projectile_handler
+                    update_bytes = await projectile_handler.add(update.bullet_shot, self)
+                    if update_bytes:
+                        await self.broadcast(update_bytes)
+
 
     async def write(self, data: bytes):
         async with self.writer_lock:
