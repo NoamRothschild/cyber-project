@@ -38,6 +38,7 @@ def start_global_tick_loop() -> None:
             try:
                 for node in nodes.values():
                     await node.projectile_handler.tick(cycle)
+                    await node.tick2(cycle)
             except Exception as e:
                 print(f"[ERROR] tick {cycle} failed: {e}")
             sleep_time = TICK_INTERVAL_SEC - (loop.time() - start_time)

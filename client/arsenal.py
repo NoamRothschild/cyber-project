@@ -2,7 +2,7 @@ import pygame
 import math
 from functools import cache
 from mapset import SCREEN_SCALE_X, SCREEN_SCALE_Y
-
+from random import randint
 
 # need to add bullet class (new TTL - time to live of the bullet - need to despond after some time every gun will be having different ttl )
 
@@ -64,7 +64,7 @@ class Arsenal:
 
         return self.bullet
 
-    def __init__(self, gun_type):
+    def __init__(self, gun_type,id: int=0):
         # gun type - type of the gun c:
         self.display = pygame.display.get_surface()
         self.gun_type = gun_type
@@ -77,7 +77,11 @@ class Arsenal:
         self.offset_x, self.offset_y = coordinates
 
         self.rect = self.weapon_img.get_rect()
-
+        if id==0:
+            self.id=randint(0, 2**31 - 1)
+        else:
+            self.id=id
+        print(self.id)
     def refill_mag(self):
         weapon_path, bullet, movement, coordinates, scale, mag, fire_cooldown = Arsenal.Arsenal_gunType[
             self.gun_type]

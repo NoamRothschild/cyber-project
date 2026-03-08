@@ -3,6 +3,7 @@ import time
 from helth import HealthBar
 from mapset import *
 from functools import cache
+from random import randint
 
 class Potion(pygame.sprite.Sprite):
 
@@ -20,7 +21,7 @@ class Potion(pygame.sprite.Sprite):
                                10)
                }
 
-    def __init__(self, potion_type):
+    def __init__(self, potion_type,id: int=0):
         self.potion_type = potion_type
         self.display_surface = pygame.display.get_surface()
         self.image, self.what, self.how_much, self.ttl = Potion.potions[potion_type]
@@ -29,7 +30,10 @@ class Potion(pygame.sprite.Sprite):
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
         self.health = HealthBar((0, 0), 30)
-
+        if id==0:
+            self.id=randint(0, 2**31 - 1)
+        else:
+            self.id=id
 
     @staticmethod
     def get_potion_img(potion: str) -> pygame.Surface:

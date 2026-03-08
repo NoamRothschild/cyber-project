@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, cast
 from enum import Enum
 
 if TYPE_CHECKING:
-    from region_server_extras import Client
+    from region_server_extras import Client, ItemState
 
 import math
 from projectiles import ProjectileHandler
@@ -34,6 +34,8 @@ class RegionNode:
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
         self.projectile_handler = ProjectileHandler(self)
+        self.items: Dict[int, ItemState] = {}
+        self.item_seen_by_client: Dict[ItemState,List[int]] = {} # client_id -> set of item positions they've seen
 
     def to_cell_pos(self, pos: Tuple[int, int]) -> Tuple[int, int]:
         """Assumes RegionNode.contains(pos) == true"""
@@ -263,7 +265,27 @@ class RegionNode:
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
         self.clients[client.session_id] = client
         self.grid_add(client, cell_x, cell_y)
-    
+    async def register_item(self, Name: str, Kind: str ,x: int, y: int,id: int):
+        from region_server_extras import ItemState
+        cell_x, cell_y = self.to_cell_pos((x,y))
+        item = ItemState(Name, Kind, x, y,cell_x,cell_y,id)
+        self.items[id]=item
+
+        self.grid_add(item, cell_x, cell_y)
+        self.item_seen_by_client[item] = []
+    async def tick2(self, cycle: int):
+        """One tick: update projectiles and despawn any expired ones."""
+        from region_server_extras import  Client
+        for item in self.items.values():
+            for grid in self.objects_in_view((item.x,item.y)):
+                obj=grid.obj
+                #print(f"checking item {item.name} for object {obj}")
+                if isinstance(obj, Client):
+                    if  not obj.user_id in self.item_seen_by_client[item]:
+                        await obj.item_hendeling(item.name, item.kind, item.x, item.y,item.id)
+                        self.item_seen_by_client[item].append(obj.user_id)
+                        print(f"handling item {item.name} for client {obj.user_id}")
+
     def detach_client(self, client: Client):
         """Remove client from this node's grid and client list without global cleanup."""
         try:
@@ -316,6 +338,32 @@ class RegionNode:
                 else:
                     ... # TODO: handle other proxy objects
 
+    async def item_hendeling(self, obj, client, new_pos):
+        from region_server_extras import Client, ItemState
+        print ("l1")
+        if isinstance(obj, ItemState)and self.items.get(obj.id)!= None:
+            print(new_pos)
+            print(obj.x, obj.y)
+            if new_pos[0] <= obj.x+50 and new_pos[0]>= obj.x and new_pos[1] <= obj.y+50 and new_pos[1]>= obj.y :
+                print("l3")
+                print (obj.id)
+                t = self.items.pop(obj.id,None)
+                self.item_seen_by_client.pop(t)
+                update = region_net.ServerResponse()
+                update.other_data.CopyFrom(
+                    region_net.OtherPlayerData(New_Item=region_net.Item(Kind=t.kind, Name=t.name, x=t.x, y=t.y,id=t.id,Picked_up=bool(True)))
+                )
+
+                await client.write(update.SerializeToString())
+                update = region_net.ServerResponse()
+                update.other_data.CopyFrom(
+                    region_net.OtherPlayerData(
+                        New_Item=region_net.Item(Kind=t.kind, Name=t.name, x=t.x, y=t.y,id=t.id, Not_exist=bool(True)))
+                )
+                clints=self.item_seen_by_client.pop(t,None)
+                await client.broadcast(update.SerializeToString())
+
+
     async def update_local_visibility(self, client: Client, old_pos: Tuple[int, int]) -> None:
         """Handle spawn/despawn for same-node entities around a moving client."""
         from region_server_extras import Client
@@ -323,6 +371,7 @@ class RegionNode:
 
         for grid_field in self.objects_in_view(new_pos):
             obj = grid_field.obj
+            await self.item_hendeling(obj, client,new_pos)
             if not isinstance(obj, Client):
                 continue
             if obj.user_id == client.user_id:

@@ -66,9 +66,7 @@ class Inventory(pygame.sprite.Sprite):
     def delete_w(self, group, prect):
         current_time = time.time()
         if current_time - self.delete_last_action_time >= self.delete_interval and self.is_wep_empty() == False:
-            Colectible_sprite((prect.x + 70, prect.y + 70), group, self.wep_inventory[self.current_weapon].get_name(),
-                              "weapon")
-            ZoneConnectionSingleton().zone.try_send_item("weapon", self.wep_inventory[self.current_weapon].get_name(), prect.x + 70, prect.y + 70)
+            ZoneConnectionSingleton().zone.try_send_item("weapon", self.wep_inventory[self.current_weapon].get_name(), prect.x + 70, prect.y + 70,self.wep_inventory[self.current_weapon].id)
             del self.wep_inventory[self.current_weapon]
             if self.current_weapon != 0:
                 self.current_weapon = self.current_weapon - 1

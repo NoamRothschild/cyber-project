@@ -140,11 +140,11 @@ class ZoneConnection:
             )
         )
         self.send_tcp(update.SerializeToString())
-    def try_send_item(self, item_kind: str,item_name: str,x: int,y: int,) -> None:
+    def try_send_item(self, item_kind: str,item_name: str,x: int,y: int,id) -> None:
         update = region_net.RegionUpdate()
         update.item_pickup.CopyFrom(
             region_net.Item(
-                Kind=item_kind, Name=item_name, x=x, y=y
+                Kind=item_kind, Name=item_name, x=x, y=y,id = id
             )
         )
         self.send_tcp(update.SerializeToString())
@@ -323,7 +323,14 @@ def event_handler(
                 game.level.entities.add_or_update([game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y))
             elif payload_type == "New_Item":
                 item = update.other_data.New_Item
-                game.level.add_c((item.x, item.y), str(item.Name), str(item.Kind))
+                print(f"{item.id}")
+
+                if item.Picked_up:
+                    game.level.player.colect(find(item,game))
+                elif item.Not_exist:
+                    remve(item,game)
+                else:
+                    game.level.add_c((item.x, item.y), str(item.Name), str(item.Kind), item.id)
             elif payload_type == "HP":
                 health_elem = game.level.player.health
                 new_hp = update.other_data.HP
@@ -350,4 +357,17 @@ def event_handler(
                     angle=bullet.angle,
                     from_network=True)
                 )
+def find(item,game):
+    for sprite in game.level.colectible_sprite:
+        print(sprite.id, item.id)
+        if (int(sprite.id) == int(item.id)):
+            print(sprite.obj)
+            return sprite
 
+
+def remve(item,game):
+    for sprite in game.level.colectible_sprite:
+        print(sprite.id, item.id)
+        if (int(sprite.id) == int(item.id)):
+            print(sprite)
+            sprite.kill()

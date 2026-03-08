@@ -39,6 +39,9 @@ message Item {
   string Name = 2;
   int32  x = 3;
   int32  y = 4;
+  int32  id = 5;
+  optional bool Picked_up = 6; // only set from server -> client
+  optional bool Not_exist = 7; // only set from server -> client
 }
 
 message BulletShot {

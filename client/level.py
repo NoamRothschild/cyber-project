@@ -83,8 +83,8 @@ class Level:
         preload_all_bushes()
         preload_all_trees()
         self.draw_map()
-    def add_c(self,pos,n,k):
-        Colectible_sprite(pos,[self.visible_sprites,self.colectible_sprite],n,k)
+    def add_c(self,pos,n,k,id):
+        c=Colectible_sprite(pos,[self.visible_sprites,self.colectible_sprite],n,k,id)
     def handle_event(self, event):
         self.player.shop_ui.handle_event(event, self.player)
         self.chat.handle_event(event)
@@ -141,7 +141,7 @@ class Level:
 
         self.player.inventory.items_hendeling(self.player)
 
-        self.visible_sprites.update()
+        self.visible_sprites.update(self.chat.is_open)
         self.chat.draw()
         Green_hit.draw_fill()
         Red_hit.draw_fill()

@@ -200,16 +200,16 @@ class Player(pygame.sprite.Sprite):
             self.health.sub_life(30)
             Red_hit.start()
 
-
+    def colect(self, sprite):
+        if self.hitbox and sprite and sprite.rect and sprite.rect.colliderect(self.hitbox):
+            if sprite.kind == "weapon":
+                self.inventory.add_item_toThe_Inventory(sprite.obj, "weapon")
+            elif sprite.kind == "potion":
+                self.inventory.add_item_toThe_Inventory(sprite.obj, "potion")
+            sprite.kill()
     def check_if_collect(self):
         for sprite in self.colect_sprite:
-            if sprite and sprite.rect.colliderect(self.hitbox):
-                if sprite.kind == "weapon":
-                    self.inventory.add_item_toThe_Inventory(sprite.obj, "weapon")
-                elif sprite.kind == "potion":
-                    self.inventory.add_item_toThe_Inventory(sprite.obj, "potion")
-                sprite.kill()
-                break
+            self.colect(sprite)
     def dead(self):
         if not self.health.is_alive():
             self.inventory.delete_w([self.colect_sprite,self.groups[0]],self.rect)
@@ -245,4 +245,4 @@ class Player(pygame.sprite.Sprite):
         self.move()
         self.inventory.open([self.colect_sprite,self.groups[0]],self)
         self.health.draw()
-        self.check_if_collect()
+        #self.check_if_collect()
