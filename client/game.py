@@ -9,16 +9,17 @@ from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 from random import randint
 from zone_connection import *
 from enter_screen import EnterScreen
-from enter_screen import EnterScreen
-from config import ZONE_HOST, ZONE_TCP_PORT, ZONE_UDP_PORT
 import traceback
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
 
+
 class Game:
-    SCREEN=pygame.display.set_mode((WIDTH,HEIGHT))
-    def __init__(self, host: str, tcp_port: int, udp_port: int):
+    SCREEN = pygame.display.set_mode((WIDTH, HEIGHT))
+
+    # FIX 2: Added session_id: str here so it accepts the variable from the bottom
+    def __init__(self, host: str, tcp_port: int, udp_port: int, session_id: str):
         ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
 
         pygame.init()
@@ -52,7 +53,6 @@ class Game:
 
                 if not self.is_running:
                     break
-            if not self.is_running: break
 
                 # 2. Drawing
                 self.screen.fill(GREEN)
@@ -73,8 +73,13 @@ class Game:
                 pygame.display.update()
                 self.clock.tick(FPS)
 
-        pygame.quit()
-        #sys.exit()
+        # FIX 1: Restored the except and finally blocks to fix the Syntax Error
+        except Exception as e:
+            print(f"Game Loop Error: {e}")
+        finally:
+            print("Closing Game...")
+            pygame.quit()
+            sys.exit()
 
 
 if __name__ == "__main__":
