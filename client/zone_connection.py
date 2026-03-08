@@ -3,7 +3,8 @@ import socket
 import threading
 from typing import Tuple, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
-from inventory import WEAPON_MAP
+from inventory import WEAPON_MAP, POTION_MAP
+from potion import Potion
 from arsenal import Arsenal
 
 if TYPE_CHECKING:
@@ -51,15 +52,35 @@ class ZoneConnection:
 
         player.health.set_life(login_resp.health)
 
-        player.inventory.inventory.clear()
-        for weapon_id in login_resp.weapons:
-            if weapon_id != 0:  # 0 is our DB standard for an "empty" slot. Skip it.
+        # --- THE FIX: Clear the new lists and create Arsenal objects ---
+        player.inventory.wep_inventory.clear()
+        player.inventory.potion_inventory.clear()
+
+        from arsenal import Arsenal
+
+        # Sync ammo slots from Handshake into Arsenal objects
+        for i, weapon_id in enumerate(login_resp.weapons):
+            if weapon_id != 0:
                 if weapon_id in WEAPON_MAP:
                     weapon_name = WEAPON_MAP[weapon_id]
-                    player.inventory.add_item_toThe_Inventory(weapon_name)
+
+                    # Grab the matching ammo from the login response
+                    saved_ammo = login_resp.ammo[i]
+
+                    # Pass the ammo to the Arsenal object
+                    weapon_obj = Arsenal(weapon_name, saved_ammo=saved_ammo)
+                    player.inventory.add_item_toThe_Inventory(weapon_obj, "weapon")
                 else:
-                    # Security/Log: Catch corrupted DB data without crashing the client
                     print(f"[WARNING] Server sent unknown weapon ID: {weapon_id}")
+
+        for potion_id in login_resp.potions:
+            if potion_id != 0:
+                if potion_id in POTION_MAP:
+                    potion_name = POTION_MAP[potion_id]
+                    potion_obj = Potion(potion_name)
+                    player.inventory.add_item_toThe_Inventory(potion_obj, "potion")
+                else:
+                    print(f"[WARNING] Server sent unknown potion ID: {potion_id}")
 
         print(f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}")
 
@@ -93,11 +114,23 @@ class ZoneConnection:
 
         self.reliable_conn.sendall(update.SerializeToString())
     def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
-        print("hi avram")
+        print("Sending HP event to server...")
         update = region_net.RegionUpdate()
+        # --- THE FIX: Pass 0 instead of the string so Protobuf doesn't choke ---
         update.potion_use.CopyFrom(
             region_net.PotionUse(
-                potion_type = potion_kind,HowMuch = how_much
+                potion_type=0, HowMuch=how_much
+            )
+        )
+        self.reliable_conn.sendall(update.SerializeToString())
+
+    def try_send_item_drop(self, inventory_index: int, item_kind: str) -> None:
+        print(f"Sending drop request for {item_kind} at slot {inventory_index}")
+        update = region_net.RegionUpdate()
+        update.item_drop.CopyFrom(
+            region_net.ItemDrop(
+                inventory_index=inventory_index,
+                item_kind=item_kind
             )
         )
         self.reliable_conn.sendall(update.SerializeToString())
@@ -172,15 +205,14 @@ def server_listener(game: Game, zone: ZoneConnection):
                 new_hp = parsed.other_data.HP
                 print(f"{parsed.other_data.player_id=}")
                 if parsed.other_data.player_id != game.user_id:
-                    game.level.entities.add_or_update([game.level.visible_sprites], parsed.other_data.player_id, hp=new_hp)
+                    game.level.entities.add_or_update([game.level.visible_sprites], parsed.other_data.player_id,
+                                                      hp=new_hp)
                 else:
-                    old_hp = health_elem.get_life()
-                    diff = new_hp - old_hp
-                    print(f"player hp changed")
-                    if diff > 0:
-                        health_elem.add_life(diff)
-                    elif diff < 0:
-                        health_elem.sub_life(abs(diff))
+                    # Forces the screen to show the "true" health from the server so the game doesn't desync.
+                    # --- THE FIX: Hard-Sync with the Server ---
+                    # Don't use diffs. Don't trigger I-frames. Just snap the UI to the Server's absolute truth.
+                    print(f"Syncing local HP to Server's absolute HP: {new_hp}")
+                    health_elem.set_life(new_hp)
             # elif payload_type == "state":
             #     ...
         elif len(parsed.bullet_shot) > 0:
