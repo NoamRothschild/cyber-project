@@ -200,7 +200,7 @@ class Camera(pygame.sprite.Group):  # a group that has every visible sprite that
 
         # אובייקטים דינמיים (הקבוצה הזו קטנה ממילא)
         for item in self.sprites():
-            if item and item.rect and item.rect.bottom: visible_now.append(item)
+            if item and hasattr(item, 'rect') and item.rect and item.rect.bottom: visible_now.append(item)
 
         # 3. לולאת ציור ללא חישובים כבדים
         # אנחנו ממיינים פעם אחת ומציירים

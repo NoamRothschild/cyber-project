@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import socket
 from dataclasses import dataclass, field
 from random import randint
 from typing import TYPE_CHECKING, Tuple
@@ -51,6 +52,16 @@ class Client:
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
         print("new connection established")
+
+        sock = writer.get_extra_info("socket")
+        if sock is not None:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            if hasattr(socket, "TCP_KEEPIDLE"):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 15)
+            if hasattr(socket, "TCP_KEEPINTVL"):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
+            if hasattr(socket, "TCP_KEEPCNT"):
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
 
         handshake_raw = await reader.read(BUFF_SIZE)
         handshake = region_net.HandshakeStart()

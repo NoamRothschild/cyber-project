@@ -41,6 +41,13 @@ class ZoneConnection:
 
     def open_connections(self, session_id: int) -> int:
         """opens the TCP and UDP conn's and returns the user id. can throw"""
+        self.reliable_conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        if hasattr(socket, "TCP_KEEPIDLE"):
+            self.reliable_conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 15)
+        if hasattr(socket, "TCP_KEEPINTVL"):
+            self.reliable_conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 5)
+        if hasattr(socket, "TCP_KEEPCNT"):
+            self.reliable_conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
         self.reliable_conn.connect((self.host, self.reliable_port))
         handshake = region_net.HandshakeStart()
         handshake.session_id = session_id
