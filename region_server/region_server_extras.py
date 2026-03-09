@@ -24,18 +24,6 @@ class PlayerState:
     hp: int = 400
 
 
-@dataclass(frozen=True)
-class ItemState:
-
-    name: str
-    kind: str
-    x: int
-    y: int
-    cell_x: int
-    cell_y: int
-    id: int
-
-
 @dataclass
 class ConnectionState:
     reader: asyncio.StreamReader

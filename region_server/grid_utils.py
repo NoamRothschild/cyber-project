@@ -1,10 +1,13 @@
 from __future__ import annotations
 from typing import Any, Tuple
 from enum import Enum
+import protobuf.region_net_pb2 as region_net
+from dataclasses import dataclass
 
 
 class ProxyObject:
     """Base for proxy entities (e.g. ProxyClient, ProxyBullet); lives here to avoid circular import with proxy."""
+
     def __init__(self, pos_x: int, pos_y: int, id: int) -> None:
         self.pos = (pos_x, pos_y)
         self.id = id
@@ -20,13 +23,13 @@ class GridField:
     def __init__(self, obj: Any, seen: set[int] = set()) -> None:
         self.obj = obj
         self.seen = seen
-    
+
     def add_seen(self, user_id: int) -> None:
         self.seen.add(user_id)
-    
+
     def __hash__(self) -> int:
         return hash(self.obj)
-    
+
     def __eq__(self, other: Any) -> bool:
         return self.obj == other.obj
 
@@ -49,6 +52,29 @@ class ProxyField:
         # Iterates as (seen, proxy_obj) to allow: for seen, proxy_obj in proxy
         yield self.seen
         yield self.proxy
+
+
+@dataclass(frozen=True)
+class ItemState:
+    name: str
+    kind: str
+    x: int
+    y: int
+    cell_x: int
+    cell_y: int
+    id: int
+
+    def to_proxy_event(self, should_remove: bool = False) -> region_net.ProxyEvent:
+        Action = region_net.ItemProxy.Action
+        return region_net.ProxyEvent(
+            item=region_net.ItemProxy(
+                pos=region_net.LocationBlock(x=self.x, y=self.y),
+                id=self.id,
+                name=self.name,
+                kind=self.kind,
+                action=Action.REMOVE if should_remove else Action.PLACE,
+            )
+        )
 
 
 class Direction(Enum):
@@ -75,13 +101,13 @@ class Direction(Enum):
             Direction.DOWN_RIGHT: 7,
         }
         return m[value]
-    
+
     @staticmethod
     def from_diff(initial_pos: Tuple[int, int], new_pos: Tuple[int, int]) -> Direction:
         """Direction from initial_pos to new_pos. Normalizes to a unit step (one of the 8 directions)"""
         dx = new_pos[0] - initial_pos[0]
         dy = new_pos[1] - initial_pos[1]
-        
+
         # normalize to a unit step
         if dx != 0:
             dx = 1 if dx > 0 else -1
@@ -89,6 +115,5 @@ class Direction(Enum):
             dy = 1 if dy > 0 else -1
         if dx == 0 and dy == 0:
             raise ValueError("Initial and new positions are the same")
-        
-        return Direction((dx, dy))
 
+        return Direction((dx, dy))

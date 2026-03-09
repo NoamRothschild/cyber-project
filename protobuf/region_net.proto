@@ -108,9 +108,23 @@ message ClientProxy {
   }
 }
 
+message ItemProxy {
+  int32 id = 1;
+  LocationBlock pos = 2;
+  string name = 3;
+  string kind = 4;
+  Action action = 5;
+
+  enum Action {
+    PLACE = 0;
+    REMOVE = 1;
+  }
+}
+
 message ProxyEvent {
   oneof payload {
     ClientProxy client = 1;
+    ItemProxy item = 2;
     // In the future: BulletShot bullet_shot = 2;
   }
 }

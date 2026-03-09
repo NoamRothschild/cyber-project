@@ -10,7 +10,7 @@ from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL
 async def create_initial_nodes() -> None:
     """Create the single whole-map node. Call once at startup."""
     r = get_redis()
-    my_nodes = await r.smembers(f'region:{THIS_SERVER_IP}')
+    my_nodes = await r.smembers(f"region:{THIS_SERVER_IP}")
     ps = get_pubsub()
 
     for node_idx_raw in cast(Set[bytes], my_nodes):
@@ -38,7 +38,6 @@ def start_global_tick_loop() -> None:
             try:
                 for node in nodes.values():
                     await node.projectile_handler.tick(cycle)
-                    await node.tick2(cycle)
             except Exception as e:
                 print(f"[ERROR] tick {cycle} failed: {e}")
             sleep_time = TICK_INTERVAL_SEC - (loop.time() - start_time)
@@ -46,3 +45,4 @@ def start_global_tick_loop() -> None:
                 await asyncio.sleep(sleep_time)
 
     asyncio.create_task(_ticker())
+

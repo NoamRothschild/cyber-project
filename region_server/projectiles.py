@@ -6,7 +6,7 @@ import protobuf.region_net_pb2 as region_net
 from constants import BULLET_TYPES, TICK_INTERVAL_SEC, SERVER_COUNT
 import os
 
-_proj_start_id = (2**31 // SERVER_COUNT) * int(os.getenv('server_id', '0'))
+_proj_start_id = (2**31 // SERVER_COUNT) * int(os.getenv("server_id", "0"))
 _next_projectile_id = itertools.count(start=_proj_start_id)
 
 
@@ -61,7 +61,7 @@ class ProjectileHandler:
         from nodes import nodes
         from region_node import RegionNode
         from servers_communication import broadcast_on
-        from region_server_extras import Client,ItemState
+        from region_server_extras import Client
 
         to_remove: list[Projectile] = []
         to_transfer: list[tuple[Projectile, tuple[int, int]]] = []
@@ -116,9 +116,11 @@ class ProjectileHandler:
             # Spatial collision detection
             for proj in self.projectiles:
                 search_radius = math.ceil(proj["range"] / RegionNode.CELL_SIZE)
-                for grid_field in node.nearby(proj["cell_x"], proj["cell_y"], search_radius):
+                for grid_field in node.nearby(
+                    proj["cell_x"], proj["cell_y"], search_radius
+                ):
                     # TODO: expand to also catch Enemy objects when pulled
-                    if  isinstance(grid_field.obj, Client):
+                    if isinstance(grid_field.obj, Client):
 
                         client = grid_field.obj
                         if proj["owner_uuid"] == client.user_id:
@@ -128,7 +130,6 @@ class ProjectileHandler:
                         if self.bullet_hit(proj, client):
                             await client.hit(proj["damage"], proj["owner_uuid"])
                             proj["already_hit"].add(client.user_id)
-
 
         for proj, new_node_pos in to_transfer:
             if new_node := nodes.get(new_node_pos):
@@ -204,7 +205,9 @@ class ProjectileHandler:
 
     async def receive_transferred(self, proj: Projectile) -> None:
         """Receive a projectile transferred from an adjacent node on this server."""
-        print(f"Transferred projectile received: id={proj['id']} at node={self._node.node_pos}")
+        print(
+            f"Transferred projectile received: id={proj['id']} at node={self._node.node_pos}"
+        )
         async with self.lock:
             self._incoming.append(proj)
         await self._broadcast_to_unseen_clients(proj)

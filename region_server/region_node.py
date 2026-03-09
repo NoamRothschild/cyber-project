@@ -4,19 +4,27 @@ from typing import TYPE_CHECKING, cast
 from enum import Enum
 
 if TYPE_CHECKING:
-    from region_server_extras import Client, ItemState
+    from region_server_extras import Client
 
 import math
 from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
 from servers_communication import broadcast_on
 from constants import CLIENT_ASPECT_RATIO, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
-from proxy import create_proxy, remove_proxy, broadcast_disconnect, ProxyObject, ProxyClient
-from grid_utils import GridField, ProxyField, Direction
+from proxy import (
+    create_proxy,
+    remove_proxy,
+    broadcast_disconnect,
+    ProxyObject,
+    ProxyClient,
+    ProxyItem,
+)
+from grid_utils import GridField, ProxyField, Direction, ItemState
 from nodes import nodes
 
 VERTICAL_NODE_COUNT = 20
 HORIZONAL_NODE_COUNT = 17
+
 
 class RegionNode:
     NODE_WIDTH = 4600  # [px]
@@ -30,12 +38,13 @@ class RegionNode:
         self.x_range = (topleft[0], topleft[0] + RegionNode.NODE_WIDTH)
         self.y_range = (topleft[1], topleft[1] + RegionNode.NODE_HEIGHT)
         self.grid: Dict[Tuple[int, int], Set[GridField]] = {}
-        self.proxies: List[Set[ProxyField]] = [set() for _ in range(8)] # a set of proxies from each direction
+        self.proxies: List[Set[ProxyField]] = [
+            set() for _ in range(8)
+        ]  # a set of proxies from each direction
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
         self.projectile_handler = ProjectileHandler(self)
-        self.items: Dict[int, ItemState] = {}
-        self.item_seen_by_client: Dict[ItemState,List[int]] = {} # client_id -> set of item positions they've seen
+        self.items: Dict[int, GridField] = {}  # id -> GridField(obj -> ItemState, seen)
 
     def to_cell_pos(self, pos: Tuple[int, int]) -> Tuple[int, int]:
         """Assumes RegionNode.contains(pos) == true"""
@@ -47,23 +56,29 @@ class RegionNode:
         """True if (x, y) is inside this node's bounds."""
         if self.topleft == (-1, -1):
             return False
-        
+
         return (
             self.x_range[0] <= x <= self.x_range[1]
             and self.y_range[0] <= y <= self.y_range[1]
         )
-    
+
     async def receive_proxy_event(self, event: region_net.ProxyEvent) -> None:
         from region_server_extras import Client
+
         payload_type = event.WhichOneof("payload")
         if payload_type == "client":
             cp = event.client
             proxy = ProxyClient(cp.pos.x, cp.pos.y, cp.player_id, cp.HP)
+        elif payload_type == "item":
+            cp = event.item
+            proxy = ProxyItem(cp.pos.x, cp.pos.y, cp.id, cp.name, cp.kind)
         else:
             return
 
         try:
-            direction = Direction.from_diff(self.node_pos, RegionNode.which_node(*proxy.pos))
+            direction = Direction.from_diff(
+                self.node_pos, RegionNode.which_node(*proxy.pos)
+            )
         except ValueError:
             return
 
@@ -72,17 +87,21 @@ class RegionNode:
         lookup = ProxyField(proxy, set())
         moved = True
         old_hp: int = 0
-   
-        for prx in self.proxies:
-            for existing in prx:
-                if existing != lookup:
-                    continue
-                old_seen = existing.seen
-                if existing.proxy.pos == proxy.pos and isinstance(lookup, ProxyClient):
-                    moved = False
-                    old_hp = cast(ProxyClient, existing.proxy).hp
-                break
-            prx.discard(lookup)
+
+        if not isinstance(proxy, ProxyItem):
+            for prx in self.proxies:
+                for existing in prx:
+                    if existing != lookup:
+                        continue
+                    old_seen = existing.seen
+                    if (
+                        isinstance(proxy, ProxyClient)
+                        and existing.proxy.pos == proxy.pos
+                    ):
+                        moved = False
+                        old_hp = cast(ProxyClient, existing.proxy).hp
+                    break
+                prx.discard(lookup)
 
         field = ProxyField(proxy, set())
         self.proxies[Direction.to_proxy_pos(direction)].add(field)
@@ -97,10 +116,14 @@ class RegionNode:
             if not Client.can_see_static((cli.state.x, cli.state.y), proxy.pos):
                 continue
             field.seen.add(cli.user_id)
-            if moved:
-                await cli.saw_client(proxy.pos, proxy.id)
-            if old_hp != proxy.hp:
-                await cli.update_other_hp(proxy.id, proxy.hp)
+
+            if isinstance(proxy, ProxyClient):
+                if moved:
+                    await cli.saw_client(proxy.pos, proxy.id)
+                if old_hp != proxy.hp:
+                    await cli.update_other_hp(proxy.id, proxy.hp)
+            elif isinstance(proxy, ProxyItem):
+                await cli.item_hendeling(proxy.name, proxy.kind, *proxy.pos, proxy.id)
 
         # despawn for clients who could see the old proxy but can't see the new position
         for uid in old_seen - field.seen:
@@ -112,6 +135,7 @@ class RegionNode:
     async def receive_proxy_remove(self, sender_id: int) -> None:
         """Remove all proxies matching sender_id and despawn for clients who had seen them."""
         from region_server_extras import Client
+
         for prx in self.proxies:
             to_remove = None
             for existing in prx:
@@ -126,12 +150,16 @@ class RegionNode:
 
     # ---- grid helpers ----
 
-    def grid_add(self, obj: Any, cell_x: int, cell_y: int, seen: set[int] = set()) -> None:
+    def grid_add(
+        self, obj: Any, cell_x: int, cell_y: int, seen: set[int] = set()
+    ) -> GridField:
         key = (cell_x, cell_y)
+        field = GridField(obj, seen)
         if cell := self.grid.get(key):
-            cell.add(GridField(obj, seen))
+            cell.add(field)
         else:
-            self.grid[key] = {GridField(obj, seen)}
+            self.grid[key] = {field}
+        return field
 
     def grid_remove(self, obj: Any, cell_x: int, cell_y: int) -> None:
         if cell := self.grid.get((cell_x, cell_y)):
@@ -153,7 +181,7 @@ class RegionNode:
 
     def nearby(
         self, cell_x: int, cell_y: int, radius: int
-    ) -> Generator[Any, None, None]:
+    ) -> Generator[GridField, None, None]:
         """Yield grid objects expanding outward ring-by-ring up to
         Chebyshev distance *radius*.  Typical usage::
 
@@ -221,18 +249,22 @@ class RegionNode:
             node_y = VERTICAL_NODE_COUNT - 1
 
         return node_x, node_y
-    
+
     @staticmethod
     def node_pos_to_idx(pos_x: int, pos_y: int) -> int:
         return pos_y * HORIZONAL_NODE_COUNT + pos_x
 
     def possible_bounding_nodes(self, raw_x: int, raw_y: int) -> List[Direction]:
         """
-        Returns relative node offsets (dx, dy) for neighboring nodes that can see an object at (raw_x, raw_y), 
+        Returns relative node offsets (dx, dy) for neighboring nodes that can see an object at (raw_x, raw_y),
         based on how close the position is to this node's borders.
         """
-        local_x = (raw_x - self.node_pos[0] * RegionNode.NODE_WIDTH) / RegionNode.NODE_WIDTH
-        local_y = (raw_y - self.node_pos[1] * RegionNode.NODE_HEIGHT) / RegionNode.NODE_HEIGHT
+        local_x = (
+            raw_x - self.node_pos[0] * RegionNode.NODE_WIDTH
+        ) / RegionNode.NODE_WIDTH
+        local_y = (
+            raw_y - self.node_pos[1] * RegionNode.NODE_HEIGHT
+        ) / RegionNode.NODE_HEIGHT
 
         edge_thresh_sides = (CLIENT_RECEIVE_WIDTH / 2) / RegionNode.NODE_WIDTH
         edge_thresh_up_down = (CLIENT_RECEIVE_HEIGHT / 2) / RegionNode.NODE_HEIGHT
@@ -266,32 +298,29 @@ class RegionNode:
         self.clients[client.session_id] = client
         self.grid_add(client, cell_x, cell_y)
 
-    async def register_item(self, Name: str, Kind: str ,player_x: int, player_y: int,id: int):
-        from region_server_extras import ItemState
-
+    async def register_item(
+        self, Name: str, Kind: str, player_x: int, player_y: int, id: int
+    ):
         # creating the items position while making sure it will stay in this node
         x = min(player_x + 70, self.x_range[1])
         y = min(player_y + 70, self.y_range[1])
 
-        cell_x, cell_y = self.to_cell_pos((x,y))
-        item = ItemState(Name, Kind, x, y,cell_x,cell_y,id)
-        self.items[id] = item
+        cell_x, cell_y = self.to_cell_pos((x, y))
+        item = ItemState(Name, Kind, x, y, cell_x, cell_y, id)
+        field = self.grid_add(item, cell_x, cell_y)
+        self.items[id] = field
 
-        self.grid_add(item, cell_x, cell_y)
-        self.item_seen_by_client[item] = []
+        item_update = region_net.ServerResponse(
+            other_data=region_net.OtherPlayerData(
+                New_Item=region_net.Item(Kind=Kind, Name=Name, x=x, y=y, id=id)
+            )
+        ).SerializeToString()
 
-    async def tick2(self, cycle: int):
-        """One tick: update projectiles and despawn any expired ones."""
-        from region_server_extras import  Client
-        for item in self.items.values():
-            for grid in self.objects_in_view((item.x,item.y)):
-                obj=grid.obj
-                #print(f"checking item {item.name} for object {obj}")
-                if isinstance(obj, Client):
-                    if  not obj.user_id in self.item_seen_by_client[item]:
-                        await obj.item_hendeling(item.name, item.kind, item.x, item.y,item.id)
-                        self.item_seen_by_client[item].append(obj.user_id)
-                        print(f"handling item {item.name} for client {obj.user_id}")
+        for cli in self.clients.values():
+            await cli.write(item_update)
+            field.seen.add(cli.user_id)
+
+        await self.propagate_item(item)
 
     def detach_client(self, client: Client):
         """Remove client from this node's grid and client list without global cleanup."""
@@ -313,24 +342,51 @@ class RegionNode:
         creates/updates proxies on directions we're currently near."""
         bounds = self.possible_bounding_nodes(entity.state.x, entity.state.y)
         new_proxied = set(bounds)
-        old_proxied: set = getattr(entity, '_proxied_directions', set())
+        old_proxied: set = getattr(entity, "_proxied_directions", set())
 
         for direction in old_proxied - new_proxied:
-            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
-            await remove_proxy(self.node_pos, node_pos, entity.user_id, entity.session_id)
+            node_pos = (
+                self.node_pos[0] + direction.value[0],
+                self.node_pos[1] + direction.value[1],
+            )
+            await remove_proxy(
+                self.node_pos, node_pos, entity.user_id, entity.session_id
+            )
         entity._proxied_directions = new_proxied
 
         for direction in bounds:
-            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+            node_pos = (
+                self.node_pos[0] + direction.value[0],
+                self.node_pos[1] + direction.value[1],
+            )
             await create_proxy(self.node_pos, node_pos, entity.to_proxy_event())
+
+    async def propagate_item(
+        self, item: ItemState, remove_instead: bool = False
+    ) -> None:
+        """Sync this items's proxy state to all relevant neighboring nodes. if remove_instead == True, deletes the item from its proxies"""
+        bounds = self.possible_bounding_nodes(item.x, item.y)
+
+        for direction in bounds:
+            node_pos = (
+                self.node_pos[0] + direction.value[0],
+                self.node_pos[1] + direction.value[1],
+            )
+            await create_proxy(
+                self.node_pos, node_pos, item.to_proxy_event(remove_instead)
+            )
 
     async def check_neighbor_spawns(self, client: Client) -> None:
         """Show the moving client any proxied entities from neighboring nodes
         that they haven't seen yet."""
         from region_server_extras import Client
+
         bounds = self.possible_bounding_nodes(client.state.x, client.state.y)
         for direction in bounds:
-            node_pos = (self.node_pos[0] + direction.value[0], self.node_pos[1] + direction.value[1])
+            node_pos = (
+                self.node_pos[0] + direction.value[0],
+                self.node_pos[1] + direction.value[1],
+            )
             for seen, obj in self.proxies[Direction.to_proxy_pos(direction)]:
                 if client.user_id in seen:
                     continue
@@ -341,54 +397,89 @@ class RegionNode:
                 seen.add(client.user_id)
                 if isinstance(obj, ProxyClient):
                     await client.saw_client(obj.pos, obj.id)
-                    print(f'showed {client.user_id}({client.node.view}) to {obj.id}({node_pos})')
+                    print(
+                        f"showed {client.user_id}({client.node.view}) to {obj.id}({node_pos})"
+                    )
                 else:
-                    ... # TODO: handle other proxy objects
+                    ...  # TODO: handle other proxy objects
 
-    async def item_hendeling(self, obj, client, new_pos):
-        from region_server_extras import Client, ItemState
-        print ("l1")
-        if isinstance(obj, ItemState)and self.items.get(obj.id)!= None:
+    async def might_hit_item(self, client: Client):
+        from region_server_extras import Client
+
+        new_pos = client.state.x, client.state.y
+        to_remove: set[Any, int, int] = set()
+
+        for obj_field in self.nearby(client.state.cell_x, client.state.cell_y, 1):
+            obj = obj_field.obj
+            print(f"nearby obj: {obj}")
+            if not isinstance(obj, ItemState):
+                continue
+            if self.items.get(obj.id) is None:
+                continue
+            item = obj
+
             print(new_pos)
             print(obj.x, obj.y)
-            if new_pos[0] <= obj.x+50 and new_pos[0]>= obj.x and new_pos[1] <= obj.y+50 and new_pos[1]>= obj.y :
-                print("l3")
-                print (obj.id)
-                t = self.items.pop(obj.id,None)
-                self.item_seen_by_client.pop(t)
-                update = region_net.ServerResponse()
-                update.other_data.CopyFrom(
-                    region_net.OtherPlayerData(New_Item=region_net.Item(Kind=t.kind, Name=t.name, x=t.x, y=t.y,id=t.id,Picked_up=bool(True)))
-                )
 
-                await client.write(update.SerializeToString())
+            if (
+                new_pos[0] <= obj.x + 50
+                and new_pos[0] >= obj.x
+                and new_pos[1] <= obj.y + 50
+                and new_pos[1] >= obj.y
+            ):
+                print("l3")
+                print(obj.id)
+
+                # item picked up -> remove it
+                self.items.pop(obj.id, None)
+                to_remove.add((obj, obj.cell_x, obj.cell_y))
+                await self.propagate_item(
+                    item, remove_instead=True
+                )  # remove proxies of item
+
                 update = region_net.ServerResponse()
                 update.other_data.CopyFrom(
                     region_net.OtherPlayerData(
-                        New_Item=region_net.Item(Kind=t.kind, Name=t.name, x=t.x, y=t.y,id=t.id, Not_exist=bool(True)))
+                        New_Item=region_net.Item(
+                            Kind=item.kind,
+                            Name=item.name,
+                            x=item.x,
+                            y=item.y,
+                            id=item.id,
+                            Picked_up=bool(True),
+                        )
+                    )
                 )
-                clints=self.item_seen_by_client.pop(t,None)
+
+                await client.write(update.SerializeToString())
+                update.other_data.New_Item.Picked_up = False
+                update.other_data.New_Item.Not_exist = True
                 await client.broadcast(update.SerializeToString())
 
+        for obj, cell_x, cell_y in to_remove:
+            self.grid_remove(obj, cell_x, cell_y)
 
-    async def update_local_visibility(self, client: Client, old_pos: Tuple[int, int]) -> None:
+    async def update_local_visibility(
+        self, client: Client, old_pos: Tuple[int, int]
+    ) -> None:
         """Handle spawn/despawn for same-node entities around a moving client."""
         from region_server_extras import Client
+
         new_pos = (client.state.x, client.state.y)
 
         for grid_field in self.objects_in_view(new_pos):
             obj = grid_field.obj
-            await self.item_hendeling(obj, client,new_pos)
-            if not isinstance(obj, Client):
-                continue
-            if obj.user_id == client.user_id:
-                continue
             if client.user_id in grid_field.seen:
                 continue
-            if not Client.can_see_static(new_pos, (obj.state.x, obj.state.y)):
-                continue
-            grid_field.seen.add(client.user_id)
-            await client.saw_client((obj.state.x, obj.state.y), obj.user_id)
+            if isinstance(obj, Client):
+                if obj.user_id == client.user_id:
+                    continue
+                if not Client.can_see_static(new_pos, (obj.state.x, obj.state.y)):
+                    continue
+                grid_field.seen.add(client.user_id)
+                await client.saw_client((obj.state.x, obj.state.y), obj.user_id)
+            elif isinstance(obj, ItemState):
+                await client.item_hendeling(obj.name, obj.kind, obj.x, obj.y, obj.id)
 
         for grid_field in self.objects_in_view(old_pos):
             obj = grid_field.obj
@@ -411,8 +502,11 @@ class RegionNode:
             if could_see and not can_see:
                 await cli.entity_despawned(client.user_id)
 
-    async def handle_movement(self, client: Client, pos_update: region_net.LocationBlock):
+    async def handle_movement(
+        self, client: Client, pos_update: region_net.LocationBlock
+    ):
         from region_server_extras import Client
+
         old_pos = (client.state.x, client.state.y)
         old_cell = (client.state.cell_x, client.state.cell_y)
 
@@ -424,6 +518,7 @@ class RegionNode:
         await self.propagate_entity(client)
         await self.check_neighbor_spawns(client)
         await self.update_local_visibility(client, old_pos)
+        await self.might_hit_item(client)
 
         self.grid_move(client, *old_cell, cell_x, cell_y)
 
@@ -434,6 +529,7 @@ class RegionNode:
         )
         resp.other_data.player_id = client.user_id
         await client.broadcast_udp(resp)
+
 
 WHOLE_MAP_X_RANGE = HORIZONAL_NODE_COUNT * RegionNode.NODE_WIDTH
 WHOLE_MAP_Y_RANGE = VERTICAL_NODE_COUNT * RegionNode.NODE_HEIGHT
