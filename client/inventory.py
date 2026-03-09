@@ -109,21 +109,16 @@ class Inventory(pygame.sprite.Sprite):
         current_time = time.time()
         if current_time - self.delete_last_action_time >= self.delete_interval and not self.is_wep_empty():
 
-            # 1. Spawn the physical item on the ground in the Pygame world
-            Colectible_sprite((prect.x + 70, prect.y + 70), group, self.wep_inventory[self.current_weapon].get_name(),
-                              "weapon")
+            # --- NEW: Grab the weapon and its current ammo ---
+            dropped_wep = self.wep_inventory[self.current_weapon]
+            current_ammo = dropped_wep.mag  # Assuming 'mag' is your ammo variable
 
-            # ==========================================
-            # --- NETWORK SYNC: DROPPING ITEMS ---
-            # ==========================================
-            # We MUST tell the server we dropped this item.
-            # The server receives this packet, finds the correct slot, and sets
-            # self.weapons[i] = 0 in its RAM. When the player logs out,
-            # the server will save that empty '0' to the SQLite database
+            # Pass the ammo as the 5th argument!
+            Colectible_sprite((prect.x + 70, prect.y + 70), group, dropped_wep.get_name(), "weapon", current_ammo)
+
             from zone_connection import ZoneConnectionSingleton
             ZoneConnectionSingleton().zone.try_send_item_drop(self.current_weapon, "weapon")
 
-            # 3. Finally, delete it from our local Pygame UI list
             del self.wep_inventory[self.current_weapon]
             if self.current_weapon != 0:
                 self.current_weapon -= 1
