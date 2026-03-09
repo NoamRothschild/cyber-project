@@ -322,13 +322,14 @@ class RegionNode:
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
         self.clients[client.session_id] = client
         self.grid_add(client, cell_x, cell_y)
+        await self.propagate_entity(client)
 
     async def register_item(
         self, Name: str, Kind: str, player_x: int, player_y: int, id: int
     ):
         # creating the items position while making sure it will stay in this node
-        x = min(player_x + 70, self.x_range[1])
-        y = min(player_y + 70, self.y_range[1])
+        x = min(player_x + 70, self.x_range[1] - ITEM_WIDTH)
+        y = min(player_y + 70, self.y_range[1] - ITEM_HEIGHT)
 
         cell_x, cell_y = self.to_cell_pos((x, y))
         item = ItemState(
@@ -428,9 +429,7 @@ class RegionNode:
                         f"showed {client.user_id}({client.node.view}) to {obj.id}({node_pos})"
                     )
                 elif isinstance(obj, ProxyItem):
-                    await client.item_hendeling(
-                        obj.name, obj.kind, *obj.pos, obj.id
-                    )
+                    await client.item_hendeling(obj.name, obj.kind, *obj.pos, obj.id)
 
     async def might_hit_item(self, client: Client):
         new_pos = client.state.x, client.state.y
