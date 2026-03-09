@@ -267,10 +267,20 @@ class Player(pygame.sprite.Sprite):
     def check_if_collect(self):
         for sprite in self.colect_sprite:
             if sprite.rect.colliderect(self.hitbox):
+
+                # We need to find the first empty slot in the server's inventory
+                # For now, we can send a "pickup" packet so the server updates its RAM.
+                from zone_connection import ZoneConnectionSingleton
+
                 if sprite.kind == "weapon":
+                    # Tell the server: "I picked up this specific weapon name"
+                    ZoneConnectionSingleton().zone.try_send_item_pickup(sprite.obj.get_name(), "weapon")
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "weapon")
+
                 elif sprite.kind == "potion":
+                    ZoneConnectionSingleton().zone.try_send_item_pickup(sprite.obj.get_name(), "potion")
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "potion")
+
                 sprite.kill()
                 break
 
