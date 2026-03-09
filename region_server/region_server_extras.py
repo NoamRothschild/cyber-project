@@ -161,11 +161,10 @@ class EnemyHandler:
         # Maintain a constant population
         self.target_enemy_count = 100
 
-        # TODO: edit this according to our map
         self.world_min_x = 0
         self.world_min_y = 0
-        self.world_max_x = 3000
-        self.world_max_y = 3000
+        self.world_max_x = 77400
+        self.world_max_y = 43600
 
         self.next_enemy_id = 1
 
