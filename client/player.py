@@ -329,9 +329,7 @@ class Player(pygame.sprite.Sprite):
 
             if len(self.inventory.wep_inventory) != 0:
                 if not self.is_dead:
-                    print("hell")
                     self.current_Weapon().draw(WIDTH / 2, HEIGHT / 2)
-
                     self.current_Weapon().draw_mag_stat()
 
         self.move()
