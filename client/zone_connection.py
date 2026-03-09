@@ -357,7 +357,12 @@ def event_handler(
                 print(f"{item.id}")
 
                 if item.Picked_up:
-                    game.level.player.colect(find(item, game))
+                    sprite = find(item, game)
+                    if sprite:
+                        game.level.player.inventory.add_item_toThe_Inventory(
+                            sprite.obj, sprite.kind
+                        )
+                        sprite.kill()
                 elif item.Not_exist:
                     remve(item, game)
                 else:
