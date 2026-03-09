@@ -77,6 +77,28 @@ class RegionNode:
             proxy = ProxyClient(cp.pos.x, cp.pos.y, cp.player_id, cp.HP)
         elif payload_type == "item":
             cp = event.item
+            if cp.action == region_net.ItemProxy.REMOVE:
+                for prx in self.proxies:
+                    to_remove = None
+                    for existing in prx:
+                        if (
+                            isinstance(existing.proxy, ProxyItem)
+                            and existing.proxy.id == cp.id
+                        ):
+                            to_remove = existing
+                            break
+                    if to_remove:
+                        for cli in self.clients.values():
+                            if cli.user_id in to_remove.seen:
+                                await cli.item_removed(
+                                    to_remove.proxy.name,
+                                    to_remove.proxy.kind,
+                                    *to_remove.proxy.pos,
+                                    to_remove.proxy.id,
+                                )
+                        prx.discard(to_remove)
+                        break
+                return
             proxy = ProxyItem(cp.pos.x, cp.pos.y, cp.id, cp.name, cp.kind)
         else:
             return
@@ -94,18 +116,15 @@ class RegionNode:
         moved = True
         old_hp: int = 0
 
-        if not isinstance(proxy, ProxyItem):
+        if isinstance(proxy, ProxyClient):
             for prx in self.proxies:
                 for existing in prx:
                     if existing != lookup:
                         continue
                     old_seen = existing.seen
-                    if (
-                        isinstance(proxy, ProxyClient)
-                        and existing.proxy.pos == proxy.pos
-                    ):
+                    if existing.proxy.pos == proxy.pos:
                         moved = False
-                        old_hp = cast(ProxyClient, existing.proxy).hp
+                    old_hp = cast(ProxyClient, existing.proxy).hp
                     break
                 prx.discard(lookup)
 
@@ -408,8 +427,10 @@ class RegionNode:
                     print(
                         f"showed {client.user_id}({client.node.view}) to {obj.id}({node_pos})"
                     )
-                else:
-                    ...  # TODO: handle other proxy objects
+                elif isinstance(obj, ProxyItem):
+                    await client.item_hendeling(
+                        obj.name, obj.kind, *obj.pos, obj.id
+                    )
 
     async def might_hit_item(self, client: Client):
         new_pos = client.state.x, client.state.y
@@ -480,6 +501,7 @@ class RegionNode:
                 grid_field.seen.add(client.user_id)
                 await client.saw_client((obj.state.x, obj.state.y), obj.user_id)
             elif isinstance(obj, ItemState):
+                grid_field.seen.add(client.user_id)
                 await client.item_hendeling(obj.name, obj.kind, obj.x, obj.y, obj.id)
 
         for grid_field in self.objects_in_view(old_pos):

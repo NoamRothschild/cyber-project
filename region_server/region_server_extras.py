@@ -229,6 +229,19 @@ class Client:
 
         await self.write(update.SerializeToString())
 
+    async def item_removed(
+        self, name: str, kind: str, x: int, y: int, id: int
+    ) -> None:
+        update = region_net.ServerResponse()
+        update.other_data.CopyFrom(
+            region_net.OtherPlayerData(
+                New_Item=region_net.Item(
+                    Kind=kind, Name=name, x=x, y=y, id=id, Not_exist=True
+                )
+            )
+        )
+        await self.write(update.SerializeToString())
+
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
