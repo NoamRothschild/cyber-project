@@ -1,12 +1,14 @@
 import pygame
 import sys
 
-
+# --- Constants & Colors ---
 BG_COLOR = (15, 23, 42)  # Dark Navy
 INPUT_BG = (30, 41, 59)  # Slate lighter
 INPUT_BORDER = (56, 189, 248)  # Neon Sky Blue
 TEXT_COLOR = (241, 245, 249)  # Off-white
 GLOW_COLOR = (0, 255, 255)  # Cyan Glow
+BACK_BTN_COLOR = (200, 50, 50)  # Reddish for "Cancel"
+BACK_BTN_HOVER = (255, 100, 100)
 
 WIDTH, HEIGHT = 800, 600
 
@@ -25,7 +27,10 @@ class LogIn:
         cx, cy = WIDTH // 2, HEIGHT // 2
         self.user_rect = pygame.Rect(cx - 150, cy - 60, 300, 50)
         self.pass_rect = pygame.Rect(cx - 150, cy + 40, 300, 50)
-        self.btn_rect = pygame.Rect(cx - 100, cy + 130, 200, 50)
+
+        # --- BUTTONS ---
+        self.btn_rect = pygame.Rect(cx - 100, cy + 130, 200, 50)  # Access Button
+        self.back_rect = pygame.Rect(cx - 100, cy + 195, 200, 40)  # Back Button
 
         self.user_text = ""
         self.pass_text = ""
@@ -33,7 +38,6 @@ class LogIn:
 
     def draw_glow(self, rect, color):
         """Creates a neon glow effect around a rectangle."""
-        # Draw multiple rects with decreasing alpha to simulate glow
         for i in range(10):
             alpha = 100 - (i * 10)
             glow_surf = pygame.Surface((rect.width + i * 4, rect.height + i * 4), pygame.SRCALPHA)
@@ -66,7 +70,15 @@ class LogIn:
                         # SUBMIT BUTTON CLICKED
                         return self.user_text, self.pass_text
 
+                    # --- NEW: BACK BUTTON CLICKED ---
+                    elif self.back_rect.collidepoint(event.pos):
+                        return None, None
+
                 if event.type == pygame.KEYDOWN:
+                    # --- NEW: ESCAPE KEY TO GO BACK ---
+                    if event.key == pygame.K_ESCAPE:
+                        return None, None
+
                     if event.key == pygame.K_TAB:
                         self.active_field = "pass" if self.active_field == "user" else "user"
                     elif event.key == pygame.K_RETURN:
@@ -92,7 +104,6 @@ class LogIn:
 
             # 2. Header Title
             title = self.font_header.render("AUTHENTICATION", True, TEXT_COLOR)
-            # Simple shadow for 3D effect
             shadow = self.font_header.render("AUTHENTICATION", True, (0, 0, 0))
             self.screen.blit(shadow, (WIDTH // 2 - title.get_width() // 2 + 4, 104))
             self.screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
@@ -103,9 +114,9 @@ class LogIn:
             self.draw_input(self.pass_rect, "PASSWORD", self.pass_text, self.active_field == "pass", True,
                             cursor_visible)
 
-            # 4. Submit Button
+            # 4. Submit Button (Access Terminal)
             is_hover = self.btn_rect.collidepoint(mouse_pos)
-            btn_color = (0, 255, 150) if is_hover else (0, 200, 100)  # Greenish Cyan
+            btn_color = (0, 255, 150) if is_hover else (0, 200, 100)
 
             if is_hover:
                 self.draw_glow(self.btn_rect, btn_color)
@@ -114,6 +125,18 @@ class LogIn:
             btn_text = self.font_label.render("ACCESS TERMINAL", True, (10, 20, 30))
             self.screen.blit(btn_text, (self.btn_rect.centerx - btn_text.get_width() // 2,
                                         self.btn_rect.centery - btn_text.get_height() // 2))
+
+            # --- 5. NEW: Back Button (Return to Menu) ---
+            is_back_hover = self.back_rect.collidepoint(mouse_pos)
+            current_back_color = BACK_BTN_HOVER if is_back_hover else BACK_BTN_COLOR
+
+            if is_back_hover:
+                self.draw_glow(self.back_rect, current_back_color)
+
+            pygame.draw.rect(self.screen, current_back_color, self.back_rect, border_radius=10)
+            back_text = self.font_label.render("RETURN TO MENU", True, (30, 10, 10))
+            self.screen.blit(back_text, (self.back_rect.centerx - back_text.get_width() // 2,
+                                         self.back_rect.centery - back_text.get_height() // 2))
 
             # Cursor Blinking Logic
             cursor_timer += 1
