@@ -221,8 +221,6 @@ class Player(pygame.sprite.Sprite):
                                 Bullets.BulletLS.append(bullet)
                                 ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(), bullet.angle, 1)
 
-                                # Subtract from local magazine to match server state
-                                self.current_Weapon().mag -= 1
                 except:
                     print("error")
 
