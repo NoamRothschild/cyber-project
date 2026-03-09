@@ -296,19 +296,34 @@ class Client:
                 await self.hit(-update.potion_use.HowMuch, self.user_id)
                 print(f"Server: Player {self.user_id} HP changed! HP is now {self.hp}")
 
+
             elif payload_type == "item_drop":
                 idx = update.item_drop.inventory_index
                 kind = update.item_drop.item_kind
 
-                if kind == "weapon":
-                    current_idx = 0
-                    for i in range(len(self.weapons)):
-                        if self.weapons[i] != 0:
-                            if current_idx == idx:
-                                print(f"Server: Player {self.user_id} dropped weapon ID {self.weapons[i]}")
-                                self.weapons[i] = 0  # Clear it from the database memory!
+                # --- HANDLING DROPS ---
+                if idx != -1:
+                    if kind == "weapon":
+                        current_idx = 0
+
+                        for i in range(len(self.weapons)):
+                            if self.weapons[i] != 0:
+                                if current_idx == idx:
+                                    self.weapons[i] = 0
+                                    break
+                                current_idx += 1
+
+                # --- NEW: HANDLING PICKUPS ---
+                else:
+                    # Convert the name back to an ID (e.g., "Ak 47" -> 1)
+                    weapon_id = SERVER_WEAPON_MAP.get(kind)
+                    if weapon_id:
+                        # Find the first empty slot (0) and fill it
+                        for i in range(len(self.weapons)):
+                            if self.weapons[i] == 0:
+                                self.weapons[i] = weapon_id
+                                print(f"Server: Player {self.user_id} picked up {kind} into slot {i}")
                                 break
-                            current_idx += 1
 
 
 
