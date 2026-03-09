@@ -87,11 +87,18 @@ class EnterScreen:
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if self.login_rect.collidepoint(event.pos):
-                        command = "LOG"
-                        user_name, password = self.log_in.run()
+                        res_u, res_p = self.log_in.run()
+                        # --- NEW: Check if the user clicked the Back button ---
+                        if res_u and res_p:
+                            command = "LOG"
+                            user_name, password = res_u, res_p
+
                     elif self.register_rect.collidepoint(event.pos):
-                        command = "REG"
-                        user_name, password = self.log_in.run()
+                        res_u, res_p = self.log_in.run()
+                        # --- NEW: Check if the user clicked the Back button ---
+                        if res_u and res_p:
+                            command = "REG"
+                            user_name, password = res_u, res_p
 
             # --- Logic Handling ---
             if user_name and password:
@@ -135,6 +142,7 @@ class EnterScreen:
             self.clock.tick(FPS)
 
         return None
+
     def draw_screen(self, mouse_pos):
         self.draw_gradient_bg()
 
@@ -145,7 +153,7 @@ class EnterScreen:
         self.screen.blit(shadow, (WIDTH // 2 - shadow.get_width() // 2 + 3, 153))
         self.screen.blit(main, (WIDTH // 2 - main.get_width() // 2, 150))
 
-        # Status Message (The logic fix visualization)
+        # Status Message
         msg_surf = self.msg_font.render(self.status_message, True, self.status_color)
         self.screen.blit(msg_surf, (WIDTH // 2 - msg_surf.get_width() // 2, 500))
 
