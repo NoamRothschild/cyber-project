@@ -265,14 +265,21 @@ class RegionNode:
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
         self.clients[client.session_id] = client
         self.grid_add(client, cell_x, cell_y)
-    async def register_item(self, Name: str, Kind: str ,x: int, y: int,id: int):
+
+    async def register_item(self, Name: str, Kind: str ,player_x: int, player_y: int,id: int):
         from region_server_extras import ItemState
+
+        # creating the items position while making sure it will stay in this node
+        x = min(player_x + 70, self.x_range[1])
+        y = min(player_y + 70, self.y_range[1])
+
         cell_x, cell_y = self.to_cell_pos((x,y))
         item = ItemState(Name, Kind, x, y,cell_x,cell_y,id)
-        self.items[id]=item
+        self.items[id] = item
 
         self.grid_add(item, cell_x, cell_y)
         self.item_seen_by_client[item] = []
+
     async def tick2(self, cycle: int):
         """One tick: update projectiles and despawn any expired ones."""
         from region_server_extras import  Client

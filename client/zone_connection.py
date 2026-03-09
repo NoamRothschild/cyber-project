@@ -14,8 +14,11 @@ BUFF_SIZE = 1024
 _TCP = 0
 _UDP = 1
 
+
 class ZoneConnection:
-    def __init__(self, game: Game, host: str, reliable_port: int, fast_port: int) -> None:
+    def __init__(
+        self, game: Game, host: str, reliable_port: int, fast_port: int
+    ) -> None:
         # the position the server thinks we are at
         self.server_known_pos: Tuple[int, int] = (0, 0)
 
@@ -51,7 +54,9 @@ class ZoneConnection:
             raise RuntimeError("failed connecting to zone: invalid session id")
         self.open_fast_conn(session_id)
 
-        self._listener_thread = threading.Thread(target=server_listener, args=(self,), daemon=True)
+        self._listener_thread = threading.Thread(
+            target=server_listener, args=(self,), daemon=True
+        )
         self._listener_thread.start()
         return login_resp.user_id
 
@@ -72,21 +77,27 @@ class ZoneConnection:
                     login_resp_raw = self.fast_conn.recv(BUFF_SIZE)
                 except socket.timeout:
                     if attempt == max_retries - 1:
-                        raise RuntimeError("failed connecting to udp zone: no response after retries (packet loss?)")
+                        raise RuntimeError(
+                            "failed connecting to udp zone: no response after retries (packet loss?)"
+                        )
                     continue
                 if not login_resp_raw:
                     continue
                 login_resp = region_net.HandshakeStart()
                 login_resp.ParseFromString(login_resp_raw)
                 if login_resp.kind != login_resp.SERVER_OK:
-                    raise RuntimeError("failed connecting to udp zone: invalid session id")
+                    raise RuntimeError(
+                        "failed connecting to udp zone: invalid session id"
+                    )
                 return
         finally:
             self.fast_conn.settimeout(old_timeout)
 
     def start_event_handler(self):
         self._event_handler_thread = threading.Thread(
-            target=event_handler, args=(self.game, self.message_queue, self._stop_event), daemon=True
+            target=event_handler,
+            args=(self.game, self.message_queue, self._stop_event),
+            daemon=True,
         )
         self._event_handler_thread.start()
 
@@ -112,11 +123,7 @@ class ZoneConnection:
             return
 
         update = region_net.RegionUpdate()
-        update.location_block.CopyFrom(
-            region_net.LocationBlock(
-                x=pos[0], y=pos[1]
-            )
-        )
+        update.location_block.CopyFrom(region_net.LocationBlock(x=pos[0], y=pos[1]))
         self.server_known_pos = pos
         self.send_udp(update)
 
@@ -124,28 +131,24 @@ class ZoneConnection:
         """NOTE: currently uses TCP. TODO: move to udp"""
         update = region_net.RegionUpdate()
         update.bullet_shot.CopyFrom(
-            region_net.BulletShot(
-                gun_type=gun_type, angle=angle, count=count
-            )
+            region_net.BulletShot(gun_type=gun_type, angle=angle, count=count)
         )
         self.send_tcp(update.SerializeToString())
 
         self.reliable_conn.sendall(update.SerializeToString())
-    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+
+    def try_send_potion_use(self, potion_kind: str, how_much: int) -> None:
         print("hi avram")
         update = region_net.RegionUpdate()
         update.potion_use.CopyFrom(
-            region_net.PotionUse(
-                potion_type = potion_kind,HowMuch = how_much
-            )
+            region_net.PotionUse(potion_type=potion_kind, HowMuch=how_much)
         )
         self.send_tcp(update.SerializeToString())
-    def try_send_item(self, item_kind: str,item_name: str,x: int,y: int,id) -> None:
+
+    def try_send_item(self, item_kind: str, item_name: str, id) -> None:
         update = region_net.RegionUpdate()
         update.item_pickup.CopyFrom(
-            region_net.Item(
-                Kind=item_kind, Name=item_name, x=x, y=y,id = id
-            )
+            region_net.Item(Kind=item_kind, Name=item_name, id=id)
         )
         self.send_tcp(update.SerializeToString())
 
@@ -182,7 +185,10 @@ class ZoneConnectionSingleton:
         ZoneConnectionSingleton._send_stop.clear()
         ZoneConnectionSingleton._sender_thread = threading.Thread(
             target=_sender_worker,
-            args=(ZoneConnectionSingleton._send_queue, ZoneConnectionSingleton._send_stop),
+            args=(
+                ZoneConnectionSingleton._send_queue,
+                ZoneConnectionSingleton._send_stop,
+            ),
             daemon=True,
         )
         ZoneConnectionSingleton._sender_thread.start()
@@ -199,18 +205,32 @@ class ZoneConnectionSingleton:
     def move_zone(new_host: str):
         if new_host not in ZoneConnectionSingleton._config_hosts:
             raise RuntimeError(f"Invalid host: {new_host}")
-        ZoneConnectionSingleton._instance.zone = ZoneConnectionSingleton._instance.zone_connections[new_host]
+        ZoneConnectionSingleton._instance.zone = (
+            ZoneConnectionSingleton._instance.zone_connections[new_host]
+        )
 
     def __new__(cls):
         with cls._lock:
             if cls._instance is None:
-                if cls._config_game is None or cls._config_hosts is None or cls._config_reliable_port is None or cls._config_fast_port is None:
-                    raise RuntimeError("A field value was missing while trying to construct ZoneConnection")
+                if (
+                    cls._config_game is None
+                    or cls._config_hosts is None
+                    or cls._config_reliable_port is None
+                    or cls._config_fast_port is None
+                ):
+                    raise RuntimeError(
+                        "A field value was missing while trying to construct ZoneConnection"
+                    )
 
                 cls._instance = super(ZoneConnectionSingleton, cls).__new__(cls)
                 zone_connections = {}
                 for host in cls._config_hosts:
-                    zone_connections[host] = ZoneConnection(cls._config_game, host, cls._config_reliable_port, cls._config_fast_port)
+                    zone_connections[host] = ZoneConnection(
+                        cls._config_game,
+                        host,
+                        cls._config_reliable_port,
+                        cls._config_fast_port,
+                    )
 
                 cls._instance.zone_connections = zone_connections
                 cls._instance.zone = zone_connections[cls._config_hosts[0]]
@@ -243,12 +263,16 @@ def _sender_worker(send_queue: Queue, stop_event: threading.Event):
                 print(f"[WARN]: failed sending TCP: {e}")
 
 
-def should_update_location(old_pos: Tuple[int, int], new_pos: Tuple[int, int], min_dst=5) -> bool:
+def should_update_location(
+    old_pos: Tuple[int, int], new_pos: Tuple[int, int], min_dst=5
+) -> bool:
     """returns true when the distance between the two pos are above min_dst"""
     if old_pos == new_pos:
         return False
-    traveled_dst_squared = (old_pos[0] - new_pos[0]) ** 2 + (old_pos[1] - new_pos[1]) ** 2
-    min_dst_squared = min_dst ** 2
+    traveled_dst_squared = (old_pos[0] - new_pos[0]) ** 2 + (
+        old_pos[1] - new_pos[1]
+    ) ** 2
+    min_dst_squared = min_dst**2
 
     return traveled_dst_squared > min_dst_squared
 
@@ -282,15 +306,20 @@ def server_listener(zone: ZoneConnection):
             parsed.ParseFromString(server_raw)
 
             if is_udp and parsed.seq_num and parsed.seq_num < zone.last_recevied_seq:
-                print(f"[INFO]: ignoring packet with {parsed.seq_num=} since max seq={zone.last_recevied_seq}")
+                print(
+                    f"[INFO]: ignoring packet with {parsed.seq_num=} since max seq={zone.last_recevied_seq}"
+                )
                 continue
             if is_udp:
                 zone.last_recevied_seq = max(zone.last_recevied_seq, parsed.seq_num)
 
             zone.message_queue.put(parsed)
 
+
 def event_handler(
-    game: Game, zone_queue: Queue[region_net.ServerResponse], stop_event: threading.Event
+    game: Game,
+    zone_queue: Queue[region_net.ServerResponse],
+    stop_event: threading.Event,
 ):
     """
     Start this one in another thread
@@ -308,7 +337,7 @@ def event_handler(
         print(f"received: {update}")
 
         payload_type = update.WhichOneof("payload")
-        print(f'{payload_type=}')
+        print(f"{payload_type=}")
         if payload_type == "move_self":
             print("force moving self...")
             # TODO: have a lock sorrounding player hitbox
@@ -320,23 +349,31 @@ def event_handler(
             print(f"{payload_type=}, {update.other_data.player_id=}")
             if payload_type == "new_location":
                 pos = update.other_data.new_location
-                game.level.entities.add_or_update([game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y))
+                game.level.entities.add_or_update(
+                    [game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y)
+                )
             elif payload_type == "New_Item":
                 item = update.other_data.New_Item
                 print(f"{item.id}")
 
                 if item.Picked_up:
-                    game.level.player.colect(find(item,game))
+                    game.level.player.colect(find(item, game))
                 elif item.Not_exist:
-                    remve(item,game)
+                    remve(item, game)
                 else:
-                    game.level.add_c((item.x, item.y), str(item.Name), str(item.Kind), item.id)
+                    game.level.add_c(
+                        (item.x, item.y), str(item.Name), str(item.Kind), item.id
+                    )
             elif payload_type == "HP":
                 health_elem = game.level.player.health
                 new_hp = update.other_data.HP
                 print(f"{update.other_data.player_id=}")
                 if update.other_data.player_id != game.user_id:
-                    game.level.entities.add_or_update([game.level.visible_sprites], update.other_data.player_id, hp=new_hp)
+                    game.level.entities.add_or_update(
+                        [game.level.visible_sprites],
+                        update.other_data.player_id,
+                        hp=new_hp,
+                    )
                 else:
                     old_hp = health_elem.get_life()
                     diff = new_hp - old_hp
@@ -351,23 +388,28 @@ def event_handler(
         elif len(update.bullet_shot) > 0:
             inc_bullets = update.bullet_shot
             for bullet in inc_bullets:
-                Bullets.BulletLS.append(Bullets(
-                    bullet.gun_type,
-                    bullet.x, bullet.y,
-                    angle=bullet.angle,
-                    from_network=True)
+                Bullets.BulletLS.append(
+                    Bullets(
+                        bullet.gun_type,
+                        bullet.x,
+                        bullet.y,
+                        angle=bullet.angle,
+                        from_network=True,
+                    )
                 )
-def find(item,game):
+
+
+def find(item, game):
     for sprite in game.level.colectible_sprite:
         print(sprite.id, item.id)
-        if (int(sprite.id) == int(item.id)):
+        if int(sprite.id) == int(item.id):
             print(sprite.obj)
             return sprite
 
 
-def remve(item,game):
+def remve(item, game):
     for sprite in game.level.colectible_sprite:
         print(sprite.id, item.id)
-        if (int(sprite.id) == int(item.id)):
+        if int(sprite.id) == int(item.id):
             print(sprite)
             sprite.kill()

@@ -12,7 +12,9 @@ from servers_communication import get_redis
 from region_node import RegionNode
 
 NULL_NODE = RegionNode((-1, -1))
-item_count=0
+item_count = 0
+
+
 @dataclass
 class PlayerState:
     x: int
@@ -20,6 +22,7 @@ class PlayerState:
     cell_x: int
     cell_y: int
     hp: int = 400
+
 
 @dataclass(frozen=True)
 class ItemState:
@@ -31,6 +34,8 @@ class ItemState:
     cell_x: int
     cell_y: int
     id: int
+
+
 @dataclass
 class ConnectionState:
     reader: asyncio.StreamReader
@@ -73,8 +78,11 @@ class Client:
             p = pos.decode().split(",")
             initial_pos = (int(p[0]), int(p[1]))
         else:
-            await r.set(f"client:{session_id}:pos", f"{initial_pos[0]},{initial_pos[1]}".encode())
-        
+            await r.set(
+                f"client:{session_id}:pos",
+                f"{initial_pos[0]},{initial_pos[1]}".encode(),
+            )
+
         node_pos = RegionNode.which_node(*initial_pos)
         node = nodes.get(node_pos)
         if node is None:
@@ -84,7 +92,7 @@ class Client:
         await register_global_client(session_id, self)
         if node != NULL_NODE:
             await node.register_client(self, initial_pos)
-        
+
         handshake.Clear()
         handshake.CopyFrom(
             region_net.HandshakeStart(
@@ -150,8 +158,10 @@ class Client:
             reader,
             writer,
         )
-    
-    async def saw_client(self, client_pos: Tuple[int, int], client_user_id: int) -> None:
+
+    async def saw_client(
+        self, client_pos: Tuple[int, int], client_user_id: int
+    ) -> None:
         """Notify this player about a new client's location"""
         resp = region_net.ServerResponse()
         resp.sender_id = client_user_id
@@ -160,7 +170,7 @@ class Client:
         )
         resp.other_data.player_id = client_user_id
         await self.write_udp(resp)
-    
+
     async def update_other_hp(self, other_user_id: int, new_hp: int):
         """Notify this player about a client's hp change"""
         resp = region_net.ServerResponse()
@@ -176,21 +186,29 @@ class Client:
         resp.other_data.state = region_net.OtherPlayerData.DESPAWNED
         resp.other_data.player_id = entity_user_id
         await self.write_udp(resp)
-    
+
     def can_see(self, pos: Tuple[int, int]) -> bool:
-        return abs(self.state.x - pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(self.state.y - pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)
-    
+        return abs(self.state.x - pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(
+            self.state.y - pos[1]
+        ) < (CLIENT_RECEIVE_HEIGHT / 2)
+
     @staticmethod
-    def can_see_static(player_pos: Tuple[int, int], object_pos: Tuple[int, int]) -> bool:
-        return abs(player_pos[0] - object_pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(player_pos[1] - object_pos[1]) < (CLIENT_RECEIVE_HEIGHT / 2)
+    def can_see_static(
+        player_pos: Tuple[int, int], object_pos: Tuple[int, int]
+    ) -> bool:
+        return abs(player_pos[0] - object_pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(
+            player_pos[1] - object_pos[1]
+        ) < (CLIENT_RECEIVE_HEIGHT / 2)
 
     def to_proxy_event(self) -> region_net.ProxyEvent:
-        return region_net.ProxyEvent(client=region_net.ClientProxy(
-            pos=region_net.LocationBlock(x=self.state.x, y=self.state.y),
-            player_id=self.user_id,
-            session_id=self.session_id,
-            HP=self.state.hp,
-        ))
+        return region_net.ProxyEvent(
+            client=region_net.ClientProxy(
+                pos=region_net.LocationBlock(x=self.state.x, y=self.state.y),
+                player_id=self.user_id,
+                session_id=self.session_id,
+                HP=self.state.hp,
+            )
+        )
 
     async def hit(self, count: int, hitter_id: int) -> None:
         self.state.hp -= count
@@ -203,10 +221,14 @@ class Client:
         await self.write(update.SerializeToString())
         await self.node.propagate_entity(self)
 
-    async def item_hendeling(self, name: str,kind: str,x: int,y: int,id: int) -> None:
+    async def item_hendeling(
+        self, name: str, kind: str, x: int, y: int, id: int
+    ) -> None:
         update = region_net.ServerResponse()
         update.other_data.CopyFrom(
-            region_net.OtherPlayerData(New_Item=region_net.Item(Kind=kind,Name=name,x=x,y=y,id=id))
+            region_net.OtherPlayerData(
+                New_Item=region_net.Item(Kind=kind, Name=name, x=x, y=y, id=id)
+            )
         )
 
         await self.write(update.SerializeToString())
@@ -226,28 +248,39 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
-            node_pos = RegionNode.which_node(update.location_block.x, update.location_block.y)
+            node_pos = RegionNode.which_node(
+                update.location_block.x, update.location_block.y
+            )
             node = nodes.get(node_pos)
             if node is None:
                 if self.node != NULL_NODE:
                     await self.node.unregister_client(self)
                     self.node = NULL_NODE
                 return
-            
+
             if self.node != node:
                 if self.node != NULL_NODE:
                     await self.node.unregister_client(self)
 
                 self.node = node
-                await self.node.register_client(self, (update.location_block.x, update.location_block.y))
+                await self.node.register_client(
+                    self, (update.location_block.x, update.location_block.y)
+                )
 
             await self.node.handle_movement(self, update.location_block)
         elif payload_type == "potion_use":
             if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
                 await self.hit(-update.potion_use.HowMuch, self.user_id)
         elif payload_type == "item_pickup":
-            await self.node.register_item(update.item_pickup.Name, update.item_pickup.Kind, update.item_pickup.x, update.item_pickup.y,update.item_pickup.id)
-            #await self.item_hendeling(update.item_pickup.Name, update.item_pickup.Kind, update.item_pickup.x, update.item_pickup.y)
+            # TODO: verify the dropped item exists on the client
+            await self.node.register_item(
+                update.item_pickup.Name,
+                update.item_pickup.Kind,
+                self.state.x,
+                self.state.y,
+                update.item_pickup.id,
+            )
+            # await self.item_hendeling(update.item_pickup.Name, update.item_pickup.Kind, update.item_pickup.x, update.item_pickup.y)
         elif payload_type == "bullet_shot":
             update_bytes, new_projs = await self.node.projectile_handler.add(
                 update.bullet_shot, self
@@ -281,7 +314,9 @@ class Client:
             self.conn_state.udp_conn = None
 
     async def write_udp(self, data: region_net.ServerResponse) -> None:
-        if data.HasField("other_data") and (data.other_data.player_id == self.user_id or data.other_data.player_id == 0):
+        if data.HasField("other_data") and (
+            data.other_data.player_id == self.user_id or data.other_data.player_id == 0
+        ):
             return
 
         data.seq_num = self.conn_state.last_sent_seq
@@ -302,7 +337,12 @@ class Client:
                 self.conn_state.writer.write(data)
                 await self.conn_state.writer.drain()
             return True
-        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError, OSError) as e:
+        except (
+            ConnectionAbortedError,
+            ConnectionResetError,
+            BrokenPipeError,
+            OSError,
+        ) as e:
             print(f"Failed to write to client {self.user_id}: {e}")
             return False
 
@@ -312,7 +352,9 @@ class Client:
                 continue
             if client.user_id == data.sender_id:
                 continue
-            if not client.can_see((data.other_data.new_location.x, data.other_data.new_location.y)):
+            if not client.can_see(
+                (data.other_data.new_location.x, data.other_data.new_location.y)
+            ):
                 continue
             data.seq_num = client.conn_state.last_sent_seq
             raw = data.SerializeToString()
@@ -329,7 +371,9 @@ class Client:
                 print(
                     f"Client {client.user_id} was unable to receive data: {e}, ignoring..."
                 )
-        print(f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}")
+        print(
+            f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}"
+        )
 
     async def broadcast(self, data: bytes) -> None:
         for client in self.node.clients.values():
@@ -338,5 +382,9 @@ class Client:
             try:
                 await client.write(data)
             except Exception as e:
-                print(f"Client {client.user_id} was unable to receive data: {e}, ignoring...")
-        print(f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}")
+                print(
+                    f"Client {client.user_id} was unable to receive data: {e}, ignoring..."
+                )
+        print(
+            f"data broadcasted to {len(self.node.clients) - 1} clients on node {self.node.view}"
+        )
