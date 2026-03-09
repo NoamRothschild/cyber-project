@@ -5,11 +5,18 @@ from random import randint
 from typing import TYPE_CHECKING, Tuple
 import aioudp
 import protobuf.region_net_pb2 as region_net
-from constants import BUFF_SIZE, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
+from constants import (
+    BUFF_SIZE,
+    CLIENT_RECEIVE_WIDTH,
+    CLIENT_RECEIVE_HEIGHT,
+    PLAYER_WIDTH,
+    PLAYER_HEIGHT,
+)
 
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
 from servers_communication import get_redis
 from region_node import RegionNode
+from grid_utils import AABB
 
 NULL_NODE = RegionNode((-1, -1))
 item_count = 0
@@ -146,6 +153,7 @@ class Client:
             reader,
             writer,
         )
+        self.collision = AABB(0, 0, PLAYER_WIDTH, PLAYER_HEIGHT)
 
     async def saw_client(
         self, client_pos: Tuple[int, int], client_user_id: int

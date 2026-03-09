@@ -5,6 +5,27 @@ import protobuf.region_net_pb2 as region_net
 from dataclasses import dataclass
 
 
+# TODO: remove this one after merging with gil-enemy (stole it from her code)
+# also copy to her code the __hash__ method
+@dataclass
+class AABB:
+    x: float
+    y: float
+    w: float
+    h: float
+
+    def intersects(self, other: "AABB") -> bool:
+        return not (
+            self.x + self.w <= other.x
+            or self.x >= other.x + other.w
+            or self.y + self.h <= other.y
+            or self.y >= other.y + other.h
+        )
+
+    def __hash__(self) -> int:
+        return id(self)
+
+
 class ProxyObject:
     """Base for proxy entities (e.g. ProxyClient, ProxyBullet); lives here to avoid circular import with proxy."""
 
@@ -63,6 +84,7 @@ class ItemState:
     cell_x: int
     cell_y: int
     id: int
+    collision: AABB
 
     def to_proxy_event(self, should_remove: bool = False) -> region_net.ProxyEvent:
         Action = region_net.ItemProxy.Action

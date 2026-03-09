@@ -3,9 +3,15 @@ from typing import Dict, Tuple, Union
 import os
 
 BUFF_SIZE = 1024
-THIS_SERVER_IP = os.getenv('region_server_ip', '127.0.0.1')
-print(f'{THIS_SERVER_IP=}')
+THIS_SERVER_IP = os.getenv("region_server_ip", "127.0.0.1")
+print(f"{THIS_SERVER_IP=}")
 SERVER_COUNT = 5
+
+# for collision checking
+ITEM_WIDTH = 50
+ITEM_HEIGHT = 50
+PLAYER_WIDTH = 50
+PLAYER_HEIGHT = 80
 
 # 60Hz tick rate
 TICK_INTERVAL_SEC = 1.0 / 60
@@ -29,6 +35,5 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "speed": 20,
         "damage": 50,
         "range": 50,
-    }
-
+    },
 }

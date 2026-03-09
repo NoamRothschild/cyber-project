@@ -10,7 +10,13 @@ import math
 from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
 from servers_communication import broadcast_on
-from constants import CLIENT_ASPECT_RATIO, CLIENT_RECEIVE_WIDTH, CLIENT_RECEIVE_HEIGHT
+from constants import (
+    CLIENT_ASPECT_RATIO,
+    CLIENT_RECEIVE_WIDTH,
+    CLIENT_RECEIVE_HEIGHT,
+    ITEM_HEIGHT,
+    ITEM_WIDTH,
+)
 from proxy import (
     create_proxy,
     remove_proxy,
@@ -19,7 +25,7 @@ from proxy import (
     ProxyClient,
     ProxyItem,
 )
-from grid_utils import GridField, ProxyField, Direction, ItemState
+from grid_utils import AABB, GridField, ProxyField, Direction, ItemState
 from nodes import nodes
 
 VERTICAL_NODE_COUNT = 20
@@ -306,7 +312,9 @@ class RegionNode:
         y = min(player_y + 70, self.y_range[1])
 
         cell_x, cell_y = self.to_cell_pos((x, y))
-        item = ItemState(Name, Kind, x, y, cell_x, cell_y, id)
+        item = ItemState(
+            Name, Kind, x, y, cell_x, cell_y, id, AABB(x, y, ITEM_WIDTH, ITEM_HEIGHT)
+        )
         field = self.grid_add(item, cell_x, cell_y)
         self.items[id] = field
 
@@ -404,10 +412,8 @@ class RegionNode:
                     ...  # TODO: handle other proxy objects
 
     async def might_hit_item(self, client: Client):
-        from region_server_extras import Client
-
         new_pos = client.state.x, client.state.y
-        to_remove: set[Any, int, int] = set()
+        to_remove: set[Tuple[Any, int, int]] = set()
 
         for obj_field in self.nearby(client.state.cell_x, client.state.cell_y, 1):
             obj = obj_field.obj
@@ -421,12 +427,7 @@ class RegionNode:
             print(new_pos)
             print(obj.x, obj.y)
 
-            if (
-                new_pos[0] <= obj.x + 50
-                and new_pos[0] >= obj.x
-                and new_pos[1] <= obj.y + 50
-                and new_pos[1] >= obj.y
-            ):
+            if obj.collision.intersects(client.collision):
                 print("l3")
                 print(obj.id)
 
@@ -514,6 +515,9 @@ class RegionNode:
         client.state.y = pos_update.y
         cell_x, cell_y = self.to_cell_pos((pos_update.x, pos_update.y))
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
+
+        client.collision.x = client.state.x
+        client.collision.y = client.state.y
 
         await self.propagate_entity(client)
         await self.check_neighbor_spawns(client)
