@@ -313,18 +313,21 @@ class Client:
                                     break
                                 current_idx += 1
 
-                # --- NEW: HANDLING PICKUPS ---
-                else:
-                    # Convert the name back to an ID (e.g., "Ak 47" -> 1)
-                    weapon_id = SERVER_WEAPON_MAP.get(kind)
-                    if weapon_id:
-                        # Find the first empty slot (0) and fill it
-                        for i in range(len(self.weapons)):
-                            if self.weapons[i] == 0:
-                                self.weapons[i] = weapon_id
-                                print(f"Server: Player {self.user_id} picked up {kind} into slot {i}")
-                                break
+                                # --- HANDLING PICKUPS (idx == -1) ---
+                            else:
+                                weapon_id = SERVER_WEAPON_MAP.get(kind)
+                                if weapon_id:
+                                    # Find the first empty slot (0) and fill it
+                                    for i in range(len(self.weapons)):
+                                        if self.weapons[i] == 0:
+                                            self.weapons[i] = weapon_id
 
+                                            # --- NEW: Save the ammo to the matching slot! ---
+                                            self.ammo[i] = update.item_drop.ammo
+
+                                            print(
+                                                f"Server: Player {self.user_id} picked up {kind} with {self.ammo[i]} ammo into slot {i}")
+                                            break
 
 
             elif payload_type == "bullet_shot":
