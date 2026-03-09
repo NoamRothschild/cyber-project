@@ -4,3 +4,5 @@ FPS = 60#frame per second
 SIZE=200#size of each tile
 PINK=(234,54,128)#color mostly for background
 FONT="Arial"
+
+world_map = []

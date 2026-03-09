@@ -42,7 +42,7 @@ class Game:
 
             if not self.is_running: break
 
-            self.screen.fill(GREEN)  # for now but we should add the background to visable sprite in level
+            self.screen.fill(GREEN)
             fps = str(int(self.clock.get_fps()))
             fps_surface = self.font.render(fps, True, "White")
 
