@@ -135,17 +135,15 @@ class ZoneConnection:
         )
         self.reliable_conn.sendall(update.SerializeToString())
 
-    def try_send_item_pickup(self, item_name: str, item_kind: str) -> None:
-        """Tells the server we picked up an item so it updates the DB memory."""
-        print(f"Syncing pickup of {item_name} to server...")
+    def try_send_item_pickup(self, item_name: str, item_kind: str, ammo: int = 0) -> None:
+        """Tells the server we picked up an item and how much ammo it has."""
         update = region_net.RegionUpdate()
 
-        # We reuse ItemDrop but the server will recognize it's a pickup
-        # because the item_kind will be the name (e.g. "Ak 47") instead of "weapon"
         update.item_drop.CopyFrom(
             region_net.ItemDrop(
-                inventory_index=-1,  # -1 signifies a pickup, not a drop
-                item_kind=item_name
+                inventory_index=-1,
+                item_kind=item_name,
+                ammo=ammo  # --- NEW: Attach the ammo here! ---
             )
         )
         self.reliable_conn.sendall(update.SerializeToString())
