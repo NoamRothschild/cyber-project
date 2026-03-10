@@ -83,7 +83,7 @@ class AutoMove:
         x, y = p.hitbox.centerx, p.hitbox.centery
         dx, dy = tx - x, ty - y
 
-        if abs(dx) < 6 and abs(dy) < 6:
+        if abs(dx) < 20 and abs(dy) < 20:
             self.path_i += 1
             return
 
