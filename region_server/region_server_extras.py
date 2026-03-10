@@ -13,16 +13,38 @@ TICK_INTERVAL_SEC = 1.0 / 60
 
 # TODO: might parse this from a bullets config json file
 BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
-    "Ak-7": {
-        "ttl": 50,
-        "speed": 20,
-        "damage": 30,
-        "range": 50,
+    "AK 47 bullets": {
+        "ttl": 20,
+        "speed": 25,
+        "damage": 40,
+        "range": 20,
     },
+
+    "Assault rifle bullets": {
+        "ttl": 15,
+        "speed": 30,
+        "damage": 25,
+        "range": 15,
+    },
+
+    "Pistol bullets": {
+        "ttl": 10,
+        "speed": 19,
+        "damage": 30,
+        "range": 10,
+    },
+
+    "sword hit": {
+        "ttl": 3,
+        "speed": 7,
+        "damage": 60,
+        "range": 3,
+    },
+
     "bow": {
         "ttl": 50,  # ttl
         "speed": 20,  # speed
-        "damage": 5,  # damage
+        "damage ": 5,  # damage
         "range": 50,    }
 }
 

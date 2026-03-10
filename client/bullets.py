@@ -64,8 +64,8 @@ class Bullets:
         "sword hit":(
             pygame.image.load("arsenal-images/bullets/sword hit.png").convert_alpha(),
             (-15, 5),  # relative offset from the player
-            1,  # ttl
-            20,  # speed
+            3,  # ttl
+            7,  # speed
             60,  # damage
             0.3  # scale
         )
