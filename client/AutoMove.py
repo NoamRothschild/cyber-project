@@ -36,13 +36,12 @@ def astar(start, goal):
 
     open_heap = []
     heapq.heappush(open_heap, (0, start))
-
+    count=0
     came = {}
     g = {start: 0}
 
     while open_heap:
         _, cur = heapq.heappop(open_heap)
-
         if cur == goal:
             path = [cur]
             while cur in came:

@@ -16,7 +16,7 @@ from AutoPlay import AutoMove as AutoMoveController
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE = 400
 HEALTH_BAR_POS = [WIDTH - HEALTH_BAR_SCALE - 10, 10]
-Starting_POS = (193 * SIZE, 109 * SIZE)
+Starting_POS = (370 * SIZE, 163 * SIZE)
 
 
 class Player(pygame.sprite.Sprite):

@@ -55,6 +55,7 @@ class AutoMove:
         print("start tile: ", start, "map size:", len(mapset.world_map), "x",
               len(mapset.world_map[0]) if mapset.world_map else 0)
         path = astar(start, target)
+        print (path is not None)
         print("path found: ", path is not None and len(path) > 1)
 
         if not path or len(path) < 2:
