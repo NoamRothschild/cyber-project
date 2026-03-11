@@ -27,6 +27,7 @@ class ShopUI:
         #  bullet_name -- (price)
         self.potion={
             "healing": 140,
+            "gold": 400,
             "speed": 70,
             "super_speed": 140
         }

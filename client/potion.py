@@ -18,7 +18,11 @@ class Potion(pygame.sprite.Sprite):
                "super_speed": ("Potion/super_speed.png",
                                "speed",
                                40,
-                               10)
+                               10),
+                "gold": ("Potion/gold.png",
+                         "gold",
+                         2,
+                         10)
                }
 
     def __init__(self, potion_type,id: int=0):
@@ -64,7 +68,19 @@ class Potion(pygame.sprite.Sprite):
                 self.is_potion_is = True
                 self.last_heal= time.time()
                 self.delete_last_action_time = self.last_heal
-        if self.what == "speed":
+        elif self.what == "gold":
+            if self.is_potion_is == False:
+                self.is_potion_is = True
+                self.last_heal = time.time()
+                self.delete_last_action_time = self.last_heal
+                self.lg=player.inventory.money
+            else:
+                player.inventory.money += (player.inventory.money-self.lg)*self.how_much-(player.inventory.money-self.lg)
+                self.lg = player.inventory.money
+
+            print("aaa bbb kdkds")
+            print(player.inventory.money-self.lg*self.how_much)
+        elif self.what == "speed":
             player.speed += self.how_much
             self.old_speed = player.speed
             self.is_potion_is = True
@@ -79,7 +95,7 @@ class Potion(pygame.sprite.Sprite):
         """checking if the potion should stop its purpose"""
         if self.is_potion_is == True and self.ttl != None:
             current_time = time.time()
-            if (self.what == "health_bar" and current_time - self.last_heal >= 1):
+            if (self.what != "speed" and current_time - self.last_heal >= 1):
                 self.last_heal = current_time
                 self.purpose(player)
             elif current_time - self.delete_last_action_time > self.ttl:
