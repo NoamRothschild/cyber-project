@@ -3,7 +3,7 @@ from mapset import WIDTH,HEIGHT
 from mapset import *
 from arsenal import *
 import time
-from colectibes import Colectible_sprite
+from colectibes import Colectible_sprite, Mony
 from zone_connection import *
 class Inventory(pygame.sprite.Sprite):
 
@@ -24,13 +24,15 @@ class Inventory(pygame.sprite.Sprite):
         self.current_weapon = 0
         self.delete_interval = 2
         self.delete_last_action_time = 0
+        self.money = 200
 
     def add_item_toThe_Inventory(self, item, kind):
         if kind == "potion":
             self.potion_inventory.append(item)
         elif kind == "weapon":
             self.wep_inventory.append(item)
-
+        elif kind == "money":
+            self.money += 50
     def items_hendeling(self, player):
         if not self.is_wep_empty():
             self.wep_inventory[self.current_weapon].draw(WIDTH / 2, HEIGHT / 2)
@@ -58,10 +60,12 @@ class Inventory(pygame.sprite.Sprite):
         keys = pygame.key.get_pressed()
         for i in range(10):
             key_constant = getattr(pygame, f"K_{i}")
-            if keys[key_constant] and i - 1 != self.current_weapon and i - 1 < len(self.wep_inventory):
+            if keys[key_constant] and i - 1 != self.current_weapon and i - 1 < len(self.wep_inventory) and not keys[pygame.K_p]:
                 self.current_weapon = i - 1
-        if keys[pygame.K_DELETE] and self.is_wep_in_1() == False:
+        if keys[pygame.K_DELETE] and not keys[pygame.K_p] and not keys[pygame.K_m]  and self.is_wep_in_1() == False:
             self.delete_w(group, prect)
+        self.delete_p()
+        self.delete_mony()
 
     def delete_w(self, group, prect):
         current_time = time.time()
@@ -71,10 +75,28 @@ class Inventory(pygame.sprite.Sprite):
             if self.current_weapon != 0:
                 self.current_weapon = self.current_weapon - 1
             self.delete_last_action_time = current_time
-
+    def delete_mony(self):
+        keys = pygame.key.get_pressed()
+        current_time = time.time()
+        if keys[pygame.K_m] and keys[pygame.K_DELETE] and self.money >= 50 and current_time - self.delete_last_action_time >= self.delete_interval :
+            self.money -= 50
+            ZoneConnectionSingleton().zone.try_send_item("money", "money",Mony().id )
+            self.delete_last_action_time = current_time
+    def delete_p(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_p] and keys[pygame.K_DELETE]:
+            for i in range(10):
+                key_constant = getattr(pygame, f"K_{i}")
+                if keys[key_constant] and i - 1 < len(self.potion_inventory) and self.potion_inventory[
+                    i - 1].is_potion_is == False:
+                    current_time = time.time()
+                    if current_time - self.delete_last_action_time >= self.delete_interval and self.is_potion_empty() == False:
+                        ZoneConnectionSingleton().zone.try_send_item("potion", self.potion_inventory[i-1].get_name(),self.potion_inventory[i-1].id)
+                        del self.potion_inventory[i-1]
+                        self.delete_last_action_time = current_time
     def use_potion(self, player):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_p]:
+        if keys[pygame.K_p] and not keys[pygame.K_DELETE]:
             for i in range(10):
                 key_constant = getattr(pygame, f"K_{i}")
                 if keys[key_constant] and i - 1 < len(self.potion_inventory) and self.potion_inventory[

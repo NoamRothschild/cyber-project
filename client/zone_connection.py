@@ -366,9 +366,13 @@ def event_handler(
                 if item.Picked_up:
                     sprite = find(item, game)
                     if sprite:
-                        game.level.player.inventory.add_item_toThe_Inventory(
-                            sprite.obj, sprite.kind
-                        )
+                        if sprite.kind == "money" and game.level.player.inventory.money<1950:
+                            game.level.player.inventory.money += 50
+                            sprite.kill()
+                        else:
+                            game.level.player.inventory.add_item_toThe_Inventory(
+                                sprite.obj, sprite.kind
+                            )
                         sprite.kill()
                 elif item.Not_exist:
                     remve(item, game)
@@ -415,7 +419,7 @@ def find(item, game):
     for sprite in game.level.colectible_sprite:
         print(sprite.id, item.id)
         if int(sprite.id) == int(item.id):
-            print(sprite.obj)
+            print(sprite)
             return sprite
 
 

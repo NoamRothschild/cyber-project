@@ -53,7 +53,6 @@ class Player(pygame.sprite.Sprite):
         self.shop_open = False
         self.last_b_press = 0
 
-        self.money = 200
         self.shop_ui = ShopUI()
 
         self.ammo_collection = {
