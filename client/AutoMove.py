@@ -2,20 +2,22 @@
 import random
 import heapq
 import mapset
-
+import math
+import pygame
 WALKABLE = {" ", "p"}
 
 def in_bounds(r, c):
     return 0 <= r < len(mapset.world_map) and 0 <= c < len(mapset.world_map[0])
 
 def is_walkable(r, c):
-    return in_bounds(r, c) and mapset.world_map[r][c] in WALKABLE
+    return in_bounds(r, c) and (mapset.world_map[r][c]==None or (not mapset.world_map[r][c].colliderect(pygame.Rect(c * mapset.SIZE, r * mapset.SIZE, 32, 32))))
 
 def pixel_to_tile(x, y):
-    return int(y // mapset.SIZE), int(x // mapset.SIZE)
-
+    r = math.floor(y / mapset.SIZE)
+    c = math.floor(x / mapset.SIZE)
+    return r, c
 def tile_to_pixel_center(r, c):
-    return (c * mapset.SIZE + mapset.SIZE // 2, r * mapset.SIZE + mapset.SIZE // 2)
+    return (c * mapset.SIZE + mapset.SIZE//2, r * mapset.SIZE + mapset.SIZE//2)
 
 def random_walkable_tile(margin=1):
     rows = len(mapset.world_map)

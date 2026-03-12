@@ -1,5 +1,5 @@
 import pygame
-from AutoMove import astar, random_walkable_tile, pixel_to_tile, tile_to_pixel_center, map_pixel_bounds
+from AutoMove import astar, random_walkable_tile, pixel_to_tile, tile_to_pixel_center, map_pixel_bounds, is_walkable
 
 
 class AutoMove:
@@ -51,7 +51,10 @@ class AutoMove:
             return
 
         p = self.player
-        start = pixel_to_tile(p.hitbox.centerx, p.hitbox.centery)
+        start = pixel_to_tile(p.hitbox.topleft[0], p.hitbox.topleft[1])
+        if not is_walkable(start[0], start[1]):
+            print("f you")
+
         print("start tile: ", start, "map size:", len(mapset.world_map), "x",
               len(mapset.world_map[0]) if mapset.world_map else 0)
         path = astar(start, target)
@@ -81,7 +84,7 @@ class AutoMove:
         tr, tc = self.path[self.path_i]
         tx, ty = tile_to_pixel_center(tr, tc)
 
-        x, y = p.hitbox.centerx, p.hitbox.centery
+        x, y = p.hitbox.topleft[0], p.hitbox.topleft[1]
         dx, dy = tx - x, ty - y
 
         if abs(dx) < 20 and abs(dy) < 20:
@@ -98,7 +101,7 @@ class AutoMove:
             p.direction.y = 1 if dy > 0 else -1
 
         # Stuck detection
-        cur = (p.hitbox.centerx, p.hitbox.centery)
+        cur = (p.hitbox.topleft[0], p.hitbox.topleft[1])
         if self.last_pos is None:
             self.last_pos = cur
         if cur == self.last_pos:

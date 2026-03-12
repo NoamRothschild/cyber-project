@@ -83,11 +83,11 @@ class Level:
             for x in range(width):
                 r, g, b = pixels[x, y][:3]
                 if r == 0 and g == 162 and b == 232:
-                    row.append("w")   # water — not walkable
+                    row.append(None)   # water — not walkable
                 elif r == 120 and g == 67 and b == 21:
-                    row.append("r")   # rock  — not walkable
+                    row.append(None)   # rock  — not walkable
                 else:
-                    row.append(" ")   # ground + trees — walkable (hitbox based below)
+                    row.append(None)   # ground + trees — walkable (hitbox based below)
             grid.append(row)
         mapset.world_map[:] = grid
         # ─────────────────────────────────────────────────────────────
@@ -141,7 +141,7 @@ class Level:
             for r in range(r0, r1 + 1):
                 for c in range(c0, c1 + 1):
                     if 0 <= r < len(mapset.world_map) and 0 <= c < len(mapset.world_map[0]):
-                        mapset.world_map[r][c] = "x"  # blocked
+                        mapset.world_map[r][c] = hb
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
