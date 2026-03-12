@@ -50,7 +50,7 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
 
 user_emmo={
     "user1":{
-                "AK 47 bullets":1,
+                "Ak 47":1,
                 "arrows":1,
                 "sword hit":1,
                 "Assault rifle bullets":1,
@@ -112,9 +112,16 @@ class ProjectileHandler:
         try:
             emmo = user_emmo[userID][bulletType]
         except:
-            print(userID," is not regestered")
+            print(userID," is not regestered or no gun type name: ",bulletType)
             return None
         return emmo
+
+    def decPlayer_EMMO_Stat(self,userID,bulletType):
+        try:
+           user_emmo[userID][bulletType]-=1
+        except:
+            print(userID," is not regestered or no gun type name: ",bulletType)
+        return
 
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
         template = BULLET_TYPES.get(bullet_shot.gun_type)
@@ -124,7 +131,8 @@ class ProjectileHandler:
 
         ammo = self.getPlayer_EMMO_Stat("user1", bullet_shot.gun_type)
         #ammo = self.getPlayer_EMMO_Stat(client.user_id, bullet_shot.gun_type)
-        if ammo is None or ammo <= 0:
+        if ammo is not None and ammo > 0:
+            self.decPlayer_EMMO_Stat("user1", bullet_shot.gun_type)
 
             bullet = template.copy()
             bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
