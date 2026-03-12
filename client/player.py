@@ -9,7 +9,6 @@ from zone_connection import ZoneConnectionSingleton
 from mapset import *
 from inventory import Inventory
 from bullets import *
-from domain_Expansion import *
 from shop import ShopUI
 from potion import Potion
 from animation import Animation

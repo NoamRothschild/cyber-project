@@ -37,7 +37,7 @@ class Colectible_sprite(pygame.sprite.Sprite):
         )
 
         self.rect = self.image.get_rect(topleft=position)
-
+        self.id=id
 class Mony(pygame.sprite.Sprite):
 
     def __init__(self,id: int=0):
