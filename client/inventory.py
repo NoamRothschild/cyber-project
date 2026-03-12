@@ -68,21 +68,10 @@ class Inventory(pygame.sprite.Sprite):
         self.delete_mony()
 
     def drop_all_items(self, group, prect):
-
-        import random
-
         for weapon in self.wep_inventory:
-            x = prect.centerx + random.randint(-120, 120)
-            y = prect.centery + random.randint(-120, 120)
-
-            Colectible_sprite((x, y), group, weapon.get_name(), "weapon")
-
+            ZoneConnectionSingleton().zone.try_send_item("weapon", weapon.get_name(),weapon.id)
         for potion in self.potion_inventory:
-            x = prect.centerx + random.randint(-120, 120)
-            y = prect.centery + random.randint(-120, 120)
-
-            Colectible_sprite((x, y), group, potion.get_name(), "potion")
-
+            ZoneConnectionSingleton().zone.try_send_item("potion", potion.get_name(), potion.id)
         self.wep_inventory.clear()
         self.potion_inventory.clear()
 

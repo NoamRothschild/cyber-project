@@ -27,7 +27,7 @@ class Colectible_sprite(pygame.sprite.Sprite):
         elif kind == "money":
             self.obj = Mony(id)
             DROP_SIZE = 20
-        self.image.set_colorkey(blue)
+            self.image = self.obj.get_image()
 
         w, h = self.image.get_size()
 

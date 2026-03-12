@@ -156,7 +156,6 @@ class ShopUI:
             player.ammo_collection[name] = player.ammo_collection.get(name, 0) + amount
 
         elif kind == "potion":
-            print(name)
             player.inventory.add_item_toThe_Inventory(Potion(name), "potion")
         else:
             return

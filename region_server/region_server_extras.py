@@ -293,11 +293,30 @@ class Client:
                 await self.hit(-update.potion_use.HowMuch, self.user_id)
         elif payload_type == "item_pickup":
             # TODO: verify the dropped item exists on the client
+            import random
+            MIN_DISTANCE = 100
+            MIN_DISTANCE_SQ = MIN_DISTANCE ** 2
+
+            # שומרים את המיקום הנוכחי של השחקן לגישה נוחה
+
+
+            while True:
+                # 1. הגרלת נקודה בטווח של 70 פיקסלים מהמיקום הנוכחי
+                new_x = self.state.x + random.randint(-120, 120)
+                new_y = self.state.y + random.randint(-120, 120)
+
+                # 2. חישוב ריבוע המרחק מהשחקן (x2-x1)^2 + (y2-y1)^2
+                dist_sq = (new_x - self.state.x) ** 2 + (new_y - self.state.y) ** 2
+
+                # 3. בדיקה אם המרחק גדול מ-50 פיקסלים
+                if dist_sq > MIN_DISTANCE_SQ:
+                    x, y = new_x, new_y
+                    break
             await self.node.register_item(
                 update.item_pickup.Name,
                 update.item_pickup.Kind,
-                self.state.x,
-                self.state.y,
+                x,
+                y,
                 update.item_pickup.id,
             )
             # await self.item_hendeling(update.item_pickup.Name, update.item_pickup.Kind, update.item_pickup.x, update.item_pickup.y)

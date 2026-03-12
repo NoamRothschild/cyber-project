@@ -134,7 +134,6 @@ class Arsenal:
             self.id=randint(0, 2**31 - 1)
         else:
             self.id=id
-        print(self.id)
     def refill_mag(self):
         weapon_path,img_num, bullet, movement, coordinates, scale, mag, fire_cooldown,pivot = Arsenal.Arsenal_gunType[self.gun_type]
         self.mag = mag
@@ -298,13 +297,6 @@ class Arsenal:
 
         if not self.bullet == "null":
             bullet_left = self.mag
-            numLs = []
-            while bullet_left > 0:
-                numLs.append(bullet_left % 10)
-                bullet_left //= 10
-
-            if len(numLs) == 0:
-                numLs = [0]
 
             offset_x = 0
 
@@ -317,7 +309,6 @@ class Arsenal:
             x-=10
             img_bullet = pygame.image.load(
                 "arsenal-images/bullets/" + f"{self.bullet}.png").convert_alpha()
-            img_bullet.set_colorkey((23, 130, 184))
 
             img_bullet = pygame.transform.rotate(img_bullet, 90 * 3)
 

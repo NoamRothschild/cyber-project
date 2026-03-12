@@ -96,6 +96,22 @@ class Level:
 
         pixels = self.map_image.load()
         width, height = self.map_image.size
+
+        # ── Build world_map for AutoMove (all walkable for now, obstacles added after) ──
+        grid = []
+        for y in range(height):
+            row = []
+            for x in range(width):
+                r, g, b = pixels[x, y][:3]
+                if r == 0 and g == 162 and b == 232:
+                    row.append(None)  # water — not walkable
+                elif r == 120 and g == 67 and b == 21:
+                    row.append(None)  # rock  — not walkable
+                else:
+                    row.append(None)  # ground + trees — walkable (hitbox based below)
+            grid.append(row)
+        mapset.world_map[:] = grid
+        # ─────────────────────────────────────────────────────────────
         tree_count = 0
         ground_count = 0
         for x in range(width):

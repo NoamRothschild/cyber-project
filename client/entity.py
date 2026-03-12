@@ -11,7 +11,7 @@ class Entity(pygame.sprite.Sprite):
     @classmethod
     def _get_image(cls) -> pygame.Surface:
         if cls._cached_image is None:
-            cls._cached_image = pygame.image.load('player.png').convert_alpha()
+            cls._cached_image = pygame.image.load('rock.png').convert_alpha()
             cls._cached_image.set_colorkey(PINK)
         return cls._cached_image
 
