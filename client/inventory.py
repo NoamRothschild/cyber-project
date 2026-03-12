@@ -67,6 +67,26 @@ class Inventory(pygame.sprite.Sprite):
         self.delete_p()
         self.delete_mony()
 
+    def drop_all_items(self, group, prect):
+
+        import random
+
+        for weapon in self.wep_inventory:
+            x = prect.centerx + random.randint(-120, 120)
+            y = prect.centery + random.randint(-120, 120)
+
+            Colectible_sprite((x, y), group, weapon.get_name(), "weapon")
+
+        for potion in self.potion_inventory:
+            x = prect.centerx + random.randint(-120, 120)
+            y = prect.centery + random.randint(-120, 120)
+
+            Colectible_sprite((x, y), group, potion.get_name(), "potion")
+
+        self.wep_inventory.clear()
+        self.potion_inventory.clear()
+
+
     def delete_w(self, group, prect):
         current_time = time.time()
         if current_time - self.delete_last_action_time >= self.delete_interval and self.is_wep_empty() == False:

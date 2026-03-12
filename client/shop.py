@@ -7,21 +7,24 @@ from bullets import Bullets
 from potion import Potion
 
 class ShopUI:
+
     def __init__(self):
         self.open = False
-
         # price
         self.weapon_prices = {
-            "Ak-7": 120,
+            "Ak 47": 300,
+            "Assault rifle": 350,
+            "Pistol": 200,
             "bow": 80,
             "sword": 60,
-            "rock": 10,
         }
 
         #  bullet_name -- (price, amount)
         self.ammo_packs = {
-            "AK-7_bullet": (15, 5),
-            "arrow": (10, 10)
+            "Pistol bullets": (40, 15),
+            "AK 47 bullets": (50, 5),
+            "Assault rifle bullets": (60, 10),
+            "arrows": (60, 5)
         }
 
         #  bullet_name -- (price)
@@ -32,6 +35,7 @@ class ShopUI:
             "super_speed": 140
         }
 
+        self.category = "weapon"  # current category you on: weapon or potion or ammo
 
         self.font_title = pygame.font.SysFont(None, 36)
         self.font = pygame.font.SysFont(None, 26)
@@ -41,16 +45,22 @@ class ShopUI:
         self.buy_button_rect = None
         self.bg_alpha = 180
 
+
     def all_items(self):
         items = []
-        for w in self.weapon_prices:
-            items.append(("weapon", w))
 
-        for p in self.potion:
-            items.append(("potion", p))
+        if self.category == "weapon":
+            for w in self.weapon_prices:
+                items.append(("weapon", w))
 
-        for b in self.ammo_packs:
-            items.append(("ammo", b))
+        elif self.category == "potion":
+            for p in self.potion:
+                items.append(("potion", p))
+
+        elif self.category == "ammo":
+            for b in self.ammo_packs:
+                items.append(("ammo", b))
+
         return items
 
     def item_price(self, item):
@@ -77,7 +87,9 @@ class ShopUI:
         kind, name = item
 
         if kind == "weapon":
-            img = Arsenal.get_weapon_img(name).copy()
+            w = Arsenal(name)
+            weapon_frames = w._cut_weapon_frames(w.weapon_img, w.img_num)
+            img=weapon_frames[0]
 
         elif kind == "ammo":
             img = Bullets.bullet_types[name][0].copy()
@@ -105,13 +117,23 @@ class ShopUI:
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             mx, my = event.pos
 
+            # category tabs
+            for cat, rect in getattr(self, "category_rects", []):
+                if rect.collidepoint(mx, my):
+                    self.category = cat
+                    self.item_rects = []
+                    return
+
+            # items
             for item, rect, icon, icon_rect in self.item_rects:
                 if rect.collidepoint(mx, my):
                     self.selected = item
                     return
 
+            # buy button
             if self.buy_button_rect and self.buy_button_rect.collidepoint(mx, my):
                 self.buy(player)
+
 
     def buy(self, player):
         if not self.selected:
@@ -141,6 +163,46 @@ class ShopUI:
 
     # ᓚᘏᗢ
 
+    def draw_categories(self, screen, left):
+
+        tabs = ["weapon", "potion", "ammo"]
+
+        tab_w = 110
+        tab_h = 36
+        gap = 8
+
+        total_w = len(tabs) * tab_w + (len(tabs) - 1) * gap
+        start_x = left.centerx - total_w // 2
+        y = left.y + 60
+
+        self.category_rects = []
+
+        mx, my = pygame.mouse.get_pos()
+
+        for i, tab in enumerate(tabs):
+
+            x = start_x + i * (tab_w + gap)
+            rect = pygame.Rect(x, y, tab_w, tab_h)
+
+            hovered = rect.collidepoint(mx, my)
+            selected = self.category == tab
+
+            if selected:
+                color = (90, 120, 200)
+            elif hovered:
+                color = (70, 70, 70)
+            else:
+                color = (50, 50, 50)
+
+            pygame.draw.rect(screen, color, rect, border_radius=8)
+            pygame.draw.rect(screen, (200, 200, 200), rect, 2, border_radius=8)
+
+            text = self.font.render(tab.upper(), True, (255, 255, 255))
+            screen.blit(text, text.get_rect(center=rect.center))
+
+            self.category_rects.append((tab, rect))
+
+
     def build_grid(self, left):
         if self.item_rects:
             return
@@ -152,7 +214,7 @@ class ShopUI:
         cols = 3
         # ᓚᘏᗢ
         x0 = left.x + padding
-        y0 = left.y + 78  # lower then titel
+        y0 = left.y + 130  # lower then titel
 
         items = self.all_items()
         for i, item in enumerate(items):
@@ -166,7 +228,7 @@ class ShopUI:
 
             icon = self.item_icon(item)
 
-            min_icon = 56  # תנסה 48/56/64
+            min_icon = 56
 
             iw, ih = icon.get_size()
             max_w = card_rect.w - 16
@@ -253,10 +315,12 @@ class ShopUI:
         pygame.draw.rect(screen, (32, 32, 32), left, border_radius=14)
         pygame.draw.rect(screen, (32, 32, 32), right, border_radius=14)
 
+        self.draw_categories(screen, left)
         # -=-=-=-=-=-=-titale-=-=-=-=-=-#
         title = self.font_title.render("SHOP", True, (255, 255, 255))
-        money = self.font.render(f"Money: {player.inventory.money}$", True, (220, 220, 220))
         screen.blit(title, (left.x + 12, left.y + 12))
+
+        money = self.font.render(f"Money: {player.inventory.money}$", True, (220, 220, 220))
         screen.blit(money, (left.x + 12, left.y + 38))
 
         # -=-=-=-=-=-=-GREED-=-=-=-=-=-#

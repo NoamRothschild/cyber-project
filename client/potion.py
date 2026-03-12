@@ -5,6 +5,7 @@ from mapset import *
 from functools import cache
 from random import randint
 
+SERF = pygame.display.get_surface()
 class Potion(pygame.sprite.Sprite):
 
     potions = {

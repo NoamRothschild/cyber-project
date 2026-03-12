@@ -25,3 +25,5 @@ NODE_WIDTH = 4600   # [px]
 NODE_HEIGHT = 2200  # [px]
 VERTICAL_NODE_COUNT = 20
 HORIZONAL_NODE_COUNT = 17
+
+world_map = []

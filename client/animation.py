@@ -17,9 +17,10 @@ class Animation:
         speed_ms: int = 120
     ):
         self.sheet = pygame.image.load(sheet_path).convert()
+        self.no_loop = {"dead"}
 
         if colorkey == "AUTO":
-            self.colorkey = self.sheet.get_at((0, 0))  # צבע רקע מהפינה
+            self.colorkey = self.sheet.get_at((0, 0))
         else:
             self.colorkey = colorkey
 
@@ -69,9 +70,15 @@ class Animation:
 
     def update(self):
         now = pygame.time.get_ticks()
+
         if now - self.last_time >= self.speed_ms:
             self.last_time = now
-            self.index = (self.index + 1) % len(self.animations[self.state])
+            frames = len(self.animations[self.state])
+            if self.state in self.no_loop:
+                if self.index < frames - 1:
+                    self.index += 1
+            else:
+                self.index = (self.index + 1) % frames
 
     def image(self, flip_x: bool = False):
         img = self.animations[self.state][self.index]

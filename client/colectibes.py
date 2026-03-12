@@ -12,18 +12,30 @@ class Colectible_sprite(pygame.sprite.Sprite):
         self.kind = kind
         if kind == "weapon":
             self.obj = Arsenal(name,id)
+
+            if getattr(self.obj, "weapon_frames", None):
+                self.image = self.obj.weapon_frames[0]
+                DROP_SIZE = 67+20
+            else:
+                self.image = self.obj.get_image()
+                DROP_SIZE = 26
+
         elif kind == "potion":
             self.obj = Potion(name,id)
+            self.image = self.obj.get_image()
+            DROP_SIZE = 35
         elif kind == "money":
             self.obj = Mony(id)
-        self.image = self.obj.get_image()
+            DROP_SIZE = 20
+        self.image.set_colorkey(blue)
 
-        self.id=id
-        if kind != "money":
-            self.image.set_colorkey(blue)
-            self.image = pygame.transform.scale(self.image,
-                                            (SIZE / 2, self.image.get_height() * ((SIZE / 2)) / self.image.get_width()))
-        self.rect = self.image.get_rect()
+        w, h = self.image.get_size()
+
+        self.image = pygame.transform.scale(
+            self.image,
+            (DROP_SIZE, int(h * (DROP_SIZE / w)))
+        )
+
         self.rect = self.image.get_rect(topleft=position)
 
 class Mony(pygame.sprite.Sprite):

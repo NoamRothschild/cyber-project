@@ -1,5 +1,6 @@
 from entity import Entities
 import pygame
+import mapset
 from player import *
 from tile import Rock
 from colectibes import Colectible_sprite
@@ -22,6 +23,7 @@ from nodes import fetch_zone_map, pos_to_zone_index
 import random
 import os
 from chat import *
+
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
@@ -39,30 +41,26 @@ def preload_all_trees():
             try:
                 img = pygame.image.load(path).convert_alpha()
                 img = pygame.transform.scale(img, (SIZE, SIZE))
-                # --- התיקון כאן: לשמור ברשימת העצים ---
                 ALL_TREE_IMAGES.append(img)
             except Exception as e:
                 print(f"Error: {e}")
 
 def get_trees():
-    # --- התיקון כאן: לשלוף מרשימת העצים ---
     if ALL_TREE_IMAGES:
         return random.choice(ALL_TREE_IMAGES)
     return None
+
 def preload_all_bushes():
     for n in range(1, 15):
         for color in colors:
             path = f"Pixel Art Bush Pack/Bush {n}/Bush {n}_{color}.png"
             img = pygame.image.load(path).convert_alpha()
-            # אם אתה עושה scale של 0.2, עדיף לעשות אותו כאן פעם אחת
-            img = pygame.transform.scale(img, (90,90))
+            img = pygame.transform.scale(img, (90, 90))
             ALL_BUSH_IMAGES.append(img)
 
 def get_bushes():
-
     return random.choice(ALL_BUSH_IMAGES)
 class Level:
-    Domain_Expansion_ls = []
 
     def __init__(self,session_id):
         self.display_surface = pygame.display.get_surface()
@@ -72,7 +70,8 @@ class Level:
         self.colectible_sprite = pygame.sprite.Group()
         self.harmfull_sprites = pygame.sprite.Group()
 
-        self.image = [pygame.image.load('rock.png').convert(), pygame.image.load('tree.png').convert(),
+        self.image = [pygame.image.load('rock.png').convert(),
+                      pygame.image.load('tree.png').convert(),
                       pygame.image.load('water.png').convert()]
         self.chat=Chat(session_id)
         self.entities = Entities()
@@ -88,6 +87,7 @@ class Level:
     def handle_event(self, event):
         self.player.shop_ui.handle_event(event, self.player)
         self.chat.handle_event(event)
+        self.player.auto_move.handle_event(event)   # ← AutoMove key handler
         if event.type == pygame.K_z:
             self.chat.add_external_message("ai alon")
     def draw_map(self):  # crating a very basic map with small borders(need to be changed
@@ -133,8 +133,26 @@ class Level:
                         s=Rock(world_pos,b, " ")
                 if s is not None:
                     map_for_d[grid_pos] = s
+        # ── Mark obstacle tiles based on ACTUAL hitboxes ──────────────
+        self._mark_obstacle_tiles()
+        # ─────────────────────────────────────────────────────────────
+
         self.player = Player( [self.visible_sprites],
                              [self.obstacle_sprites, self.harmfull_sprites,self.colectible_sprite])
+
+    def _mark_obstacle_tiles(self):
+        """Walk every obstacle sprite and mark its hitbox tiles as blocked."""
+        for sprite in self.obstacle_sprites:
+            hb = sprite.hitbox
+            # convert hitbox pixel rect to tile range
+            c0 = hb.left   // mapset.SIZE
+            c1 = hb.right  // mapset.SIZE
+            r0 = hb.top    // mapset.SIZE
+            r1 = hb.bottom // mapset.SIZE
+            for r in range(r0, r1 + 1):
+                for c in range(c0, c1 + 1):
+                    if 0 <= r < len(mapset.world_map) and 0 <= c < len(mapset.world_map[0]):
+                        mapset.world_map[r][c] = hb
 
     def run(self):
         self.visible_sprites.custom_draw(self.player)
@@ -164,7 +182,8 @@ class Level:
         print(f"[ZONE] Switched to host {host} (zone index {zone_index})")
 
 
-class Camera(pygame.sprite.Group):  # a group that has every visible sprite that should be moved when the player does
+
+class Camera(pygame.sprite.Group):
     def __init__(self):
         super().__init__()
         self.display = pygame.display.get_surface()
