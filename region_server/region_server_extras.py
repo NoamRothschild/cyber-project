@@ -13,28 +13,28 @@ TICK_INTERVAL_SEC = 1.0 / 60
 
 # TODO: might parse this from a bullets config json file
 BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
-    "AK 47 bullets": {
+    "Ak 47": {
         "ttl": 20,
         "speed": 25,
         "damage": 40,
         "range": 20,
     },
 
-    "Assault rifle bullets": {
+    "Assault rifle": {
         "ttl": 15,
         "speed": 30,
         "damage": 25,
         "range": 15,
     },
 
-    "Pistol bullets": {
+    "Pistol": {
         "ttl": 10,
         "speed": 19,
         "damage": 30,
         "range": 10,
     },
 
-    "sword hit": {
+    "sword": {
         "ttl": 3,
         "speed": 7,
         "damage": 60,
@@ -48,6 +48,15 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,    }
 }
 
+user_emmo={
+    "user1":{
+                "AK 47 bullets":1,
+                "arrows":1,
+                "sword hit":1,
+                "Assault rifle bullets":1,
+                "Pistol bullets":1
+            }
+}
 
 class ProjectileHandler:
     def __init__(self, tick_intervals: float = TICK_INTERVAL_SEC) -> None:
@@ -98,39 +107,53 @@ class ProjectileHandler:
                         await client.hit(proj["damage"], proj["owner_uuid"])
                         proj["already_hit"].add(client.user_id)
 
+
+    def getPlayer_EMMO_Stat(self,userID,bulletType):
+        try:
+            emmo = user_emmo[userID][bulletType]
+        except:
+            print(userID," is not regestered")
+            return None
+        return emmo
+
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
         template = BULLET_TYPES.get(bullet_shot.gun_type)
         if not template:
             print(f"Warn: unknown bullet type fired: {bullet_shot.gun_type} by user with id {client.user_id}")
             return b''
 
-        bullet = template.copy()
-        bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
-        bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
-        bullet["owner_uuid"] = client.user_id
-        bullet["already_hit"] = set[int]() # client ids that have been hit by this bullet
-        bullet["x"] = client.pos[0]
-        bullet["y"] = client.pos[1]
+        ammo = self.getPlayer_EMMO_Stat("user1", bullet_shot.gun_type)
+        #ammo = self.getPlayer_EMMO_Stat(client.user_id, bullet_shot.gun_type)
+        if ammo is None or ammo <= 0:
 
-        update = region_net.ServerResponse(sender_id=client.user_id)
+            bullet = template.copy()
+            bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
+            bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
+            bullet["owner_uuid"] = client.user_id
+            bullet["already_hit"] = set[int]() # client ids that have been hit by this bullet
+            bullet["x"] = client.pos[0]
+            bullet["y"] = client.pos[1]
 
-        async with self.lock:
-            for i in range(bullet_shot.count):
-                blt = bullet.copy()
-                blt["x"] += i * blt["velocity_x"]
-                blt["y"] += i * blt["velocity_y"]
-                self.projectiles.append(blt)
-                update.bullet_shot.add(
-                    gun_type=bullet_shot.gun_type,
-                    angle=bullet_shot.angle,
-                    count=1,
-                    x=int(blt["x"]),
-                    y=int(blt["y"]),
-                    ttl=int(blt["ttl"]),
-                    speed=int(blt["speed"]),
-                )
+            update = region_net.ServerResponse(sender_id=client.user_id)
 
-        return update.SerializeToString()
+            async with self.lock:
+                for i in range(bullet_shot.count):
+                    blt = bullet.copy()
+                    blt["x"] += i * blt["velocity_x"]
+                    blt["y"] += i * blt["velocity_y"]
+                    self.projectiles.append(blt)
+                    update.bullet_shot.add(
+                        gun_type=bullet_shot.gun_type,
+                        angle=bullet_shot.angle,
+                        count=1,
+                        x=int(blt["x"]),
+                        y=int(blt["y"]),
+                        ttl=int(blt["ttl"]),
+                        speed=int(blt["speed"]),
+                    )
+
+            return update.SerializeToString()
+        return None
 
 
 # TODO: sorround with a lock as well

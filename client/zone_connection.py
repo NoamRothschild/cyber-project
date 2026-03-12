@@ -58,6 +58,7 @@ class ZoneConnection:
         self.server_known_pos = pos
         self.reliable_conn.sendall(update.SerializeToString())
 
+
     def try_send_bullet(self, gun_type: str, angle: float, count: int) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
         update = region_net.RegionUpdate()
