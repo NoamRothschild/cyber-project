@@ -46,22 +46,22 @@ class EnemyModel:
 
     w: float = 30
     h: float = 40
-    speed: float = 4.0  # pixels per tick
+    speed: float = 2.0  # pixels per tick (was 4.0 — 4px*60Hz=240px/s was too fast)
 
     state: str = "PATROL"  # PATROL|CHASE|ATTACK
     # direction as normalized vector
     direction_x: float = 1.0
     direction_y: float = 0.0
 
-    max_hp: int = 10
-    hp: int = 10
+    max_hp: int = 50
+    hp: int = 50
 
     patrol_index: int = 0
     patrol_switch_ms: int = 600
     next_patrol_switch_ms: int = 0
 
     chase_radius: float = 260.0
-    attack_radius: float = 10.0
+    attack_radius: float = 40.0  # was 10.0 — 10px caused enemy to stop inside the player
 
     attack_cooldown_ms: int = 700
     next_attack_time_ms: int = 0

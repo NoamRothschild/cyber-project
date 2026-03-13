@@ -127,7 +127,7 @@ class ProjectileHandler:
                 await c.write(update.SerializeToString())
 
         for enemy_id in dead_enemy_ids:
-            await enemy_handler.respawn_enemy(enemy_id)
+            asyncio.create_task(enemy_handler.respawn_enemy(enemy_id))
 
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
         template = BULLET_TYPES.get(bullet_shot.gun_type)
@@ -140,8 +140,8 @@ class ProjectileHandler:
         bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
         bullet["owner_uuid"] = client.user_id
         bullet["already_hit"] = set[int]()  # client ids that have been hit by this bullet
-        bullet["x"] = client.pos[0]
-        bullet["y"] = client.pos[1]
+        bullet["x"] = client.pos[0] + 15  # spawn from player center (w=30)
+        bullet["y"] = client.pos[1] + 20  # spawn from player center (h=40)
 
         update = region_net.ServerResponse(sender_id=client.user_id)
 
@@ -181,7 +181,7 @@ class EnemyHandler:
         self.lock = asyncio.Lock()
 
         # Maintain a constant population
-        self.target_enemy_count = 25
+        self.target_enemy_count = 5
 
         self.world_min_x = 73500
         self.world_min_y = 32100
@@ -225,6 +225,10 @@ class EnemyHandler:
 
     async def respawn_enemy(self, enemy_id: int) -> None:
         """Respawn an enemy at a random location with full HP."""
+        # Wait before respawning — gives the client time to hide the dead enemy
+        # and ensures no in-flight bullets can hit the resetting enemy
+        await asyncio.sleep(2.0)
+
         async with self.lock:
             enemy = self.enemies.get(enemy_id)
             if enemy is None:
@@ -237,18 +241,12 @@ class EnemyHandler:
             snapshot_x = int(enemy.x)
             snapshot_y = int(enemy.y)
             snapshot_hp = int(enemy.hp)
-            # clear the dead flag now that the enemy is fully reset
+            # clear dead flag now that the enemy is fully reset
             self._dead_ids.discard(enemy_id)
 
         global clients
-        location_update = region_net.ServerResponse()
-        location_update.sender_id = enemy.enemy_id
-        location_update.other_data.new_location.CopyFrom(
-            region_net.LocationBlock(x=snapshot_x, y=snapshot_y)
-        )
-        for c in list(clients):
-            await c.write(location_update.SerializeToString())
-
+        # Send HP first so the client knows the enemy is alive with full health
+        # before it sees the new position — prevents flash of 0 HP at new location
         hp_update = region_net.ServerResponse()
         hp_update.sender_id = enemy.enemy_id
         hp_update.other_data.CopyFrom(
@@ -256,6 +254,14 @@ class EnemyHandler:
         )
         for c in list(clients):
             await c.write(hp_update.SerializeToString())
+
+        location_update = region_net.ServerResponse()
+        location_update.sender_id = enemy.enemy_id
+        location_update.other_data.new_location.CopyFrom(
+            region_net.LocationBlock(x=snapshot_x, y=snapshot_y)
+        )
+        for c in list(clients):
+            await c.write(location_update.SerializeToString())
 
     async def broadcast_enemy_spawn(self, enemy: EnemyModel) -> None:
         """Broadcast enemy location (spawn/respawn)."""
