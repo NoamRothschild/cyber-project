@@ -68,14 +68,12 @@ class Inventory(pygame.sprite.Sprite):
         self.delete_mony()
 
     def drop_all_items(self, group, prect):
-        for weapon in self.wep_inventory:
-            ZoneConnectionSingleton().zone.try_send_item("weapon", weapon.get_name(),weapon.id)
-        for potion in self.potion_inventory:
-            ZoneConnectionSingleton().zone.try_send_item("potion", potion.get_name(), potion.id)
-        self.wep_inventory.clear()
-        self.potion_inventory.clear()
-
-
+        if len(self.wep_inventory) > 1:
+            print("azrarbyjan")
+            ZoneConnectionSingleton().zone.try_send_item("weapon", self.wep_inventory[self.current_weapon].get_name(), self.wep_inventory[self.current_weapon].id)
+            del self.wep_inventory[self.current_weapon]
+            if self.current_weapon != 0:
+                self.current_weapon = self.current_weapon - 1
     def delete_w(self, group, prect):
         current_time = time.time()
         if current_time - self.delete_last_action_time >= self.delete_interval and self.is_wep_empty() == False:
