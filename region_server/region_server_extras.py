@@ -113,9 +113,9 @@ class ProjectileHandler:
 
                         if died:
                             dead_enemy_ids.append(enemy.enemy_id)
-                            # mark dead immediately so no further bullets or ticks touch it
-                            # do NOT delete from dict — that would confuse ensure_population
                             enemy_handler._dead_ids.add(enemy.enemy_id)
+                            # override the hp broadcast to max_hp so the client resets the enemy
+                            enemies_to_broadcast_hp[-1] = (enemy.enemy_id, int(enemy.max_hp))
 
         for enemy_id, hp in enemies_to_broadcast_hp:
             update = region_net.ServerResponse()
