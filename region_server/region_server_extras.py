@@ -94,10 +94,11 @@ class ProjectileHandler:
                         await client.hit(proj["damage"], proj["owner_uuid"])
                         proj["already_hit"].add(client.user_id)
 
+        # list of (enemy_id, hp) — snapshot hp at hit time, not after lock release
         enemies_to_broadcast_hp = []
         async with enemy_handler.lock:
             for proj in self.projectiles:
-                for enemy in enemy_handler.enemies.values():
+                for enemy in list(enemy_handler.enemies.values()):
                     # prevent multi-hits from same bullet
                     if enemy.enemy_id in proj["already_hit"]:
                         continue
@@ -105,13 +106,23 @@ class ProjectileHandler:
                     if self.bullet_hit_enemy(proj, enemy):
                         died = enemy.take_damage(int(proj["damage"]))
                         proj["already_hit"].add(enemy.enemy_id)
-                        enemies_to_broadcast_hp.append(enemy)
+                        # snapshot hp now while lock is held, before any other tick can change it
+                        enemies_to_broadcast_hp.append((enemy.enemy_id, int(enemy.hp)))
 
                         if died:
                             dead_enemy_ids.append(enemy.enemy_id)
+                            # remove immediately so subsequent bullet checks and enemy ticks
+                            # skip this enemy — prevents double-respawn and zombie movement
+                            del enemy_handler.enemies[enemy.enemy_id]
 
-        for enemy in enemies_to_broadcast_hp:
-            await enemy_handler.broadcast_enemy_hp(enemy)
+        for enemy_id, hp in enemies_to_broadcast_hp:
+            update = region_net.ServerResponse()
+            update.sender_id = enemy_id
+            update.other_data.CopyFrom(
+                region_net.OtherPlayerData(HP=hp, player_id=enemy_id)
+            )
+            for c in list(clients):
+                await c.write(update.SerializeToString())
 
         for enemy_id in dead_enemy_ids:
             await enemy_handler.respawn_enemy(enemy_id)
@@ -293,7 +304,7 @@ class EnemyHandler:
         async with self.lock:
             now_ms = loop_time_ms()
 
-            for enemy in self.enemies.values():
+            for enemy in list(self.enemies.values()):
                 attacked_player_id = enemy.update_state_machine(
                     now_ms,
                     [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
