@@ -63,9 +63,9 @@ def cache_player_stats_in_redis(user_id: int) -> None:
         stats = {
             "health": 400,
             "money": 0,
-            "weapons": [0] * 10,
-            "ammo": [30] * 10,
-            "potions": [0] * 10,
+            "weapons": [1, 2, 3, 4, 5, 0, 0, 0, 0, 0],
+            "ammo":    [15, 3, 1000, 30, 10, 0, 0, 0, 0, 0],
+            "potions": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             "spawn_x": 74010,
             "spawn_y": 32605,
         }

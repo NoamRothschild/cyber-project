@@ -114,12 +114,6 @@ class Player(pygame.sprite.Sprite):
         self.death_animation_time = 750
         self.respawn_delay = 2000
 
-        self.inventory.add_item_toThe_Inventory(Arsenal("Ak 47"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Arsenal("bow"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Arsenal("sword"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Arsenal("Assault rifle"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Arsenal("Pistol"), "weapon")
-        self.inventory.add_item_toThe_Inventory(Potion("healing"), "potion")
         self.auto_move = AutoMoveController(self)
 
     def current_Weapon(self):
