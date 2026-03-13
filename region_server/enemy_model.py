@@ -74,8 +74,10 @@ class EnemyModel:
         self.hp = self.max_hp
 
     def take_damage(self, amount: int) -> bool:
-        if amount <= 0 or self.hp <= 0:
+        if amount <= 0:
             return False
+        if self.hp <= 0:
+            return True  # already dead — signal the caller to respawn it
         self.hp = max(0, self.hp - amount)
         return self.hp == 0
 

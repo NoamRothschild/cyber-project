@@ -57,12 +57,12 @@ class ProjectileHandler:
         return dst_squared < proj["range"] ** 2
 
     def bullet_hit_enemy(self, proj: dict, enemy: EnemyModel) -> bool:
-        # Hit test against enemy center
+        hit_radius = (enemy.w + enemy.h) / 4  # ~17.5px to fit the sprite
         ex = enemy.x + enemy.w / 2
         ey = enemy.y + enemy.h / 2
         dx = ex - proj["x"]
         dy = ey - proj["y"]
-        return (dx * dx + dy * dy) < (proj["range"] ** 2)
+        return (dx * dx + dy * dy) < (hit_radius ** 2)
 
     async def tick(self) -> None:
         to_remove: list[dict] = []
@@ -230,7 +230,7 @@ class EnemyHandler:
                 x=int(enemy.x),
                 y=int(enemy.y))
         )
-        for c in clients:
+        for c in list(clients):
             await c.write(update.SerializeToString())
 
         await self.broadcast_enemy_hp(enemy)
@@ -245,7 +245,7 @@ class EnemyHandler:
                 HP=int(enemy.hp),
                 player_id=enemy.enemy_id)
         )
-        for c in clients:
+        for c in list(clients):
             await c.write(update.SerializeToString())
 
     def create_background_task(self) -> None:
@@ -302,7 +302,7 @@ class EnemyHandler:
             update.other_data.new_location.CopyFrom(
                 region_net.LocationBlock(x=x, y=y)
             )
-            for c in clients:
+            for c in list(clients):
                 await c.write(update.SerializeToString())
         # Broadcast new location
         # update = region_net.ServerResponse()
@@ -409,7 +409,7 @@ class Client:
 
     async def broadcast(self, data: bytes):
         global clients
-        for client in clients:
+        for client in list(clients):
             if client == self:
                 continue
             await client.write(data)
