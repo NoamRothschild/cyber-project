@@ -99,21 +99,23 @@ class ProjectileHandler:
         async with enemy_handler.lock:
             for proj in self.projectiles:
                 for enemy in list(enemy_handler.enemies.values()):
-                    # prevent multi-hits from same bullet
+                    # skip enemies already dead or already hit by this bullet
+                    if enemy.enemy_id in enemy_handler._dead_ids:
+                        continue
                     if enemy.enemy_id in proj["already_hit"]:
                         continue
 
                     if self.bullet_hit_enemy(proj, enemy):
                         died = enemy.take_damage(int(proj["damage"]))
                         proj["already_hit"].add(enemy.enemy_id)
-                        # snapshot hp now while lock is held, before any other tick can change it
+                        # snapshot hp now while lock is held
                         enemies_to_broadcast_hp.append((enemy.enemy_id, int(enemy.hp)))
 
                         if died:
                             dead_enemy_ids.append(enemy.enemy_id)
-                            # remove immediately so subsequent bullet checks and enemy ticks
-                            # skip this enemy — prevents double-respawn and zombie movement
-                            del enemy_handler.enemies[enemy.enemy_id]
+                            # mark dead immediately so no further bullets or ticks touch it
+                            # do NOT delete from dict — that would confuse ensure_population
+                            enemy_handler._dead_ids.add(enemy.enemy_id)
 
         for enemy_id, hp in enemies_to_broadcast_hp:
             update = region_net.ServerResponse()
@@ -188,6 +190,8 @@ class EnemyHandler:
         self.world_max_x = 74500
         self.world_max_y = 33100
         self.next_enemy_id = 1
+        # enemy_ids currently dead and awaiting respawn — skipped by bullets and movement
+        self._dead_ids: Set[int] = set()
 
     def random_spawn(self) -> Tuple[float, float]:
         x = self.world_min_x + (self.world_max_x - self.world_min_x) * random()
@@ -233,6 +237,8 @@ class EnemyHandler:
             snapshot_x = int(enemy.x)
             snapshot_y = int(enemy.y)
             snapshot_hp = int(enemy.hp)
+            # clear the dead flag now that the enemy is fully reset
+            self._dead_ids.discard(enemy_id)
 
         global clients
         location_update = region_net.ServerResponse()
@@ -305,6 +311,9 @@ class EnemyHandler:
             now_ms = loop_time_ms()
 
             for enemy in list(self.enemies.values()):
+                # skip enemies waiting to respawn
+                if enemy.enemy_id in self._dead_ids:
+                    continue
                 attacked_player_id = enemy.update_state_machine(
                     now_ms,
                     [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
