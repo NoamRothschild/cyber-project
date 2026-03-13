@@ -194,7 +194,7 @@ class Player(pygame.sprite.Sprite):
                                 self.rect.centery - HEIGHT / 2,
                             ]
 
-                            # Sync local UI and send authoritative shot to server
+                            # Sync local UI and prepare authoritative shot for server
                             self.current_Weapon().on_fire()
                             weapon = self.current_Weapon()
 
@@ -209,8 +209,10 @@ class Player(pygame.sprite.Sprite):
                             else:
                                 const_y = 0
 
+                            # Fire local bullets from each spawn point, but send
+                            # a single aggregated shot to the server using 'count'.
+                            angle_for_server = None
                             for x, y in weapon.spawn_points:
-                                # print(ox, oy)
                                 bullet = Bullets(
                                     weapon.GetBulletType(),
                                     self.display_surface.get_width() / 2 + x + const_x,
@@ -218,12 +220,18 @@ class Player(pygame.sprite.Sprite):
                                     mouse_x,
                                     mouse_y,
                                     scroll=scroll,
-                                    from_network=False
+                                    from_network=False,
                                 )
                                 Bullets.BulletLS.append(bullet)
-                                ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().GetBulletType(), bullet.angle,
-                                                                               1)
+                                angle_for_server = bullet.angle
                                 self.current_Weapon().mag -= 1
+
+                            if angle_for_server is not None:
+                                ZoneConnectionSingleton().zone.try_send_bullet(
+                                    weapon.GetBulletType(),
+                                    angle_for_server,
+                                    len(weapon.spawn_points),
+                                )
                 except:
                     print("error")
 

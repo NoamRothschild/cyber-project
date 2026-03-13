@@ -163,8 +163,6 @@ class ProjectileHandler:
             return b"", []
 
         bullet = template.copy()
-        bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
-        bullet["velocity_y"] = math.sin(bullet_shot.angle) * bullet["speed"]
         bullet["owner_uuid"] = client.user_id
         bullet["gun_type"] = bullet_shot.gun_type
         bullet["angle"] = bullet_shot.angle
@@ -181,6 +179,22 @@ class ProjectileHandler:
                 blt["already_hit"] = set()
                 blt["seen_by"] = {client.user_id} | set(bullet_shot.seen_players)
                 blt["id"] = next(_next_projectile_id)
+
+                # For multi-arrow shots, fan out angles slightly to mimic client-side pattern.
+                if bullet_shot.gun_type == "arrows" and bullet_shot.count > 1:
+                    center_index = (bullet_shot.count - 1) / 2
+                    angle_offset = (i - center_index) * 0.12  # ~7 degrees spread per step
+                    angle = bullet_shot.angle + angle_offset
+                else:
+                    angle = bullet_shot.angle
+
+                blt["angle"] = angle
+                blt["velocity_x"] = math.cos(angle) * blt["speed"]
+                blt["velocity_y"] = math.sin(angle) * blt["speed"]
+
+                blt["x"] = bullet["x"]
+                blt["y"] = bullet["y"]
+
                 blt["x"] += i * blt["velocity_x"]
                 blt["y"] += i * blt["velocity_y"]
 
@@ -193,7 +207,7 @@ class ProjectileHandler:
                 new_projectiles.append(blt)
                 update.bullet_shot.add(
                     gun_type=bullet_shot.gun_type,
-                    angle=bullet_shot.angle,
+                    angle=angle,
                     count=1,
                     x=px,
                     y=py,

@@ -33,7 +33,7 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "damage": 40,
         "range": 50,
     },
-    "arrow": {
+    "arrows": {
         "ttl": 50,
         "speed": 20,
         "damage": 50,
