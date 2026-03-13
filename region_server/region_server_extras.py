@@ -4,6 +4,7 @@ from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import redis
 import socket
+import json
 from dataclasses import dataclass, field
 from random import randint, choice
 import aioudp
@@ -190,18 +191,18 @@ class Client:
 
             print(f"User {user_id} disconnected. Saving state to database...")
 
-            # TODO: forward to auth server via redis
-            # db.save_player(
-            #     player_id=self.user_id,
-            #     health=self.hp,
-            #     money=self.money,
-            #     weapons_list=list(self.weapons),
-            #     ammo_list=list(self.ammo),
-            #     potions_list=list(self.potions),
-            #     spawn_x=int(self.pos[0]),
-            #     spawn_y=int(self.pos[1])
-            # )
-            # print(f" User {user_id} saved successfully.")
+            payload = json.dumps({
+                "user_id": self.user_id,
+                "health": self.state.hp,
+                "money": self.state.money,
+                "weapons": list(self.state.weapons),
+                "ammo": list(self.state.ammo),
+                "potions": list(self.state.potions),
+                "spawn_x": self.state.x,
+                "spawn_y": self.state.y,
+            })
+            await r.publish("auth-update", payload)
+            print(f"User {user_id} state published to auth-update.")
 
 
     @staticmethod

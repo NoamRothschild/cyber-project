@@ -2,6 +2,8 @@ import socket
 import sqlite3
 import hashlib
 import uuid
+import json
+import threading
 import protobuf.auth_net_pb2 as auth_net
 import redis
 import data_db_handler as db
@@ -80,6 +82,61 @@ def cache_player_stats_in_redis(user_id: int) -> None:
     r.set(prefix + "weapons", ",".join(str(w) for w in stats["weapons"]))
     r.set(prefix + "ammo", ",".join(str(a) for a in stats["ammo"]))
     r.set(prefix + "potions", ",".join(str(p) for p in stats["potions"]))
+
+
+SCALAR_FIELDS = {"health", "money", "spawn_x", "spawn_y"}
+LIST_FIELDS = {"weapons": "weapon", "ammo": "ammo", "potions": "potion"}
+
+
+def handle_auth_update(conn: sqlite3.Connection, raw_data: str) -> None:
+    try:
+        data = json.loads(raw_data)
+    except json.JSONDecodeError as e:
+        print(f"[auth-update] bad JSON: {e}")
+        return
+
+    user_id = data.get("user_id")
+    if user_id is None:
+        print("[auth-update] missing user_id, ignoring")
+        return
+
+    set_clauses = []
+    params = []
+
+    for field in SCALAR_FIELDS:
+        if field in data:
+            set_clauses.append(f"{field} = ?")
+            params.append(data[field])
+
+    for json_key, col_prefix in LIST_FIELDS.items():
+        if json_key in data:
+            for i, val in enumerate(data[json_key], start=1):
+                set_clauses.append(f"{col_prefix}{i} = ?")
+                params.append(val)
+
+    if not set_clauses:
+        return
+
+    params.append(user_id)
+    query = f"UPDATE INVENTORY SET {', '.join(set_clauses)} WHERE Player_id = ?"
+    try:
+        conn.execute(query, params)
+        conn.commit()
+        print(f"[auth-update] saved stats for user {user_id}")
+    except sqlite3.Error as e:
+        print(f"[auth-update] DB error for user {user_id}: {e}")
+
+
+def auth_update_listener() -> None:
+    conn = sqlite3.connect(db.DB_PATH)
+    sub = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
+    ps = sub.pubsub()
+    ps.subscribe("auth-update")
+    print("[auth-update] listening on channel 'auth-update'")
+    for message in ps.listen():
+        if message["type"] != "message":
+            continue
+        handle_auth_update(conn, message["data"])
 
 
 def handle_register(username, password):
@@ -200,4 +257,5 @@ def run_server():
 
 if __name__ == "__main__":
     db.create_table()
+    threading.Thread(target=auth_update_listener, daemon=True).start()
     run_server()
