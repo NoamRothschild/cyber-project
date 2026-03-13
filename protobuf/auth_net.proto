@@ -16,7 +16,7 @@ enum Mode {
 message SendAnswer {
  Mode mode = 2;
  Status status = 1;
- optional string session_id = 3;
+ optional int64 session_id = 3;
 }
 
 enum Status {

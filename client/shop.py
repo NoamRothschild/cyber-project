@@ -1,9 +1,9 @@
 # Fixler the pro ᓚᘏᗢ
 import pygame
 
-from client import potion
-from client.arsenal import Arsenal
-from client.bullets import Bullets
+# from client import potion
+from arsenal import Arsenal
+from bullets import Bullets
 from potion import Potion
 
 class ShopUI:
@@ -30,6 +30,7 @@ class ShopUI:
         #  bullet_name -- (price)
         self.potion={
             "healing": 140,
+            "gold": 400,
             "speed": 70,
             "super_speed": 140
         }
@@ -139,11 +140,11 @@ class ShopUI:
             return
 
         price = self.item_price(self.selected)
-        if player.money < price:
+        if player.inventory.money < price:
             return
             # ᓚᘏᗢ
         kind, name = self.selected
-        player.money -= price
+        player.inventory.money -= price
 
         if kind == "weapon":
             player.inventory.add_item_toThe_Inventory(Arsenal(name), "weapon")
@@ -155,7 +156,6 @@ class ShopUI:
             player.ammo_collection[name] = player.ammo_collection.get(name, 0) + amount
 
         elif kind == "potion":
-            print(name)
             player.inventory.add_item_toThe_Inventory(Potion(name), "potion")
         else:
             return
@@ -319,7 +319,7 @@ class ShopUI:
         title = self.font_title.render("SHOP", True, (255, 255, 255))
         screen.blit(title, (left.x + 12, left.y + 12))
 
-        money = self.font.render(f"Money: {player.money}$", True, (220, 220, 220))
+        money = self.font.render(f"Money: {player.inventory.money}$", True, (220, 220, 220))
         screen.blit(money, (left.x + 12, left.y + 38))
 
         # -=-=-=-=-=-=-GREED-=-=-=-=-=-#
@@ -408,7 +408,7 @@ class ShopUI:
         price_txt = self.font_title.render(f"{price}$", True, (255, 255, 255))
         screen.blit(price_txt, (right.x + 16, y))
 
-        can_buy = player.money >= price
+        can_buy = player.inventory.money >= price
         self.buy_button_rect = pygame.Rect(right.right - 236, y, 220, 52)
 
         color = (60, 160, 60) if can_buy else (120, 60, 60)

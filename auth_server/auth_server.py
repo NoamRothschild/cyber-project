@@ -15,6 +15,7 @@ REDIS_PORT = 6379
 CACHE_TIME = 86400 # in seconds
 r = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
 
+
 def get_db_connection():
     """Creates a fresh database connection."""
     return sqlite3.connect(DB_NAME)
@@ -42,7 +43,7 @@ def create_table():
             cursor.execute("""
                    CREATE TABLE IF NOT EXISTS SESSIONS
                    (
-                       session_id TEXT PRIMARY KEY, 
+                       session_id INTEGER PRIMARY KEY, 
                        user_id INTEGER, FOREIGN KEY(user_id) REFERENCES USERS(user_ID)
                    )
                    """)
@@ -50,6 +51,35 @@ def create_table():
             print("Database initialized successfully.")
     except sqlite3.Error as e:
         print(f"Error creating tables: {e}")
+
+
+def cache_player_stats_in_redis(user_id: int) -> None:
+    """
+    Cache the player's persistent stats in Redis under keys like:
+    client:USER_ID:health, client:USER_ID:money, client:USER_ID:weapons, ...
+    """
+    stats = db.load_player(user_id)
+    if not stats:
+        stats = {
+            "health": 400,
+            "money": 0,
+            "weapons": [0] * 10,
+            "ammo": [30] * 10,
+            "potions": [0] * 10,
+            "spawn_x": 74010,
+            "spawn_y": 32605,
+        }
+
+    prefix = f"client:{user_id}:"
+    r.set(prefix + "health", stats["health"])
+    r.set(prefix + "money", stats["money"])
+    r.set(prefix + "spawn_x", stats["spawn_x"])
+    r.set(prefix + "spawn_y", stats["spawn_y"])
+
+    # Store parallel lists as comma‑separated strings
+    r.set(prefix + "weapons", ",".join(str(w) for w in stats["weapons"]))
+    r.set(prefix + "ammo", ",".join(str(a) for a in stats["ammo"]))
+    r.set(prefix + "potions", ",".join(str(p) for p in stats["potions"]))
 
 
 def handle_register(username, password):
@@ -90,18 +120,21 @@ def handle_login(username, password):
             result = cursor.fetchone()
             if result:
                 user_id_from_db = result[0]
-                session_id = str(uuid.uuid4())
+                session_id = int(uuid.uuid4()) & (2 ** 63 - 1)
 
                 cursor.execute("DELETE FROM SESSIONS WHERE user_id = ?", (user_id_from_db,))
                 cursor.execute("INSERT INTO SESSIONS (session_id, user_id) VALUES (?, ?)",
                                (session_id, user_id_from_db))
 
-                #creating an "instance" in the game data db
+                # creating an "instance" in the game data db
                 db.create_new_player(user_id_from_db)
+
+                # cache the fresh player stats in Redis
+                cache_player_stats_in_redis(user_id_from_db)
 
                 # set data to redis db for 24h
                 # Key = session id, Value = user id
-                r.setex(f"session:{session_id}",  CACHE_TIME, user_id_from_db)
+                r.setex(f"session:{session_id}", CACHE_TIME, user_id_from_db)
 
                 connection.commit()
                 return f"LOGIN_SUCCESS:{session_id}"
@@ -154,7 +187,7 @@ def run_server():
                 if result.startswith("LOGIN_SUCCESS"):
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.SUCCESS
-                    answer.session_id = result.split(":")[1]
+                    answer.session_id = int(result.split(":")[1])
                     print(f"User {data.username} logged in.")
                     client_socket.send(answer.SerializeToString())
                 elif result == "LOGIN_FAILED":
@@ -166,4 +199,5 @@ def run_server():
 
 
 if __name__ == "__main__":
+    db.create_table()
     run_server()

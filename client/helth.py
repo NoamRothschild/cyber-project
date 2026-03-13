@@ -1,13 +1,14 @@
 import pygame
 from mapset import *
 import time
-from zone_connection import *
 
 class HealthBar(pygame.sprite.Sprite):
     def __init__(self,pos,scale,groups=None) -> None:
         if groups is not None:
             super().__init__(groups)
         self.height = scale//10
+        if self.height < 5:
+            self.height = 5
         self.width = scale
         self.rect = pygame.Rect(pos[0],pos[1],self.width,self.height)
 
@@ -33,31 +34,23 @@ class HealthBar(pygame.sprite.Sprite):
     def get_life(self):
         return self.plus_rect.width
 
-    def sub_life(self, num, is_send=False):
+    def sub_life(self, num):
         current_time = time.time()
 
         if current_time - self.last_sub_life >= self.shield_time:
             if num > self.plus_rect.width:
                 num = self.plus_rect.width
 
-            # --- ADDED FOR NETWORK SYNC ---
-            # THE HACK: We reuse the "potion_use" Protobuf packet to send damage to the server.
-            # To tell the server it's taking damage and not healing, we send the number as a NEGATIVE!
-            if is_send:
-                ZoneConnectionSingleton().zone.try_send_potion_use("health", -num)
-
             self.plus_rect.width -= num
             self.minus_rect.width += num
             self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
             self.last_sub_life = current_time
 
-    def add_life(self, num,is_send = False):
+    def add_life(self, num):
         current_time = time.time()
         if current_time - self.last_sub_life >= self.shield_time:
             if num > self.minus_rect.width:
                 num = abs(0 - self.minus_rect.width)
-            if is_send:
-                ZoneConnectionSingleton().zone.try_send_potion_use("health", num)
             self.plus_rect.width += num
             self.minus_rect.width -= num
             self.minus_rect.x = self.plus_rect.x + self.plus_rect.width

@@ -1,6 +1,9 @@
 import pygame
 import time
+from helth import HealthBar
+from mapset import *
 from functools import cache
+from random import randint
 
 
 class Potion(pygame.sprite.Sprite):
@@ -30,14 +33,20 @@ class Potion(pygame.sprite.Sprite):
         self.display_surface = pygame.display.get_surface()
 
         self.image, self.what, self.how_much, self.ttl = Potion.potions[potion_type]
+        self.image = pygame.image.load(self.image).convert_alpha()
         self.smaller_v = pygame.transform.scale(self.image, (30, 30))
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
+        self.health = HealthBar((0, 0), 30)
+        if id==0:
+            self.id=randint(0, 2**31 - 1)
+        else:
+            self.id=id
 
     @staticmethod
     def get_potion_img(potion: str) -> pygame.Surface:
         Potion.load_assets()
-        image, what, how_much, ttl = Potion.potions[potion]
+        image, what, how_much, ttl  = Potion.potions[potion]
         return image
 
     @staticmethod
@@ -59,29 +68,51 @@ class Potion(pygame.sprite.Sprite):
     def purpose(self, player):
         """doing the potion purpose"""
         if self.what == "health_bar":
-            player.health.add_life(self.how_much, True)
+            player.health.add_life(self.how_much)
+
+            Green_hit.start()
             if self.is_potion_is == False:
                 self.is_potion_is = True
                 self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
+        elif self.what == "gold":
+            if self.is_potion_is == False:
+                self.is_potion_is = True
+                self.last_heal = time.time()
+                self.delete_last_action_time = self.last_heal
+                self.lg=player.inventory.money
+            else:
+                player.inventory.money += (player.inventory.money-self.lg)*self.how_much-(player.inventory.money-self.lg)
+                self.lg = player.inventory.money
 
-        if self.what == "speed":
+            print("aaa bbb kdkds")
+            print(player.inventory.money-self.lg*self.how_much)
+        elif self.what == "speed":
             player.speed += self.how_much
             self.old_speed = player.speed
             self.is_potion_is = True
             self.delete_last_action_time = time.time()
+    def creat_bar(self,i,pos):
+        low_x,low_y = pos
+        self.health.move((low_x + i * 31 + 370, low_y-self.health.height))
+        self.health.draw()
+        self.delete_last_bar_sub=time.time()
 
     def should_it_stop(self, player):
         """checking if the potion should stop its purpose"""
         if self.is_potion_is == True and self.ttl != None:
             current_time = time.time()
-            if (self.what == "health_bar" and current_time - self.last_heal >= 1):
+            if (self.what != "speed" and current_time - self.last_heal >= 1):
                 self.last_heal = current_time
                 self.purpose(player)
-            if current_time - self.delete_last_action_time > self.ttl:
+            elif current_time - self.delete_last_action_time > self.ttl:
                 if self.what == "speed":
                     player.speed -= self.how_much
                 self.delete_last_action_time = current_time
                 return True
+            elif current_time - self.delete_last_bar_sub > 1:
+                self.health.sub_life(30/self.ttl)
 
+                self.delete_last_bar_sub = current_time
+            self.health.draw()
         return False

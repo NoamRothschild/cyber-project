@@ -69,7 +69,7 @@ class EnterScreen:
     def run(self):
         """
         Main Loop.
-        Returns: session_id (str) if login success, None if closed.
+        Returns: session_id (int) if login success, None if closed.
         """
         self.is_running = True
 
@@ -121,7 +121,7 @@ class EnterScreen:
                             print(f"Login Success! Session: {response.session_id}")
                             self.is_running = False
                             pygame.display.quit()  # Close the login window
-                            return response.session_id  # <--- RETURN THE SESSION ID
+                            return response.session_id  # <--- RETURN THE SESSION ID (int)
                         else:
                             # Registration Success: Stay on screen
                             self.status_message = "Registered! Please Login."

@@ -2,6 +2,8 @@ from typing import Any
 import pygame
 import math
 from functools import cache
+from mapset import SCREEN_SCALE_X, SCREEN_SCALE_Y
+from random import randint
 
 
 # from weapon_anim import WeaponAnim (Assuming you have this file safely elsewhere)
@@ -103,7 +105,7 @@ class Arsenal:
     def GetBulletType(self):
         return self.bullet
 
-    def __init__(self, gun_type, saved_ammo=None):
+    def __init__(self, gun_type, saved_ammo=None,id: int=0):
         """
         Initializes a weapon object for the player's inventory.
         Accepts 'saved_ammo' from the SQLite database to maintain persistence across logins.
@@ -117,12 +119,6 @@ class Arsenal:
         # Unpack the dictionary (Notice we unpack to 'default_mag' instead of 'self.mag' now)
         self.weapon_path, self.img_num, self.bullet, self.movement, coordinates, self.scale, default_mag, self.fire_cooldown, self.pivot, self.spawn_points = \
             Arsenal.Arsenal_gunType[gun_type]
-
-        #======================================
-        # client side ammo check and clamping
-        #======================================
-        # If the database sends us corrupted or hacked ammo data, we clamp it
-        # to the weapon's true limits so the UI never draws broken numbers.
 
         if saved_ammo is not None:
             if saved_ammo > default_mag:
@@ -150,10 +146,20 @@ class Arsenal:
         if self.img_num and self.img_num > 1:
             self.weapon_frames = self._cut_weapon_frames(self.weapon_img, self.img_num)
 
+
+        if id==0:
+            self.id=randint(0, 2**31 - 1)
+        else:
+            self.id=id
     def refill_mag(self):
         # Grabs the max magazine size from the dictionary blueprint
         mag = Arsenal.Arsenal_gunType[self.gun_type][6]
         self.mag = mag
+
+    def draw_for_inventory(self, i, low_x, low_y):
+        if (i < 10):
+            self.display.blit(
+                self.smaller_v, (low_x + i * 31 + 10, low_y + 20))
 
     def draw(self, player_x, player_y):
         weapon_img_src = self.weapon_img
@@ -175,6 +181,7 @@ class Arsenal:
         # drowing the gun with angle
         if self.movement == "not fixed":
             mouse_x, mouse_y = pygame.mouse.get_pos()
+            weapon_img = self.weapon_img
 
             w, h = weapon_img_src.get_size()
             weapon_img_src = pygame.transform.scale(

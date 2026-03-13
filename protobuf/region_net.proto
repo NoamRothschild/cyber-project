@@ -2,13 +2,23 @@ syntax = "proto3";
 
 package game.region;
 
+
+message ChatMessage {
+  oneof mas {
+    string message = 1;
+  }
+}
+
 message RegionUpdate {
   oneof payload {
     LocationBlock location_block = 1;
     BulletShot bullet_shot = 2;
     PotionUse potion_use = 3;
     ItemDrop item_drop = 4;
+    Item item_pickup = 5;
   }
+  optional uint64 seq_num = 5;
+  optional int32 sender_id = 6;
 }
 
 message ItemDrop {
@@ -32,6 +42,16 @@ message LocationBlock {
   int32 y = 2;
 }
 
+message Item {
+  string Kind = 1;
+  string Name = 2;
+  int32  x = 3; // only set from server -> client
+  int32  y = 4; // only set from server -> client
+  int32  id = 5;
+  optional bool Picked_up = 6; // only set from server -> client
+  optional bool Not_exist = 7; // only set from server -> client
+}
+
 message BulletShot {
   string gun_type = 1;
   float angle = 2;
@@ -40,6 +60,7 @@ message BulletShot {
   optional int32 y = 5;     // only set from server -> client
   optional int32 ttl =  6;  // only set from server -> client
   optional int32 speed = 7; // only set from server -> client
+  repeated int32 seen_players = 8;
 }
 
 message HandshakeStart {
@@ -69,11 +90,13 @@ message OtherPlayerData {
     LocationBlock new_location = 1;
     int32 HP = 2;
     OtherState state = 3;
+    Item New_Item = 4;
   }
-  int32 player_id = 4;
+  int32 player_id = 5;
   enum OtherState {
     WALKING = 0;
     ATTACKING = 1;
+    DESPAWNED = 2;
   }
 }
 
@@ -84,4 +107,40 @@ message ServerResponse {
     OtherPlayerData other_data = 3;
   }
   repeated BulletShot bullet_shot = 4;
+  optional uint64 seq_num = 5;
+}
+
+message ClientProxy {
+  int32 session_id = 1;
+  int32 player_id = 2;
+  LocationBlock pos = 3;
+  int32 HP = 4;
+  OtherState state = 5;
+
+  enum OtherState {
+    WALKING = 0;
+    ATTACKING = 1;
+    DESPAWNED = 2;
+  }
+}
+
+message ItemProxy {
+  int32 id = 1;
+  LocationBlock pos = 2;
+  string name = 3;
+  string kind = 4;
+  Action action = 5;
+
+  enum Action {
+    PLACE = 0;
+    REMOVE = 1;
+  }
+}
+
+message ProxyEvent {
+  oneof payload {
+    ClientProxy client = 1;
+    ItemProxy item = 2;
+    // In the future: BulletShot bullet_shot = 2;
+  }
 }
