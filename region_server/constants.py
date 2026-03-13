@@ -40,10 +40,10 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,
     },
     "sword hit":{
-        "ttl": 1,
-        "speed": 20,
+        "ttl": 5,
+        "speed": 4,
         "damage": 60,
-        "range": 50,
+        "range": 80,
     },
     "Pistol bullets":{
         "ttl": 10,
