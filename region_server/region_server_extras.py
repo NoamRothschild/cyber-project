@@ -166,7 +166,7 @@ class EnemyHandler:
         self.lock = asyncio.Lock()
 
         # Maintain a constant population
-        self.target_enemy_count = 100
+        self.target_enemy_count = 25
 
         self.world_min_x = 73500
         self.world_min_y = 32100
