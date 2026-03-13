@@ -74,10 +74,10 @@ class EnemyModel:
         self.hp = self.max_hp
 
     def take_damage(self, amount: int) -> bool:
-        if amount <= 0:
+        if amount <= 0 or self.hp <= 0:
             return False
-        self.hp -= amount
-        return self.hp <= 0
+        self.hp = max(0, self.hp - amount)
+        return self.hp == 0
 
     def closest_player(self, players: Sequence[PlayerSnapshot]) -> Optional[PlayerSnapshot]:
         if not players:

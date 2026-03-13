@@ -173,7 +173,7 @@ class EnemyHandler:
         # self.world_max_x = 77400
         # self.world_max_y = 43600
         self.world_max_x = 74500
-        self.world_max_y = 32100
+        self.world_max_y = 33100
         self.next_enemy_id = 1
 
     def random_spawn(self) -> Tuple[float, float]:
@@ -184,7 +184,7 @@ class EnemyHandler:
     def spawn_enemy(self, enemy_id: int | None = None) -> EnemyModel:
         if enemy_id is None:
             enemy_id = self.next_enemy_id
-            self.next_enemy_id += 1
+            self.next_enemy_id += 1_000_000
 
         x, y = self.random_spawn()
         e = EnemyModel(enemy_id=enemy_id, x=x, y=y)
@@ -288,6 +288,8 @@ class EnemyHandler:
                 if should_update_location((enemy.last_sent_x, enemy.last_sent_y),
                                           (enemy.x, enemy.y)):
                     pending_moves.append((enemy.enemy_id, int(enemy.x), int(enemy.y)))
+                    enemy.last_sent_x = enemy.x
+                    enemy.last_sent_y = enemy.y
 
         for attacked_player_id, enemy_id in pending_hits:
             for c in clients:
@@ -300,8 +302,8 @@ class EnemyHandler:
             update.other_data.new_location.CopyFrom(
                 region_net.LocationBlock(x=x, y=y)
             )
-        for c in clients:
-            await c.write(update.SerializeToString())
+            for c in clients:
+                await c.write(update.SerializeToString())
         # Broadcast new location
         # update = region_net.ServerResponse()
         # update.sender_id = enemy.enemy_id
