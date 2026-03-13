@@ -33,7 +33,6 @@ class Potion(pygame.sprite.Sprite):
         self.display_surface = pygame.display.get_surface()
 
         self.image, self.what, self.how_much, self.ttl = Potion.potions[potion_type]
-        self.image = pygame.image.load(self.image).convert_alpha()
         self.smaller_v = pygame.transform.scale(self.image, (30, 30))
         self.is_potion_is = False
         self.delete_last_action_time = time.time()

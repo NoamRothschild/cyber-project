@@ -1,6 +1,6 @@
 from helth import HealthBar
 from inventory import *
-from client.arsenal import Arsenal
+from arsenal import Arsenal
 from bullets import Bullets
 from zone_connection import ZoneConnectionSingleton
 from zone_connection import *

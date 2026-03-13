@@ -65,22 +65,21 @@ class Game:
                 fps_surface = self.font.render(fps, True, "White")
                 self.screen.blit(fps_surface, fps_screen_pos)
 
-            self.level.run()
-            self.screen.blit(fps_surface,fps_screen_pos )
-            hb = self.level.player.hitbox
-            # Report precise world position to the server
-            self.zone().try_send_update_pos((hb.x, hb.y))
+                self.level.run()
+                self.screen.blit(fps_surface, fps_screen_pos)
+                hb = self.level.player.hitbox
+                self.zone().try_send_update_pos((hb.x, hb.y))
 
-            # Show current region node near the FPS bar (0-based indices)
-            node_x = int(hb.x // NODE_WIDTH)
-            node_y = int(hb.y // NODE_HEIGHT)
-            node_text = f"({node_x}, {node_y})"
-            node_surface = self.font.render(node_text, True, "White")
-            node_pos = (fps_screen_pos[0], fps_screen_pos[1] + fps_surface.get_height() + 5)
-            self.screen.blit(node_surface, node_pos)
+                # Show current region node near the FPS bar (0-based indices)
+                node_x = int(hb.x // NODE_WIDTH)
+                node_y = int(hb.y // NODE_HEIGHT)
+                node_text = f"({node_x}, {node_y})"
+                node_surface = self.font.render(node_text, True, "White")
+                node_pos = (fps_screen_pos[0], fps_screen_pos[1] + fps_surface.get_height() + 5)
+                self.screen.blit(node_surface, node_pos)
 
-            pygame.display.update()
-            self.clock.tick(FPS)
+                pygame.display.update()
+                self.clock.tick(FPS)
         except Exception as e:
             print(f"Game Loop Error: {e}")
         finally:

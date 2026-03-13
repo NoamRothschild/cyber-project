@@ -5,7 +5,6 @@ import socket
 import threading
 from typing import Tuple, List, Dict, TYPE_CHECKING
 import protobuf.region_net_pb2 as region_net
-from inventory import WEAPON_MAP, POTION_MAP
 from potion import Potion
 from arsenal import Arsenal
 
@@ -80,6 +79,8 @@ class ZoneConnection:
         player.inventory.potion_inventory.clear()
 
         from arsenal import Arsenal
+
+        from inventory import WEAPON_MAP, POTION_MAP
 
         # Sync ammo slots from Handshake into Arsenal objects
         for i, weapon_id in enumerate(login_resp.weapons):

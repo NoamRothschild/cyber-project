@@ -15,7 +15,7 @@ class Arsenal:
 #=======================================
 
     Arsenal_gunType = {  # image directory & ttl of the bullet & relative offset from the player
-        "Ak 47": ("arsenal-images/guns/Ak 47.png",
+        "Ak 47": ("arsenal-images/guns/AK 47.png",
                   12,
                   "AK 47 bullets",
                   "not fixed",

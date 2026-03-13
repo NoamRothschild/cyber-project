@@ -2,9 +2,7 @@ from __future__ import annotations
 import asyncio
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
-import math
 import redis
-from auth_server import data_db_handler as db
 import socket
 from dataclasses import dataclass, field
 from random import randint, choice
@@ -81,7 +79,7 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
     money = await r.get(prefix + "money")
     spawn_x = await r.get(prefix + "spawn_x")
     spawn_y = await r.get(prefix + "spawn_y")
-    weapons_raw = r.get(prefix + "weapons")
+    weapons_raw = await r.get(prefix + "weapons")
     ammo_raw = await r.get(prefix + "ammo")
     potions_raw = await r.get(prefix + "potions")
 
@@ -96,10 +94,10 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
             "spawn_y": 32605
         }
 
-    def parse_list(raw: str) -> list[int]:
+    def parse_list(raw: bytes) -> list[int]:
         if not raw:
             return []
-        return [int(x) for x in raw.split(",")]
+        return [int(x) for x in raw.decode().split(",")]
 
     return {
         "health": int(health),
@@ -232,7 +230,7 @@ class Client:
             handshake.Clear()
             handshake.CopyFrom(
                 region_net.HandshakeStart(
-                    kind=region_net.HandshakeStart.SERVER_FAIL_INVALID_SESSION_ID,
+                    kind=region_net.HandshakeStart.AUTH_FAIL,
                 )
             )
             await conn.send(handshake.SerializeToString())
@@ -254,8 +252,9 @@ class Client:
         self.state.hp = stats["health"]
         self.state.x = stats["spawn_x"]
         self.state.y = stats["spawn_y"]
-        self.state.cell_x = node.to_cell_pos(stats["spawn_x"])[0]
-        self.state.cell_y = node.to_cell_pos(stats["spawn_y"])[1]
+        cell = node.to_cell_pos((stats["spawn_x"], stats["spawn_y"]))
+        self.state.cell_x = cell[0]
+        self.state.cell_y = cell[1]
         self.state.weapons = stats["weapons"]
         self.state.ammo = stats["ammo"]
         self.state.potions = stats["potions"]

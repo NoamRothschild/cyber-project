@@ -1,5 +1,5 @@
 import pygame, sys
-from auth_server import client_auth
+import client_auth
 from login import LogIn
 import protobuf.auth_net_pb2 as auth_net
 
@@ -21,7 +21,7 @@ class EnterScreen:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption('Cyber Login')
+        pygame.display.set_caption("Cyber Login")
         self.clock = pygame.time.Clock()
 
         # Better Fonts
@@ -121,7 +121,9 @@ class EnterScreen:
                             print(f"Login Success! Session: {response.session_id}")
                             self.is_running = False
                             pygame.display.quit()  # Close the login window
-                            return response.session_id  # <--- RETURN THE SESSION ID (int)
+                            return (
+                                response.session_id
+                            )  # <--- RETURN THE SESSION ID (int)
                         else:
                             # Registration Success: Stay on screen
                             self.status_message = "Registered! Please Login."
@@ -158,12 +160,17 @@ class EnterScreen:
         self.screen.blit(msg_surf, (WIDTH // 2 - msg_surf.get_width() // 2, 500))
 
         # Buttons
-        self.draw_button(self.login_rect, "LOGIN", self.login_rect.collidepoint(mouse_pos))
-        self.draw_button(self.register_rect, "REGISTER", self.register_rect.collidepoint(mouse_pos))
+        self.draw_button(
+            self.login_rect, "LOGIN", self.login_rect.collidepoint(mouse_pos)
+        )
+        self.draw_button(
+            self.register_rect, "REGISTER", self.register_rect.collidepoint(mouse_pos)
+        )
 
         pygame.display.flip()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     game = EnterScreen()
     game.run()
+
