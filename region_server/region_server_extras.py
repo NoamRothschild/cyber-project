@@ -83,7 +83,7 @@ class ProjectileHandler:
             for e in to_remove:
                 self.projectiles.remove(e)
 
-            for client in clients:
+            for client in list(clients):
                 for proj in self.projectiles:
                     if proj['owner_uuid'] == client.user_id:
                         continue
@@ -315,7 +315,7 @@ class EnemyHandler:
                     enemy.last_sent_y = enemy.y
 
         for attacked_player_id, enemy_id in pending_hits:
-            for c in clients:
+            for c in list(clients):
                 if c.user_id == attacked_player_id:
                     await c.hit(ENEMY_DAMAGE, enemy_id)
 
