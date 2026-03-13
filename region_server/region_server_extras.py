@@ -66,6 +66,7 @@ class ProjectileHandler:
 
     async def tick(self) -> None:
         to_remove: list[dict] = []
+        dead_enemy_ids: list[int] = []
         global clients
         global enemy_handler
 
@@ -91,6 +92,7 @@ class ProjectileHandler:
                         await client.hit(proj["damage"], proj["owner_uuid"])
                         proj["already_hit"].add(client.user_id)
 
+        enemies_to_broadcast_hp = []
         async with enemy_handler.lock:
             for proj in self.projectiles:
                 for enemy in enemy_handler.enemies.values():
@@ -101,11 +103,16 @@ class ProjectileHandler:
                     if self.bullet_hit_enemy(proj, enemy):
                         died = enemy.take_damage(int(proj["damage"]))
                         proj["already_hit"].add(enemy.enemy_id)
-
-                        await enemy_handler.broadcast_enemy_hp(enemy)
+                        enemies_to_broadcast_hp.append(enemy)
 
                         if died:
-                            await enemy_handler.respawn_enemy(enemy.enemy_id)
+                            dead_enemy_ids.append(enemy.enemy_id)
+
+        for enemy in enemies_to_broadcast_hp:
+            await enemy_handler.broadcast_enemy_hp(enemy)
+
+        for enemy_id in dead_enemy_ids:
+            await enemy_handler.respawn_enemy(enemy_id)
 
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
         template = BULLET_TYPES.get(bullet_shot.gun_type)
@@ -161,12 +168,12 @@ class EnemyHandler:
         # Maintain a constant population
         self.target_enemy_count = 100
 
-        self.world_min_x = 73000
-        self.world_min_y = 31600
+        self.world_min_x = 73500
+        self.world_min_y = 32100
         # self.world_max_x = 77400
         # self.world_max_y = 43600
-        self.world_max_x = 75000
-        self.world_max_y = 33600
+        self.world_max_x = 74500
+        self.world_max_y = 32100
         self.next_enemy_id = 1
 
     def random_spawn(self) -> Tuple[float, float]:
@@ -257,6 +264,9 @@ class EnemyHandler:
     async def tick(self) -> None:
         global clients
 
+        pending_hits = []
+        pending_moves = []
+
         async with self.lock:
             now_ms = loop_time_ms()
 
@@ -270,28 +280,42 @@ class EnemyHandler:
 
                 # Handle attack
                 if attacked_player_id is not None:
-                    for c in clients:
-                        if c.user_id == attacked_player_id:
-                            await c.hit(ENEMY_DAMAGE, enemy.enemy_id)
+                    pending_hits.append((attacked_player_id, enemy.enemy_id))
+                    # for c in clients:
+                    #     if c.user_id == attacked_player_id:
+                    #         await c.hit(ENEMY_DAMAGE, enemy.enemy_id)
 
-                if not should_update_location((enemy.last_sent_x, enemy.last_sent_y),
-                                              (enemy.x, enemy.y)):
-                    continue
+                if should_update_location((enemy.last_sent_x, enemy.last_sent_y),
+                                          (enemy.x, enemy.y)):
+                    pending_moves.append((enemy.enemy_id, int(enemy.x), int(enemy.y)))
 
-                # Broadcast new location
-                update = region_net.ServerResponse()
-                update.sender_id = enemy.enemy_id
-                update.other_data.new_location.CopyFrom(
-                    region_net.LocationBlock(
-                        x=int(enemy.x),
-                        y=int(enemy.y)
-                    )
-                )
-                enemy.last_sent_x = enemy.x
-                enemy.last_sent_y = enemy.y
+        for attacked_player_id, enemy_id in pending_hits:
+            for c in clients:
+                if c.user_id == attacked_player_id:
+                    await c.hit(ENEMY_DAMAGE, enemy_id)
 
-                for c in clients:
-                    await c.write(update.SerializeToString())
+        for enemy_id, x, y in pending_moves:
+            update = region_net.ServerResponse()
+            update.sender_id = enemy_id
+            update.other_data.new_location.CopyFrom(
+                region_net.LocationBlock(x=x, y=y)
+            )
+        for c in clients:
+            await c.write(update.SerializeToString())
+        # Broadcast new location
+        # update = region_net.ServerResponse()
+        # update.sender_id = enemy.enemy_id
+        # update.other_data.new_location.CopyFrom(
+        #     region_net.LocationBlock(
+        #         x=int(enemy.x),
+        #         y=int(enemy.y)
+        #     )
+        # )
+        # enemy.last_sent_x = enemy.x
+        # enemy.last_sent_y = enemy.y
+        #
+        # for c in clients:
+        #     await c.write(update.SerializeToString())
 
 
 # TODO: surround with a lock as well

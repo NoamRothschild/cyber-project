@@ -60,8 +60,8 @@ class EnemyModel:
     patrol_switch_ms: int = 600
     next_patrol_switch_ms: int = 0
 
-    chase_radius: float = 260.0
-    attack_radius: float = 45.0
+    chase_radius: float = 45.0
+    attack_radius: float = 10.0
 
     attack_cooldown_ms: int = 700
     next_attack_time_ms: int = 0
