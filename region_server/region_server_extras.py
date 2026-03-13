@@ -8,7 +8,7 @@ import math
 import time
 
 from enemy_model import PlayerSnapshot
-from enemy_model import EnemyModel
+from enemy_model import MeleeEnemy, RangedEnemy, EnemyModel
 
 BUFF_SIZE = 1024
 SECONDS_TO_MS = 1000
@@ -16,6 +16,9 @@ ENEMY_DAMAGE = 5
 
 # 60Hz tick rate
 TICK_INTERVAL_SEC = 1.0 / 60
+
+# IDs >= this value are RangedEnemy — client checks this to pick the right sprite
+RANGED_ID_OFFSET = 500_000_000
 
 # TODO: might parse this from a bullets config json file
 BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
@@ -25,6 +28,13 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "damage": 1,
         "range": 50,
     }
+}
+
+ENEMY_RANGED_BULLET: Dict[str, Union[int, float]] = {
+    "ttl": 80,
+    "speed": 15,
+    "damage": 15,
+    "range": 30,
 }
 
 
@@ -163,6 +173,33 @@ class ProjectileHandler:
 
         return update.SerializeToString()
 
+    async def add_enemy_bullet(self, spawn_x: float, spawn_y: float, angle: float, enemy_id: int) -> None:
+        """Fire a projectile from a ranged enemy."""
+        global clients
+        bullet = ENEMY_RANGED_BULLET.copy()
+        bullet["velocity_x"] = math.cos(angle) * bullet["speed"]
+        bullet["velocity_y"] = math.sin(angle) * bullet["speed"]
+        bullet["owner_uuid"] = enemy_id
+        bullet["already_hit"] = {enemy_id}
+        bullet["x"] = spawn_x
+        bullet["y"] = spawn_y
+
+        async with self.lock:
+            self.projectiles.append(bullet)
+
+        update = region_net.ServerResponse(sender_id=enemy_id)
+        update.bullet_shot.add(
+            gun_type="Ak-7",
+            angle=angle,
+            count=1,
+            x=int(spawn_x),
+            y=int(spawn_y),
+            ttl=int(bullet["ttl"]),
+            speed=int(bullet["speed"]),
+        )
+        for c in list(clients):
+            await c.write(update.SerializeToString())
+
 
 def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, float], min_dst=5) -> bool:
     """returns true when the distance between the two pos are above min_dst"""
@@ -200,11 +237,16 @@ class EnemyHandler:
 
     def spawn_enemy(self, enemy_id: int | None = None) -> EnemyModel:
         if enemy_id is None:
-            enemy_id = self.next_enemy_id
+            is_ranged = random() < 0.4
+            base_id = self.next_enemy_id
             self.next_enemy_id += 1_000_000
+            enemy_id = base_id + (RANGED_ID_OFFSET if is_ranged else 0)
 
         x, y = self.random_spawn()
-        e = EnemyModel(enemy_id=enemy_id, x=x, y=y)
+        if enemy_id >= RANGED_ID_OFFSET:
+            e: EnemyModel = RangedEnemy(enemy_id=enemy_id, x=x, y=y)
+        else:
+            e = MeleeEnemy(enemy_id=enemy_id, x=x, y=y)
         e.reset_combat()
         e.last_sent_x = e.x
         e.last_sent_y = e.y
@@ -312,27 +354,36 @@ class EnemyHandler:
 
         pending_hits = []
         pending_moves = []
+        pending_shots = []  # (spawn_x, spawn_y, enemy_id, angle)
 
         async with self.lock:
             now_ms = loop_time_ms()
 
             for enemy in list(self.enemies.values()):
-                # skip enemies waiting to respawn
                 if enemy.enemy_id in self._dead_ids:
                     continue
-                attacked_player_id = enemy.update_state_machine(
-                    now_ms,
-                    [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
-                )
 
-                enemy.move_and_collide([])  # TODO: add obstacles later
+                if isinstance(enemy, MeleeEnemy):
+                    attacked_player_id = enemy.update_state_machine(
+                        now_ms,
+                        [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
+                    )
+                    if attacked_player_id is not None:
+                        pending_hits.append((attacked_player_id, enemy.enemy_id))
+                else:  # RangedEnemy
+                    shoot_angle = enemy.update_state_machine(
+                        now_ms,
+                        [PlayerSnapshot(c.user_id, c.pos[0], c.pos[1]) for c in clients]
+                    )
+                    if shoot_angle is not None:
+                        pending_shots.append((
+                            enemy.x + enemy.w / 2,
+                            enemy.y + enemy.h / 2,
+                            enemy.enemy_id,
+                            shoot_angle,
+                        ))
 
-                # Handle attack
-                if attacked_player_id is not None:
-                    pending_hits.append((attacked_player_id, enemy.enemy_id))
-                    # for c in clients:
-                    #     if c.user_id == attacked_player_id:
-                    #         await c.hit(ENEMY_DAMAGE, enemy.enemy_id)
+                enemy.move_and_collide([])
 
                 if should_update_location((enemy.last_sent_x, enemy.last_sent_y),
                                           (enemy.x, enemy.y)):
@@ -344,6 +395,9 @@ class EnemyHandler:
             for c in list(clients):
                 if c.user_id == attacked_player_id:
                     await c.hit(ENEMY_DAMAGE, enemy_id)
+
+        for spawn_x, spawn_y, enemy_id, angle in pending_shots:
+            await projectile_handler.add_enemy_bullet(spawn_x, spawn_y, angle, enemy_id)
 
         for enemy_id, x, y in pending_moves:
             update = region_net.ServerResponse()
