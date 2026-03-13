@@ -161,11 +161,12 @@ class EnemyHandler:
         # Maintain a constant population
         self.target_enemy_count = 100
 
-        self.world_min_x = 0
-        self.world_min_y = 0
-        self.world_max_x = 77400
-        self.world_max_y = 43600
-
+        self.world_min_x = 73000
+        self.world_min_y = 31600
+        # self.world_max_x = 77400
+        # self.world_max_y = 43600
+        self.world_max_x = 75000
+        self.world_max_y = 33600
         self.next_enemy_id = 1
 
     def random_spawn(self) -> Tuple[float, float]:
