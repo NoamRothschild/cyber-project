@@ -40,10 +40,12 @@ class ProjectileHandler:
 
     async def ticker(self):
         loop = asyncio.get_running_loop()
-        global clients
         while True:
             start_time = loop.time()
-            await self.tick()
+            try:
+                await self.tick()
+            except Exception as e:
+                print(f"[ProjectileHandler.ticker] error: {e}")
             sleep_time = self.tick_intervals - (loop.time() - start_time)
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
@@ -217,8 +219,26 @@ class EnemyHandler:
                 enemy.reset_combat()
                 enemy.last_sent_x = enemy.x
                 enemy.last_sent_y = enemy.y
+            snapshot_x = int(enemy.x)
+            snapshot_y = int(enemy.y)
+            snapshot_hp = int(enemy.hp)
 
-        await self.broadcast_enemy_spawn(enemy)
+        global clients
+        location_update = region_net.ServerResponse()
+        location_update.sender_id = enemy.enemy_id
+        location_update.other_data.new_location.CopyFrom(
+            region_net.LocationBlock(x=snapshot_x, y=snapshot_y)
+        )
+        for c in list(clients):
+            await c.write(location_update.SerializeToString())
+
+        hp_update = region_net.ServerResponse()
+        hp_update.sender_id = enemy.enemy_id
+        hp_update.other_data.CopyFrom(
+            region_net.OtherPlayerData(HP=snapshot_hp, player_id=enemy.enemy_id)
+        )
+        for c in list(clients):
+            await c.write(hp_update.SerializeToString())
 
     async def broadcast_enemy_spawn(self, enemy: EnemyModel) -> None:
         """Broadcast enemy location (spawn/respawn)."""
@@ -255,8 +275,11 @@ class EnemyHandler:
         loop = asyncio.get_running_loop()
         while True:
             start_time = loop.time()
-            await self.ensure_population()
-            await self.tick()
+            try:
+                await self.ensure_population()
+                await self.tick()
+            except Exception as e:
+                print(f"[EnemyHandler.ticker] error: {e}")
             sleep_time = self.tick_intervals - (loop.time() - start_time)
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
