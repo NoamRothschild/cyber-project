@@ -33,6 +33,11 @@ class Potion(pygame.sprite.Sprite):
                     40,
                     10,
                 ),
+                "gold": (pygame.image.load("Potion/gold.png").convert_alpha(),
+                         "gold",
+                         2,
+                         10)
+
             }
 
     def __init__(self, potion_type):
