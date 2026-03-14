@@ -69,7 +69,9 @@ class Player(pygame.sprite.Sprite):
 
         self.display_surface = pygame.display.get_surface()
 
-        self.skin = "fiona"
+        skins=["blue golden knight", "fiona", "golden knight","red knight","king"]
+        self.skin = random.choice(skins)
+
         self.animation = Player.player_skins_and_animatiom[self.skin]
 
         self.image = self.animation.image()
