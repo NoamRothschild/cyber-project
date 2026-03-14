@@ -252,7 +252,6 @@ class Player(pygame.sprite.Sprite):
 
             if sprite.hitbox.colliderect(self.hitbox):
                 self.check_harm_done(sprite)
-                self.check_harm_done(sprite)
                 if direction == 'horizontal':
 
                     if self.direction.x > 0:

@@ -135,11 +135,11 @@ class Level:
                     if tree_count % 7 == 0:
                         t=get_trees()
                         s=Rock(world_pos,
-                             t, "tree", [self.obstacle_sprites,self.harmfull_sprites])
+                             t, "tree", [self.obstacle_sprites])
 
                     else:
                         s=Rock(world_pos,
-                             self.image[1], "tree", [self.obstacle_sprites,self.harmfull_sprites])
+                             self.image[1], "tree", [self.obstacle_sprites])
                     tree_count += 1
                     ground_count = 0
                 else:
