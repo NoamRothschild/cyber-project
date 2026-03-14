@@ -152,21 +152,21 @@ class ShopUI:
 
         # can I buy pleas :c (Me asking the server)
         zone.try_to_buy(kind, name, 1)
-        # The server replay on game var named: game.last_shop_result
+        # The server replay on game var named: game.last_shop_ans
 
         # waiting to server replay
         import time
         start = time.time()
 
-        while game.last_shop_result is None:
+        while game.last_shop_ans is None:
             if time.time() - start > 1:
                 print("server timeout")
                 return
             time.sleep(0.01)
 
 
-        print("Server say ",game.last_shop_result," to the buy!!!")
-        if game.last_shop_result:
+        print("Server say ",game.last_shop_ans," to the buy!!!")
+        if game.last_shop_ans:
             print("buy success")
 
             price = self.item_price(self.selected)
@@ -190,7 +190,7 @@ class ShopUI:
 
         else:
             print("buy failed")
-        game.last_shop_result = None
+        game.last_shop_ans = None
     # ᓚᘏᗢ
 
     def draw_categories(self, screen, left):

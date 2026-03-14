@@ -60,10 +60,10 @@ message OtherPlayerData {
     LocationBlock new_location = 1;
     int32 HP = 2;
     OtherState state = 3;
+    bool shop_ans = 5;
   }
-
   int32 player_id = 4;
-  bool result = 5;
+
 
   enum OtherState {
     WALKING = 0;

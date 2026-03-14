@@ -144,6 +144,7 @@ def server_listener(game: Game, zone: ZoneConnection):
 
         payload_type = parsed.WhichOneof("payload")
         print(f'{payload_type=}')
+
         if payload_type == "move_self":
             print("force moving self...")
             # TODO: have a lock sorrounding player hitbox
@@ -151,15 +152,13 @@ def server_listener(game: Game, zone: ZoneConnection):
             hb.x = parsed.move_self.x
             hb.y = parsed.move_self.y
 
-        elif payload_type == "other_data": # ask to buy pkt
+        elif payload_type == "other_data":
             payload_type = parsed.other_data.WhichOneof("payload")
 
-            if parsed.other_data.result:
-                game.last_shop_result = True
-            else:
-                game.last_shop_result = False
+            if payload_type == "shop_ans":  # ask to buy pkt
+                game.last_shop_ans = parsed.other_data.shop_ans
 
-            if payload_type == "new_location":
+            elif payload_type == "new_location":
                 pos = parsed.other_data.new_location
                 game.level.entities.add_or_update([game.level.visible_sprites], parsed.sender_id, pos=(pos.x, pos.y))
             elif payload_type == "HP":

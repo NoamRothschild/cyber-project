@@ -17,7 +17,7 @@ class Game:
     def __init__(self, host: str, tcp_port: int, udp_port: int):
         ZoneConnectionSingleton.set_creds(self, host, tcp_port, udp_port)
         pygame.init()
-        self.last_shop_result = None
+        self.last_shop_ans = None
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         self.image = pygame.image.load("grass.png")  # the background should be changed and moved to level
         self.image = pygame.transform.scale(self.image, (WIDTH, HEIGHT))

@@ -270,11 +270,11 @@ class Client:
                 #player = user_stt[client.user_id]
                 if player["cash"] >= total:
                     player["cash"] -= total
-                    resp.other_data.result = True
+                    resp.other_data.shop_ans = True
                 else:
-                    resp.other_data.result = False
+                    resp.other_data.shop_ans = False
 
-                print(resp.other_data.result)
+                print(resp.other_data.shop_ans)
                 await self.write(resp.SerializeToString())
 
     def priceOfTheSHOPING(self,kind,name):
