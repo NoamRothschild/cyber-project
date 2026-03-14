@@ -1,12 +1,31 @@
 import pygame
 from game import Game
 import socket
+from pathlib import Path
+
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+
 import protobuf.chat_net_pb2 as chat_net
+import auth_crypto
 import threading
 
 # הגדרות בסיסיות
 width, height = 300, 400
-BUFF_SIZE = 1024
+
+_CLIENT_DIR = Path(__file__).resolve().parent
+
+
+def _get_chat_client_key_pair():
+    """Generate or return cached client RSA key pair for chat (created at first use)."""
+    if not hasattr(_get_chat_client_key_pair, "_cached"):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        )
+        _get_chat_client_key_pair._cached = (private_key, private_key.public_key())
+    return _get_chat_client_key_pair._cached
 
 
 class Chat(pygame.sprite.Sprite):
@@ -78,38 +97,51 @@ class Chat(pygame.sprite.Sprite):
     def open_reliable_conn(self):
         """opens the TCP conn and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
-        handshake = chat_net.HandshakeStart()
-        handshake.session_id = self.session_id
-        handshake.kind = handshake.LOGIN
+        client_private_key, client_public_key = _get_chat_client_key_pair()
+        chat_server_public_key = auth_crypto.load_public_key_from_dir(_CLIENT_DIR, "chat_server_public.pem")
+        self._client_private_key = client_private_key
+        self._chat_server_public_key = chat_server_public_key
 
-        self.reliable_conn.sendall(handshake.SerializeToString())
-        login_resp_raw = self.reliable_conn.recv(BUFF_SIZE)
+        handshake = chat_net.HandshakeStart()
+        handshake.kind = handshake.LOGIN
+        handshake.session_id = self.session_id
+        handshake.client_public_key = auth_crypto.public_key_to_bytes(client_public_key)
+        self.reliable_conn.sendall(
+            auth_crypto.encrypt_and_prefix(handshake.SerializeToString(), chat_server_public_key)
+        )
+        plaintext = auth_crypto.receive_and_decrypt(self.reliable_conn.recv, client_private_key)
         login_resp = chat_net.HandshakeStart()
-        login_resp.ParseFromString(login_resp_raw)
+        login_resp.ParseFromString(plaintext)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
         listener = threading.Thread(target=server_listener, args=(self,))
         listener.start()
         return login_resp.user_id
 
-    def try_send_mas(self, mas: str ) -> None:
-
+    def try_send_mas(self, mas: str) -> None:
         update = chat_net.ChatMessage()
         update.message = mas
-        self.reliable_conn.sendall(update.SerializeToString())
+        self.reliable_conn.sendall(
+            auth_crypto.encrypt_and_prefix(
+                update.SerializeToString(), self._chat_server_public_key
+            )
+        )
 
 def server_listener(chat: Chat):
         """
         Start this one in another thread
         Assumes a connection has already been established in `game.chat_conn`
         """
-        first= True
+        first = True
         while True:
-            server_raw = chat.reliable_conn.recv(BUFF_SIZE)
-            if not server_raw:
-                continue
+            try:
+                plaintext = auth_crypto.receive_and_decrypt(
+                    chat.reliable_conn.recv, chat._client_private_key
+                )
+            except ValueError:
+                break
             parsed = chat_net.ChatMessage()
-            parsed.ParseFromString(server_raw)
+            parsed.ParseFromString(plaintext)
             print(f"received: {parsed}")
 
             payload_type = parsed.WhichOneof("mas")
