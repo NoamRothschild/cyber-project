@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from random import randint
 from typing import Tuple, Set, Dict, Union
-import protobuf.region_net_pb2 as region_net
+import protobuf.chat_net_pb2 as chat_net
 
 import asyncio
 
@@ -22,7 +22,7 @@ class Client:
         print("new connection established")
 
         handshake_raw = await reader.read(1024)
-        handshake = region_net.HandshakeStart()
+        handshake = chat_net.HandshakeStart()
         handshake.ParseFromString(handshake_raw)
         # TODO: verify the session id with the auth server && cache it
         session_id = handshake.session_id
@@ -31,8 +31,8 @@ class Client:
         user_id = randint(0, 2 ** 31 - 1)
 
         handshake.Clear()
-        handshake.CopyFrom(region_net.HandshakeStart(
-            kind=region_net.HandshakeStart.SERVER_OK,
+        handshake.CopyFrom(chat_net.HandshakeStart(
+            kind=chat_net.HandshakeStart.SERVER_OK,
             user_id=user_id,
         ))
 
@@ -65,7 +65,7 @@ class Client:
             masss=""
             for mas in last_mess:
                 masss += mas+"\r\n"
-            update = region_net.ChatMessage()
+            update = chat_net.ChatMessage()
             print(masss)
             update.message = masss
             await self.write(update.SerializeToString())
@@ -76,7 +76,7 @@ class Client:
             if not data:
                 break
 
-            update = region_net.ChatMessage()
+            update = chat_net.ChatMessage()
             update.ParseFromString(data)
             print(str(self.user_id) + f": {update}" )
             payload_type = update.WhichOneof("mas")

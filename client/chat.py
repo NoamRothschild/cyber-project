@@ -1,7 +1,7 @@
 import pygame
 from game import Game
 import socket
-import protobuf.region_net_pb2 as region_net
+import protobuf.chat_net_pb2 as chat_net
 import threading
 
 # הגדרות בסיסיות
@@ -78,13 +78,13 @@ class Chat(pygame.sprite.Sprite):
     def open_reliable_conn(self):
         """opens the TCP conn and returns the user id. can throw"""
         self.reliable_conn.connect((self.host, self.reliable_port))
-        handshake = region_net.HandshakeStart()
+        handshake = chat_net.HandshakeStart()
         handshake.session_id = self.session_id
         handshake.kind = handshake.LOGIN
 
         self.reliable_conn.sendall(handshake.SerializeToString())
         login_resp_raw = self.reliable_conn.recv(BUFF_SIZE)
-        login_resp = region_net.HandshakeStart()
+        login_resp = chat_net.HandshakeStart()
         login_resp.ParseFromString(login_resp_raw)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
@@ -94,21 +94,21 @@ class Chat(pygame.sprite.Sprite):
 
     def try_send_mas(self, mas: str ) -> None:
 
-        update = region_net.ChatMessage()
+        update = chat_net.ChatMessage()
         update.message = mas
         self.reliable_conn.sendall(update.SerializeToString())
 
 def server_listener(chat: Chat):
         """
         Start this one in another thread
-        Assumes a connection has already been established in `game.region_conn`
+        Assumes a connection has already been established in `game.chat_conn`
         """
         first= True
         while True:
             server_raw = chat.reliable_conn.recv(BUFF_SIZE)
             if not server_raw:
                 continue
-            parsed = region_net.ChatMessage()
+            parsed = chat_net.ChatMessage()
             parsed.ParseFromString(server_raw)
             print(f"received: {parsed}")
 

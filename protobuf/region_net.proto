@@ -1,13 +1,6 @@
 syntax = "proto3";
 
-package game.region;
-
-
-message ChatMessage {
-  oneof mas {
-    string message = 1;
-  }
-}
+package game.chat;
 
 message RegionUpdate {
   oneof payload {
