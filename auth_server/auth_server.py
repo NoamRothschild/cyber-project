@@ -4,14 +4,19 @@ import hashlib
 import uuid
 import json
 import threading
+from pathlib import Path
+
 import protobuf.auth_net_pb2 as auth_net
 import redis
+import auth_crypto
 import data_db_handler as db
 
 DB_NAME = 'Auth.db'
 PORT = 9999
 IP = '127.0.0.1'
-BYTES_TO_DECODE = 1024
+BYTES_TO_DECODE = 8192
+
+_AUTH_SERVER_DIR = Path(__file__).resolve().parent
 
 REDIS_PORT = 6379
 CACHE_TIME = 86400 # in seconds
@@ -210,13 +215,22 @@ def run_server():
      server_socket.listen()
      print("Server is running and waiting to register users...")
 
+     server_private_key = auth_crypto.load_private_key_from_dir(_AUTH_SERVER_DIR)
      create_table()
      while True:
          (client_socket, client_address) = server_socket.accept()
          try:
-             raw_data = client_socket.recv(BYTES_TO_DECODE)
+             try:
+                 plaintext = auth_crypto.receive_and_decrypt(client_socket.recv, server_private_key)
+             except ValueError:
+                 continue
              data = auth_net.RequestLogin()
-             data.ParseFromString(raw_data)
+             data.ParseFromString(plaintext)
+
+             if not data.client_public_key:
+                 client_socket.close()
+                 continue
+             client_public_key = auth_crypto.public_key_from_bytes(data.client_public_key)
 
              command = data.mode
 
@@ -226,17 +240,17 @@ def run_server():
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.SUCCESS
                     print(f"User {data.username} successfully registered/pushed!")
-                    client_socket.send(answer.SerializeToString())
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
                 elif result == "REGISTER_TAKEN":
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.TAKEN
                     print(f"User {data.username} tried to register but already exists.")
-                    client_socket.send(answer.SerializeToString())
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
                 else:
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.FAILURE
                     print("Database error occurred.")
-                    client_socket.send(answer.SerializeToString())
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
 
              elif command == auth_net.Mode.LOGIN:
                 result = handle_login(data.username, data.password)
@@ -246,11 +260,11 @@ def run_server():
                     answer.status = auth_net.Status.SUCCESS
                     answer.session_id = int(result.split(":")[1])
                     print(f"User {data.username} logged in.")
-                    client_socket.send(answer.SerializeToString())
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
                 elif result == "LOGIN_FAILED":
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.FAILURE
-                    client_socket.send(answer.SerializeToString())
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
          finally:
             client_socket.close()
 

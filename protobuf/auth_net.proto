@@ -6,6 +6,7 @@ message RequestLogin {
   Mode mode = 1;
   string username = 2;
   string password = 3;
+  bytes client_public_key = 4;  // client's RSA public key (PEM or SubjectPublicKeyInfo) for server to encrypt response
 }
 
 enum Mode {

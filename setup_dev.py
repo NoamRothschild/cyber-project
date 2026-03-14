@@ -32,6 +32,7 @@ WINDOWS_DEV_MODE_URL = (
 )
 CONFIG_JSONC_NAME = "config.jsonc"
 CONFIG_PY_NAME = "config.py"
+AUTH_CRYPTO_PY_NAME = "auth_crypto.py"
 
 # ANSI color helpers
 GREEN = "\033[32m"
@@ -188,6 +189,19 @@ def write_config_py(target_dir: Path, config: Mapping[str, Any]) -> None:
     content = "\n".join(lines) + "\n"
     config_py_path.write_text(content, encoding="utf-8")
     success("[WRITE]", f"{_rel(config_py_path)}")
+
+
+def copy_auth_crypto(root: Path, target_dir: Path) -> None:
+    """
+    Copy the shared auth_crypto.py from the project root into `target_dir`
+    so the module can be imported when running from that directory.
+    """
+    source = root / AUTH_CRYPTO_PY_NAME
+    if not source.exists():
+        return
+    dest = target_dir / AUTH_CRYPTO_PY_NAME
+    shutil.copy2(source, dest)
+    success("[WRITE]", f"{_rel(dest)}")
 
 
 def refresh_windows_path() -> None:
@@ -434,6 +448,7 @@ def main() -> None:
         any_processed = True
         ensure_symlink(target_dir, source_protobuf_dir)
         write_config_py(target_dir, config_mapping)
+        copy_auth_crypto(root, target_dir)
 
     if not any_processed:
         info("[INFO]", "No eligible subdirectories found; nothing to do.")

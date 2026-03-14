@@ -1,9 +1,28 @@
 import socket
+from pathlib import Path
+
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
+
 import protobuf.auth_net_pb2 as auth_net
+import auth_crypto
 
 IP = '127.0.0.1'
 PORT = 9999
-BYTES_TO_DECODE = 1024
+
+_CLIENT_DIR = Path(__file__).resolve().parent
+
+
+def _get_client_key_pair():
+    """Generate or return cached client RSA key pair (created at first use)."""
+    if not hasattr(_get_client_key_pair, "_cached"):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        )
+        _get_client_key_pair._cached = (private_key, private_key.public_key())
+    return _get_client_key_pair._cached
 
 
 def connect(username, password, command):
@@ -11,20 +30,24 @@ def connect(username, password, command):
     try:
         client.connect((IP, PORT))
 
+        client_private_key, client_public_key = _get_client_key_pair()
+        server_public_key = auth_crypto.load_public_key_from_dir(_CLIENT_DIR)
+
         answer = auth_net.RequestLogin()
         if command == "REG":
             answer.mode = auth_net.Mode.REGISTER
         elif command == "LOG":
             answer.mode = auth_net.Mode.LOGIN
-
         answer.username = username
         answer.password = password
+        answer.client_public_key = auth_crypto.public_key_to_bytes(client_public_key)
 
-        client.sendall(answer.SerializeToString())
-        raw_response = client.recv(BYTES_TO_DECODE)
+        plaintext = answer.SerializeToString()
+        client.sendall(auth_crypto.encrypt_and_prefix(plaintext, server_public_key))
+
+        decrypted = auth_crypto.receive_and_decrypt(client.recv, client_private_key)
         response = auth_net.SendAnswer()
-        response.ParseFromString(raw_response)
-
+        response.ParseFromString(decrypted)
         return response
 
     except ConnectionRefusedError:
@@ -32,7 +55,10 @@ def connect(username, password, command):
     except socket.timeout:
         return "TIMEOUT"
     except socket.error as e:
-        # Catches other network errors like BrokenPipe
         return f"NET_ERROR: {e}"
+    except FileNotFoundError as err:
+        return f"CONFIG_ERROR: {err}"
+    except ValueError as e:
+        return f"DECRYPT_ERROR: {e}"
     finally:
         client.close()
