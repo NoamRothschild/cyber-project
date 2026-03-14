@@ -51,7 +51,8 @@ class RegionNode:
         ]  # a set of proxies from each direction
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
-        self.enemy_handler = EnemyHandler(self, self.x_range, self.y_range)
+        node_index = RegionNode.node_pos_to_idx(*self.node_pos)
+        self.enemy_handler = EnemyHandler(self, node_index, self.x_range, self.y_range)
         self.projectile_handler = ProjectileHandler(self, self.enemy_handler)
         self.items: Dict[int, GridField] = {}  # id -> GridField(obj -> ItemState, seen)
 
@@ -168,12 +169,17 @@ class RegionNode:
             elif isinstance(proxy, ProxyItem):
                 await cli.item_hendeling(proxy.name, proxy.kind, *proxy.pos, proxy.id)
 
-        # despawn for clients who could see the old proxy but can't see the new position
+        # despawn only for clients who could see the old proxy but truly can't see the new position
+        # (re-check with can_see_static to avoid false despawns when proxy is on adjacent node)
         for uid in old_seen - field.seen:
             for cli in self.clients.values():
-                if cli.user_id == uid:
-                    await cli.entity_despawned(proxy.id)
-                    break
+                if cli.user_id != uid:
+                    continue
+                if Client.can_see_static((cli.state.x, cli.state.y), proxy.pos):
+                    continue  # client can still see proxy, do not despawn
+                print(f"despawning enemy {proxy.id}, since dX={abs(cli.state.x - proxy.pos[0])} dY={abs(cli.state.y - proxy.pos[1])}")
+                await cli.entity_despawned(proxy.id)
+                break
 
     async def receive_proxy_remove(self, sender_id: int, type: str = "Client") -> None:
         """Remove all proxies matching sender_id and type; despawn for clients who had seen them."""

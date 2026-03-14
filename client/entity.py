@@ -25,6 +25,13 @@ class Entity(pygame.sprite.Sprite):
     def __init__(self, groups: Any, pos: Tuple[int, int]) -> None:
         super().__init__(groups)
 
+        # Set lerp state first so update() is safe if __init__ fails later
+        self._lerp_active = False
+        self._lerp_start_time = 0
+        self._lerp_duration = 150
+        self._lerp_start_pos = pygame.math.Vector2(pos[0], pos[1])
+        self._lerp_target_pos = pygame.math.Vector2(pos[0], pos[1])
+
         # Always use the same skin as the local player ("fiona")
         self.animation = Animation(**FIONA_SKIN)
         self.facing_right = True
@@ -44,12 +51,9 @@ class Entity(pygame.sprite.Sprite):
         self._last_move_time = pygame.time.get_ticks()
         self.injured_until = 0
 
-        # Smooth interpolation towards latest server position
-        self._lerp_active = False
-        self._lerp_start_time = 0
-        self._lerp_duration = 150  # ms
-        self._lerp_start_pos = pygame.math.Vector2(self.hitbox.x, self.hitbox.y)
-        self._lerp_target_pos = pygame.math.Vector2(self.hitbox.x, self.hitbox.y)
+        # Update lerp vectors to match hitbox (hitbox is set above)
+        self._lerp_start_pos.update(self.hitbox.x, self.hitbox.y)
+        self._lerp_target_pos.update(self.hitbox.x, self.hitbox.y)
 
     def move(self, new_pos: None | Tuple[int, int]):
         if new_pos is None:
@@ -98,7 +102,7 @@ class Entity(pygame.sprite.Sprite):
     def update(self, *args):
         now = pygame.time.get_ticks()
 
-        if self._lerp_active:
+        if getattr(self, "_lerp_active", False):
             t = (now - self._lerp_start_time) / self._lerp_duration
             if t >= 1.0:
                 t = 1.0

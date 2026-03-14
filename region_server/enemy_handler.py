@@ -13,15 +13,23 @@ if TYPE_CHECKING:
 SECONDS_TO_MS = 1000
 ENEMY_DAMAGE = 5
 
-# IDs >= this value are RangedEnemy — client checks this to pick the right sprite
-RANGED_ID_OFFSET = 500_000_000
+# Per-node enemy ID scheme: no conflicts across nodes (NODE_COUNT = 340)
+NODE_COUNT = 340
+MAX_ID = (2 ** 31) - 1
+
+def _melee_base_id(node_index: int) -> int:
+    return int(MAX_ID / NODE_COUNT * node_index)
+
+def _ranged_base_id(node_index: int) -> int:
+    return int(MAX_ID / NODE_COUNT * (node_index + 0.5))
 
 def loop_time_ms():
     return int(time.time() * SECONDS_TO_MS)
 
 class EnemyHandler:
-    def __init__(self, node: "RegionNode", x_range: Tuple[int, int], y_range: Tuple[int, int], tick_intervals: float = TICK_INTERVAL_SEC) -> None:
+    def __init__(self, node: "RegionNode", node_index: int, x_range: Tuple[int, int], y_range: Tuple[int, int], tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.node = node
+        self.node_index = node_index
         self.tick_intervals = tick_intervals
         self.enemies = {}  # key: enemy_id -> value: EnemyModel
         self.lock = asyncio.Lock()
@@ -31,11 +39,15 @@ class EnemyHandler:
 
         self.world_min_x = x_range[0]
         self.world_min_y = y_range[0]
-        # self.world_max_x = 77400
-        # self.world_max_y = 43600
         self.world_max_x = x_range[1]
         self.world_max_y = y_range[1]
-        self.next_enemy_id = 1
+
+        # Per-node ID bases so IDs don't conflict across nodes
+        self._melee_base = _melee_base_id(node_index)
+        self._ranged_base = _ranged_base_id(node_index)
+        self._next_melee_slot = 0
+        self._next_ranged_slot = 0
+
         # enemy_ids currently dead and awaiting respawn — skipped by bullets and movement
         self._dead_ids: Set[int] = set()
 
@@ -44,16 +56,22 @@ class EnemyHandler:
         y = self.world_min_y + (self.world_max_y - self.world_min_y) * random()
         return int(x), int(y)
 
+    def _is_ranged_id(self, enemy_id: int) -> bool:
+        """True if this ID was assigned to a ranged enemy on this node."""
+        return enemy_id >= self._ranged_base
+
     def spawn_enemy(self, enemy_id: int | None = None) -> EnemyModel:
         if enemy_id is None:
-            # TODO: temporary — only ranged for debugging bullets; restore: random() < 0.4
-            is_ranged = True
-            base_id = self.next_enemy_id
-            self.next_enemy_id += 1_000_000
-            enemy_id = base_id + (RANGED_ID_OFFSET if is_ranged else 0)
+            is_ranged = random() < 0.4
+            if is_ranged:
+                enemy_id = self._ranged_base + self._next_ranged_slot
+                self._next_ranged_slot += 1
+            else:
+                enemy_id = self._melee_base + self._next_melee_slot
+                self._next_melee_slot += 1
 
         x, y = self.random_spawn()
-        if enemy_id >= RANGED_ID_OFFSET:
+        if self._is_ranged_id(enemy_id):
             e: EnemyModel = RangedEnemy(enemy_id=enemy_id, x=x, y=y)
         else:
             e = MeleeEnemy(enemy_id=enemy_id, x=x, y=y)
