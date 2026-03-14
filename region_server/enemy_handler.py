@@ -46,7 +46,8 @@ class EnemyHandler:
 
     def spawn_enemy(self, enemy_id: int | None = None) -> EnemyModel:
         if enemy_id is None:
-            is_ranged = random() < 0.4
+            # TODO: temporary — only ranged for debugging bullets; restore: random() < 0.4
+            is_ranged = True
             base_id = self.next_enemy_id
             self.next_enemy_id += 1_000_000
             enemy_id = base_id + (RANGED_ID_OFFSET if is_ranged else 0)
@@ -174,7 +175,17 @@ class EnemyHandler:
                     await c.hit(ENEMY_DAMAGE, enemy_id)
 
         for spawn_x, spawn_y, enemy_id, angle in pending_shots:
-            await self.node.projectile_handler.add_enemy_bullet(spawn_x, spawn_y, angle, enemy_id)
+            update_bytes, new_projs = await self.node.projectile_handler.add_enemy_bullet(
+                spawn_x, spawn_y, angle, enemy_id
+            )
+            if not update_bytes:
+                continue
+            spawn_pos = (int(spawn_x), int(spawn_y))
+            for cli in self.node.clients_in_view(spawn_pos):
+                await cli.write(update_bytes)
+                for proj in new_projs:
+                    proj["seen_by"].add(cli.user_id)
+            await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
 
         for enemy in pending_moves:
             await self.node.propagate_entity(enemy)

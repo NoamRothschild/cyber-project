@@ -280,10 +280,11 @@ class ProjectileHandler:
         bullet["already_hit"] = {enemy_id}
         bullet["x"] = spawn_x
         bullet["y"] = spawn_y
+        bullet["gun_type"] = "Assault rifle bullets"
 
         update = region_net.ServerResponse(sender_id=enemy_id)
         update.bullet_shot.add(
-            gun_type="Ak-7",
+            gun_type="Assault rifle bullets",
             angle=angle,
             count=1,
             x=int(spawn_x),
@@ -296,8 +297,8 @@ class ProjectileHandler:
         node = self._node
 
         blt = Projectile(bullet)
-        blt["already_hit"] = set()
-        blt["seen_by"] = {}
+        blt["already_hit"] = {enemy_id}
+        blt["seen_by"] = set()
         blt["id"] = next(_next_projectile_id)
 
         blt["angle"] = angle
@@ -317,7 +318,7 @@ class ProjectileHandler:
         
         new_projectiles.append(blt)
         update.bullet_shot.add(
-            gun_type="Ak-7",
+            gun_type="Assault rifle bullets",
             angle=angle,
             count=1,
             x=px,
