@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+from pathlib import Path
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
 import redis
@@ -8,7 +9,8 @@ import json
 from dataclasses import dataclass, field
 from random import randint, choice
 import aioudp
-import protobuf.region_net_pb2 as region_net
+import auth_crypto
+from config import ZONE_HOSTS
 from constants import (
     BUFF_SIZE,
     CLIENT_RECEIVE_WIDTH,
@@ -16,6 +18,7 @@ from constants import (
     PLAYER_WIDTH,
     PLAYER_HEIGHT,
     MAX_DIST_FOR_ITEM_DROP,
+    THIS_SERVER_IP,
 )
 
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
@@ -24,6 +27,20 @@ from region_node import RegionNode
 from grid_utils import AABB
 
 REDIS_PORT = 6379
+_REGION_SERVER_DIR = Path(__file__).resolve().parent
+
+
+def _get_server_private_key():
+    server_id = list(ZONE_HOSTS).index(THIS_SERVER_IP)
+    if not hasattr(_get_server_private_key, "_cache"):
+        _get_server_private_key._cache = {}
+    if server_id not in _get_server_private_key._cache:
+        _get_server_private_key._cache[server_id] = auth_crypto.load_private_key(
+            _REGION_SERVER_DIR / f"region_keys_{server_id}.pem"
+        )
+    return _get_server_private_key._cache[server_id]
+
+    
 IP = "127.0.0.1"
 redis_client = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
 
@@ -130,10 +147,21 @@ class Client:
             if hasattr(socket, "TCP_KEEPCNT"):
                 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
 
-        handshake_raw = await reader.read(BUFF_SIZE)
+        server_private_key = _get_server_private_key()
+        try:
+            handshake_plain = await auth_crypto.async_receive_and_decrypt(reader, server_private_key)
+        except ValueError:
+            writer.close()
+            await writer.wait_closed()
+            return
         handshake = region_net.HandshakeStart()
-        handshake.ParseFromString(handshake_raw)
+        handshake.ParseFromString(handshake_plain)
         session_id = handshake.session_id
+        if not handshake.client_public_key:
+            writer.close()
+            await writer.wait_closed()
+            return
+        client_public_key = auth_crypto.public_key_from_bytes(handshake.client_public_key)
 
         r = get_redis()
 
@@ -144,7 +172,8 @@ class Client:
                 kind=region_net.HandshakeStart.AUTH_FAIL,
                 session_id=-1,
             )
-            writer.write(response.SerializeToString())
+            encrypted = auth_crypto.encrypt_and_prefix(response.SerializeToString(), client_public_key)
+            writer.write(encrypted)
             await writer.drain()
             await writer.wait_closed()
             return
@@ -159,12 +188,11 @@ class Client:
         if node is None:
             node = NULL_NODE
 
-        self = Client(reader, writer, session_id, user_id, node, player_stats)
+        self = Client(reader, writer, session_id, user_id, node, player_stats, client_public_key)
         await register_global_client(session_id, self)
         if node != NULL_NODE:
             await node.register_client(self, initial_pos)
 
-        handshake.Clear()
         response = region_net.HandshakeStart(
             kind=region_net.HandshakeStart.SERVER_OK,
             user_id=user_id,
@@ -173,12 +201,12 @@ class Client:
             pos_x=player_stats["spawn_x"],
             pos_y=player_stats["spawn_y"]
         )
-
         response.weapons.extend(player_stats["weapons"])
         response.potions.extend(player_stats["potions"])
-        response.ammo.extend(player_stats["ammo"])  # <-- NEW: Send ammo to client!
+        response.ammo.extend(player_stats["ammo"])
 
-        writer.write(response.SerializeToString())
+        encrypted = auth_crypto.encrypt_and_prefix(response.SerializeToString(), client_public_key)
+        writer.write(encrypted)
         await writer.drain()
 
         try:
@@ -206,42 +234,39 @@ class Client:
 
     @staticmethod
     async def udp_handler(conn: aioudp.Connection) -> None:
-        handshake_raw = await conn.recv()
+        server_private_key = _get_server_private_key()
+        try:
+            handshake_raw = await conn.recv()
+            handshake_plain = auth_crypto.decrypt_length_prefixed(handshake_raw, server_private_key)
+        except ValueError:
+            return
         handshake = region_net.HandshakeStart()
-        handshake.ParseFromString(handshake_raw)
-
+        handshake.ParseFromString(handshake_plain)
         session_id = handshake.session_id
         cli = await get_global_client(session_id)
         if cli is not None:
-            handshake.Clear()
-            handshake.CopyFrom(
-                region_net.HandshakeStart(
-                    kind=region_net.HandshakeStart.SERVER_OK,
-                )
-            )
-            await conn.send(handshake.SerializeToString())
-
+            resp = region_net.HandshakeStart(kind=region_net.HandshakeStart.SERVER_OK)
+            encrypted = auth_crypto.encrypt_and_prefix(resp.SerializeToString(), cli.client_public_key)
+            await conn.send(encrypted)
             cli.conn_state.udp_conn = conn
             try:
                 await cli.handle_udp(conn)
             finally:
                 cli.conn_state.udp_conn = None
         else:
-            handshake.Clear()
-            handshake.CopyFrom(
-                region_net.HandshakeStart(
-                    kind=region_net.HandshakeStart.AUTH_FAIL,
-                )
-            )
-            await conn.send(handshake.SerializeToString())
+            if handshake.client_public_key:
+                client_pub = auth_crypto.public_key_from_bytes(handshake.client_public_key)
+                resp = region_net.HandshakeStart(kind=region_net.HandshakeStart.AUTH_FAIL)
+                encrypted = auth_crypto.encrypt_and_prefix(resp.SerializeToString(), client_pub)
+                await conn.send(encrypted)
 
 
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: str,
-                 user_id: int, node: "RegionNode", stats:dict) -> None:
-
+                 user_id: int, node: "RegionNode", stats: dict, client_public_key) -> None:
         self.session_id = session_id
         self.user_id = user_id
         self.node = node
+        self.client_public_key = client_public_key
         self.state = PlayerState(*node.topleft, *node.to_cell_pos(node.topleft))
         self.conn_state = ConnectionState(
             reader,
@@ -433,23 +458,32 @@ class Client:
                 await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
 
     async def handle_tcp(self) -> None:
+        server_private_key = _get_server_private_key()
         try:
             while True:
-                data = await self.conn_state.reader.read(BUFF_SIZE)
-                if not data:
+                try:
+                    data = await auth_crypto.async_receive_and_decrypt(
+                        self.conn_state.reader, server_private_key
+                    )
+                except ValueError:
                     break
                 await self.handle_region_update(data, Client.FROM_TCP)
         except (ConnectionResetError, ConnectionAbortedError, OSError):
             pass
 
     async def handle_udp(self, conn: aioudp.Connection) -> None:
+        server_private_key = _get_server_private_key()
         try:
             while not self.conn_state.stop_udp_conn.is_set():
                 message = await conn.recv()
                 if not message:
                     self.conn_state.udp_conn = None
                     break
-                await self.handle_region_update(message, Client.FROM_UDP)
+                try:
+                    data = auth_crypto.decrypt_length_prefixed(message, server_private_key)
+                except ValueError:
+                    continue
+                await self.handle_region_update(data, Client.FROM_UDP)
         except (ConnectionResetError, ConnectionAbortedError, OSError):
             self.conn_state.udp_conn = None
 
@@ -461,20 +495,22 @@ class Client:
 
         data.seq_num = self.conn_state.last_sent_seq
         raw = data.SerializeToString()
+        encrypted = auth_crypto.encrypt_and_prefix(raw, self.client_public_key)
         if conn := self.conn_state.udp_conn:
             try:
-                await conn.send(raw)
+                await conn.send(encrypted)
                 self.conn_state.last_sent_seq += 1
             except Exception as e:
                 print(f"Failed to send UDP to client {self.user_id}: {e}")
         else:
-            await self.write(raw)
+            await self.write(encrypted)
 
     async def write(self, data: bytes) -> bool:
-        """Write data to the TCP stream. Returns False if the connection is dead."""
+        """Write data to the TCP stream (encrypted). Returns False if the connection is dead."""
+        encrypted = auth_crypto.encrypt_and_prefix(data, self.client_public_key)
         try:
             async with self.conn_state.writer_lock:
-                self.conn_state.writer.write(data)
+                self.conn_state.writer.write(encrypted)
                 await self.conn_state.writer.drain()
             return True
         except (
@@ -498,15 +534,13 @@ class Client:
                 continue
             data.seq_num = client.conn_state.last_sent_seq
             raw = data.SerializeToString()
-
+            encrypted = auth_crypto.encrypt_and_prefix(raw, client.client_public_key)
             try:
                 if conn := client.conn_state.udp_conn:
-                    await conn.send(raw)
+                    await conn.send(encrypted)
                     client.conn_state.last_sent_seq += 1
                 else:
-                    await client.write(
-                        raw
-                    )  # fallback to tcp when udp sock is not available
+                    await client.write(encrypted)
             except Exception as e:
                 print(
                     f"Client {client.user_id} was unable to receive data: {e}, ignoring..."

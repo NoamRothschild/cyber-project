@@ -3,18 +3,34 @@ from queue import Empty, Queue
 import select
 import socket
 import threading
+from pathlib import Path
 from typing import Tuple, List, Dict, TYPE_CHECKING
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
 import protobuf.region_net_pb2 as region_net
+import auth_crypto
 from potion import Potion
 from arsenal import Arsenal
 
 if TYPE_CHECKING:
-    # Imported only for type checking to avoid circular imports at runtime
     from game import Game
 BUFF_SIZE = 1024
 
 _TCP = 0
 _UDP = 1
+
+_CLIENT_DIR = Path(__file__).resolve().parent
+
+
+def _get_region_client_key_pair():
+    if not hasattr(_get_region_client_key_pair, "_cached"):
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend(),
+        )
+        _get_region_client_key_pair._cached = (private_key, private_key.public_key())
+    return _get_region_client_key_pair._cached
 
 
 class ZoneConnection:
@@ -51,14 +67,27 @@ class ZoneConnection:
         if hasattr(socket, "TCP_KEEPCNT"):
             self.reliable_conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
         self.reliable_conn.connect((self.host, self.reliable_port))
-        handshake = region_net.HandshakeStart()
-        handshake.session_id = session_id
-        handshake.kind = handshake.LOGIN
 
-        self.reliable_conn.sendall(handshake.SerializeToString())
-        login_resp_raw = self.reliable_conn.recv(BUFF_SIZE)
+        server_id = ZoneConnectionSingleton._config_hosts.index(self.host)
+        region_server_public_key = auth_crypto.load_public_key(
+            _CLIENT_DIR / f"region_server_{server_id}_public.pem"
+        )
+        client_private_key, client_public_key = _get_region_client_key_pair()
+        self._client_private_key = client_private_key
+        self._region_server_public_key = region_server_public_key
+
+        handshake = region_net.HandshakeStart()
+        handshake.kind = handshake.LOGIN
+        handshake.session_id = session_id
+        handshake.client_public_key = auth_crypto.public_key_to_bytes(client_public_key)
+        self.reliable_conn.sendall(
+            auth_crypto.encrypt_and_prefix(handshake.SerializeToString(), region_server_public_key)
+        )
+        login_resp_plain = auth_crypto.receive_and_decrypt(
+            self.reliable_conn.recv, client_private_key
+        )
         login_resp = region_net.HandshakeStart()
-        login_resp.ParseFromString(login_resp_raw)
+        login_resp.ParseFromString(login_resp_plain)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
         self.open_fast_conn(session_id)
@@ -118,29 +147,39 @@ class ZoneConnection:
 
     def open_fast_conn(self, session_id: int) -> None:
         handshake = region_net.HandshakeStart()
-        handshake.session_id = session_id
         handshake.kind = handshake.LOGIN
-        handshake_bytes = handshake.SerializeToString()
-
+        handshake.session_id = session_id
+        handshake.client_public_key = auth_crypto.public_key_to_bytes(
+            _get_region_client_key_pair()[1]
+        )
+        handshake_encrypted = auth_crypto.encrypt_and_prefix(
+            handshake.SerializeToString(), self._region_server_public_key
+        )
         udp_timeout_sec = 3.0
         max_retries = 5
         old_timeout = self.fast_conn.gettimeout()
         self.fast_conn.settimeout(udp_timeout_sec)
         try:
             for attempt in range(max_retries):
-                self.fast_conn.sendto(handshake_bytes, (self.host, self.fast_port))
+                self.fast_conn.sendto(handshake_encrypted, (self.host, self.fast_port))
                 try:
-                    login_resp_raw = self.fast_conn.recv(BUFF_SIZE)
+                    login_resp_packet = self.fast_conn.recv(65536)
                 except socket.timeout:
                     if attempt == max_retries - 1:
                         raise RuntimeError(
                             "failed connecting to udp zone: no response after retries (packet loss?)"
                         )
                     continue
-                if not login_resp_raw:
+                if not login_resp_packet:
+                    continue
+                try:
+                    login_resp_plain = auth_crypto.decrypt_length_prefixed(
+                        login_resp_packet, self._client_private_key
+                    )
+                except ValueError:
                     continue
                 login_resp = region_net.HandshakeStart()
-                login_resp.ParseFromString(login_resp_raw)
+                login_resp.ParseFromString(login_resp_plain)
                 if login_resp.kind != login_resp.SERVER_OK:
                     raise RuntimeError(
                         "failed connecting to udp zone: invalid session id"
@@ -168,11 +207,16 @@ class ZoneConnection:
 
     def send_udp(self, update: region_net.RegionUpdate) -> None:
         update.seq_num = self.last_sent_seq
-        ZoneConnectionSingleton.enqueue_send(_UDP, update.SerializeToString())
+        raw = update.SerializeToString()
+        ZoneConnectionSingleton.enqueue_send(
+            _UDP, auth_crypto.encrypt_and_prefix(raw, self._region_server_public_key)
+        )
         self.last_sent_seq += 1
 
     def send_tcp(self, data: bytes) -> None:
-        ZoneConnectionSingleton.enqueue_send(_TCP, data)
+        ZoneConnectionSingleton.enqueue_send(
+            _TCP, auth_crypto.encrypt_and_prefix(data, self._region_server_public_key)
+        )
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
         if not should_update_location(self.server_known_pos, pos):
@@ -190,8 +234,6 @@ class ZoneConnection:
             region_net.BulletShot(gun_type=gun_type, angle=angle, count=count)
         )
         self.send_tcp(update.SerializeToString())
-
-        self.reliable_conn.sendall(update.SerializeToString())
 
     def try_send_potion_use(self, potion_kind: str, how_much: int) -> None:
         print("Sending HP event to server...")
@@ -214,18 +256,17 @@ class ZoneConnection:
         update.item_drop.CopyFrom(
             region_net.ItemDrop(inventory_index=inventory_index, item_kind=item_kind)
         )
-        self.reliable_conn.sendall(update.SerializeToString())
+        self.send_tcp(update.SerializeToString())
 
     def try_send_item_pickup(
         self, item_name: str, item_kind: str, ammo: int = 0
     ) -> None:
         """Tells the server we picked up an item and how much ammo it has."""
         update = region_net.RegionUpdate()
-
         update.item_drop.CopyFrom(
             region_net.ItemDrop(inventory_index=-1, item_kind=item_name, ammo=ammo)
         )
-        self.reliable_conn.sendall(update.SerializeToString())
+        self.send_tcp(update.SerializeToString())
 
 
 class ZoneConnectionSingleton:
@@ -355,11 +396,9 @@ def should_update_location(
 def server_listener(zone: ZoneConnection):
     """
     Start this one in another thread
-    Continiously polls server updates and pushes them into the queue
+    Continuously polls server updates and pushes them into the queue
     """
     sock_list = [zone.reliable_conn, zone.fast_conn]
-    tcp_recv = lambda: zone.reliable_conn.recv(BUFF_SIZE)
-    udp_recv = lambda: zone.fast_conn.recvfrom(BUFF_SIZE)[0]
     select_timeout = 0.5
 
     while not zone._stop_event.is_set():
@@ -367,18 +406,24 @@ def server_listener(zone: ZoneConnection):
         if not readable:
             continue
         for s in readable:
-            receiver = tcp_recv
-            is_udp = False
-            if s == zone.fast_conn:
-                receiver = udp_recv
-                is_udp = True
-
-            server_raw = receiver()
-            if not server_raw:
+            is_udp = s == zone.fast_conn
+            try:
+                if is_udp:
+                    server_raw, _ = zone.fast_conn.recvfrom(65536)
+                    if not server_raw:
+                        continue
+                    plaintext = auth_crypto.decrypt_length_prefixed(
+                        server_raw, zone._client_private_key
+                    )
+                else:
+                    plaintext = auth_crypto.receive_and_decrypt(
+                        zone.reliable_conn.recv, zone._client_private_key
+                    )
+            except ValueError:
                 continue
 
             parsed = region_net.ServerResponse()
-            parsed.ParseFromString(server_raw)
+            parsed.ParseFromString(plaintext)
 
             if is_udp and parsed.seq_num and parsed.seq_num < zone.last_recevied_seq:
                 print(

@@ -10,13 +10,14 @@ REGION_SERVERS = {
     # ...
 }
 
-r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+if __name__ == "__main__":
+    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
-r.delete('server_ips')
-r.sadd('server_ips', *(REGION_SERVERS.keys()))
-for region_server, nodes in REGION_SERVERS.items():
-    region_key = f'region:{region_server}'
-    r.delete(region_key)
-    r.sadd(region_key, *nodes)
+    r.delete('server_ips')
+    r.sadd('server_ips', *(REGION_SERVERS.keys()))
+    for region_server, nodes in REGION_SERVERS.items():
+        region_key = f'region:{region_server}'
+        r.delete(region_key)
+        r.sadd(region_key, *nodes)
 
-print("Done setting up redis!")
+    print("Done setting up redis!")

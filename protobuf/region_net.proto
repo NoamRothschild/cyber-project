@@ -70,6 +70,7 @@ message HandshakeStart {
   repeated int32 weapons = 8;
   repeated int32 potions = 9;
   repeated int32 ammo = 10; // NEW: Added to track ammo per weapon slot
+  bytes client_public_key = 11; // client's RSA public key for server to encrypt messages
 
   enum Kind {
     LOGIN = 0;
