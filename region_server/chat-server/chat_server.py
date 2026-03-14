@@ -72,6 +72,11 @@ class Client:
             last_mess.pop(0)
 
     async def handle(self):
+        username = "Unknown"
+        try:
+            username = r.get(f"session:{self.session_id}:username")
+        except Exception as e:
+            print(f"Redis error getting username: {e}")
         try:
             masss = ""
             for mas in last_mess:
@@ -92,12 +97,6 @@ class Client:
                 update = region_net.ChatMessage()
                 update.ParseFromString(data)
 
-                # Try-except ספציפי לקריאה מרדיס
-                username = "Unknown"
-                try:
-                    username = r.get(f"session:{self.session_id}:username")
-                except Exception as e:
-                    print(f"Redis error getting username: {e}")
 
                 print(str(username) + f": {update}")
                 payload_type = update.WhichOneof("mas")
