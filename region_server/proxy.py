@@ -18,6 +18,12 @@ class ProxyItem(ProxyObject):
         self.kind = kind
 
 
+class ProxyEnemy(ProxyObject):
+    def __init__(self, pos_x: int, pos_y: int, enemy_id: int, hp: int = 50) -> None:
+        super().__init__(pos_x, pos_y, enemy_id)
+        self.hp = hp
+
+
 # class ProxyBullet(ProxyObject):
 #     def __init__(self, pos_x: int, pos_y: int, projectile: Projectile) -> None:
 #         super().__init__(pos_x, pos_y, projectile.id)
@@ -44,16 +50,22 @@ async def remove_proxy(
     dst_node_pos: Tuple[int, int],
     sender_id: int,
     session_id: int,
+    type: str = "Client",
 ) -> None:
     from nodes import nodes
     from region_node import RegionNode
 
     if dst_node := nodes.get(dst_node_pos):
-        await dst_node.receive_proxy_remove(sender_id)
+        await dst_node.receive_proxy_remove(sender_id, type)
     else:
-        event = region_net.ProxyEvent(
-            client=region_net.ClientProxy(player_id=sender_id, session_id=session_id)
-        )
+        if type == "Client":
+            event = region_net.ProxyEvent(
+                client=region_net.ClientProxy(player_id=sender_id, session_id=session_id)
+            )
+        elif type == "Enemy":
+            event = region_net.ProxyEvent(
+                enemy=region_net.EnemyProxy(player_id=sender_id, session_id=0)
+            )
         node_idx = str(RegionNode.node_pos_to_idx(*dst_node_pos))
         await remove_proxy_on(node_idx, event.SerializeToString())
 

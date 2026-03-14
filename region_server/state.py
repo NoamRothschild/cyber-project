@@ -38,8 +38,12 @@ def start_global_tick_loop() -> None:
             try:
                 for node in nodes.values():
                     await node.projectile_handler.tick(cycle)
+                    await node.enemy_handler.tick()
+                    await node.enemy_handler.ensure_population()
             except Exception as e:
                 print(f"[ERROR] tick {cycle} failed: {e}")
+                import traceback
+                traceback.print_exc()
             sleep_time = TICK_INTERVAL_SEC - (loop.time() - start_time)
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)

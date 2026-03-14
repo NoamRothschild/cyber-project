@@ -1,4 +1,4 @@
-from helth import HealthBar
+from health import HealthBar
 from inventory import *
 from arsenal import Arsenal
 from bullets import Bullets
@@ -85,7 +85,7 @@ class Player(pygame.sprite.Sprite):
         self.speed = 4
         self.direction = pygame.math.Vector2()
         self.groups = groups
-        self.obstacle_sprites, self.harmfull_sprites, self.colect_sprite = other_groups  # rocks and such
+        self.obstacle_sprites, self.harmful_sprites, self.colect_sprite = other_groups  # rocks and such
 
         self.inventory = Inventory()
 
@@ -268,7 +268,7 @@ class Player(pygame.sprite.Sprite):
                         self.hitbox.top = sprite.hitbox.bottom
 
     def check_harm_done(self, sprite):
-        if sprite in self.harmfull_sprites:
+        if sprite in self.harmful_sprites:
             self.health.sub_life(30)
             Red_hit.start()
             self.injured_until = pygame.time.get_ticks() + 600 #0.6s of red skin :c

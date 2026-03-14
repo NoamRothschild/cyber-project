@@ -124,6 +124,13 @@ message ClientProxy {
   }
 }
 
+message EnemyProxy {
+  int64 session_id = 1; // unused, for eaiser compatability
+  int32 player_id = 2;
+  LocationBlock pos = 3;
+  int32 HP = 4;
+}
+
 message ItemProxy {
   int32 id = 1;
   LocationBlock pos = 2;
@@ -141,6 +148,7 @@ message ProxyEvent {
   oneof payload {
     ClientProxy client = 1;
     ItemProxy item = 2;
+    EnemyProxy enemy = 3;
     // In the future: BulletShot bullet_shot = 2;
   }
 }

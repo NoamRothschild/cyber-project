@@ -2,11 +2,12 @@ import threading
 from typing import Any, Dict, Tuple
 
 import pygame
-from helth import HealthBar
+from health import HealthBar
 from animation import Animation
 
 SCALE_FROM_LIFE = 5
 MIN_SMOOTH_DST = 5  # pixels; below this we interpolate, above we snap
+BASE_HP = 400
 
 # Match the player's default skin: "fiona"
 FIONA_SKIN = {
@@ -33,7 +34,7 @@ class Entity(pygame.sprite.Sprite):
         self.hitbox = pygame.Rect(pos[0], pos[1], 30, 30)
         self.rect.center = self.hitbox.center
 
-        self.hp = 400
+        self.hp = BASE_HP
         self.hp_b = HealthBar(
             (self.hitbox.x, self.hitbox.y - 10), self.hp // SCALE_FROM_LIFE, groups[0]
         )

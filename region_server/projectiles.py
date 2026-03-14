@@ -5,10 +5,23 @@ import math
 import protobuf.region_net_pb2 as region_net
 from constants import BULLET_TYPES, TICK_INTERVAL_SEC, SERVER_COUNT
 import os
+from enemy_model import EnemyModel
+from typing import TYPE_CHECKING, Dict, Union
+
+if TYPE_CHECKING:
+    from region_node import RegionNode
+    from enemy_handler import EnemyHandler
+    from region_server_extras import Client
 
 _proj_start_id = (2**31 // SERVER_COUNT) * int(os.getenv("server_id", "0"))
 _next_projectile_id = itertools.count(start=_proj_start_id)
 
+ENEMY_RANGED_BULLET: Dict[str, Union[int, float]] = {
+    "ttl": 80,
+    "speed": 15,
+    "damage": 15,
+    "range": 30,
+}
 
 class Projectile(dict):
     """Hashable dict subclass so projectiles can live in the spatial grid sets."""
@@ -28,13 +41,15 @@ class ProjectileHandler:
     def __init__(
         self,
         node: "RegionNode",
+        enemy_handler: "EnemyHandler",
         tick_intervals: float = TICK_INTERVAL_SEC,
     ) -> None:
-        self._node = node
+        self._node: RegionNode = node
         self.lock = asyncio.Lock()
         self.projectiles: list[Projectile] = []
         self._incoming: list[Projectile] = []
         self.tick_intervals = tick_intervals
+        self.enemy_handler = enemy_handler
 
     def bullet_hit(self, proj: Projectile, client: "Client") -> bool:
         dst_squared = (client.state.x - proj["x"]) ** 2 + (
@@ -57,6 +72,14 @@ class ProjectileHandler:
         )
         return resp.SerializeToString()
 
+    def bullet_hit_enemy(self, proj: dict, enemy: EnemyModel) -> bool:
+        hit_radius = (enemy.w + enemy.h) / 4  # ~17.5px to fit the sprite
+        ex = enemy.x + enemy.w / 2
+        ey = enemy.y + enemy.h / 2
+        dx = ex - proj["x"]
+        dy = ey - proj["y"]
+        return (dx * dx + dy * dy) < (hit_radius ** 2)
+
     async def tick(self, cycle: int) -> None:
         from nodes import nodes
         from region_node import RegionNode
@@ -66,6 +89,9 @@ class ProjectileHandler:
         to_remove: list[Projectile] = []
         to_transfer: list[tuple[Projectile, tuple[int, int]]] = []
         node = self._node
+        dead_enemy_ids: list[int] = []
+        # list of (enemy_id, hp) — snapshot hp at hit time, not after lock release
+        enemies_to_broadcast_hp: list[EnemyModel] = []
 
         async with self.lock:
             # Merge incoming transfers and place on the grid
@@ -121,7 +147,6 @@ class ProjectileHandler:
                 ):
                     # TODO: expand to also catch Enemy objects when pulled
                     if isinstance(grid_field.obj, Client):
-
                         client = grid_field.obj
                         if proj["owner_uuid"] == client.user_id:
                             continue
@@ -130,6 +155,35 @@ class ProjectileHandler:
                         if self.bullet_hit(proj, client):
                             await client.hit(proj["damage"], proj["owner_uuid"])
                             proj["already_hit"].add(client.user_id)
+
+                    elif isinstance(grid_field.obj, EnemyModel):
+                        enemy = grid_field.obj
+                        # skip enemies already dead or already hit by this bullet
+                        if enemy.enemy_id in proj["already_hit"]:
+                            continue
+                        # TODO: go over the bellow again
+                        if enemy.enemy_id in self.enemy_handler._dead_ids:
+                            continue
+
+                        if self.bullet_hit_enemy(proj, enemy):
+                            died = enemy.take_damage(int(proj["damage"]))
+                            proj["already_hit"].add(enemy.enemy_id)
+                            # snapshot hp now while lock is held
+                            enemies_to_broadcast_hp.append(enemy)
+
+                            if died:
+                                dead_enemy_ids.append(enemy.enemy_id)
+                                self.enemy_handler._dead_ids.add(enemy.enemy_id)
+                                # override the hp broadcast to max_hp so the client resets the enemy
+                                enemy.hp = enemy.max_hp
+        
+        for enemy in enemies_to_broadcast_hp:
+            await self._node.propagate_entity(enemy)
+            for cli in self._node.clients_in_view((enemy.x, enemy.y)):
+                await cli.saw_enemy_hp(enemy.enemy_id, enemy.hp)
+        
+        for enemy_id in dead_enemy_ids:
+            asyncio.create_task(self.enemy_handler.respawn_enemy(enemy_id))
 
         for proj, new_node_pos in to_transfer:
             if new_node := nodes.get(new_node_pos):
@@ -217,6 +271,64 @@ class ProjectileHandler:
 
         return update.SerializeToString(), new_projectiles
 
+    async def add_enemy_bullet(self, spawn_x: float, spawn_y: float, angle: float, enemy_id: int) -> None:
+        """Fire a projectile from a ranged enemy."""
+        bullet = ENEMY_RANGED_BULLET.copy()
+        bullet["velocity_x"] = math.cos(angle) * bullet["speed"]
+        bullet["velocity_y"] = math.sin(angle) * bullet["speed"]
+        bullet["owner_uuid"] = enemy_id
+        bullet["already_hit"] = {enemy_id}
+        bullet["x"] = spawn_x
+        bullet["y"] = spawn_y
+
+        update = region_net.ServerResponse(sender_id=enemy_id)
+        update.bullet_shot.add(
+            gun_type="Ak-7",
+            angle=angle,
+            count=1,
+            x=int(spawn_x),
+            y=int(spawn_y),
+            ttl=int(bullet["ttl"]),
+            speed=int(bullet["speed"]),
+        )
+
+        new_projectiles: list[Projectile] = []
+        node = self._node
+
+        blt = Projectile(bullet)
+        blt["already_hit"] = set()
+        blt["seen_by"] = {}
+        blt["id"] = next(_next_projectile_id)
+
+        blt["angle"] = angle
+        blt["velocity_x"] = math.cos(angle) * blt["speed"]
+        blt["velocity_y"] = math.sin(angle) * blt["speed"]
+
+        blt["x"] = bullet["x"]
+        blt["y"] = bullet["y"]
+
+        px, py = int(blt["x"]), int(blt["y"])
+        cx, cy = node.to_cell_pos((px, py))
+        blt["cell_x"], blt["cell_y"] = cx, cy
+        node.grid_add(blt, cx, cy)
+        
+        async with self.lock:
+            self.projectiles.append(blt)
+        
+        new_projectiles.append(blt)
+        update.bullet_shot.add(
+            gun_type="Ak-7",
+            angle=angle,
+            count=1,
+            x=px,
+            y=py,
+            ttl=int(blt["ttl"]),
+            speed=int(blt["speed"]),
+        )
+
+        return update.SerializeToString(), new_projectiles
+
+
     async def receive_transferred(self, proj: Projectile) -> None:
         """Receive a projectile transferred from an adjacent node on this server."""
         print(
@@ -225,7 +337,8 @@ class ProjectileHandler:
         async with self.lock:
             self._incoming.append(proj)
         await self._broadcast_to_unseen_clients(proj)
-        await self.broadcast_to_adjacent([proj])
+        # Do not call broadcast_to_adjacent here: the projectile is only in this node.
+        # If it leaves again, the tick loop will transfer/forward it once to the correct node.
 
     async def _broadcast_to_unseen_clients(self, proj: dict) -> None:
         """Send this projectile's creation data to local clients that haven't seen it."""

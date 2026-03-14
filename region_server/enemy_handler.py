@@ -1,0 +1,192 @@
+import asyncio
+from typing import List, Set, Tuple
+from random import random
+import time
+from constants import TICK_INTERVAL_SEC
+from enemy_model import EnemyModel, MeleeEnemy, RangedEnemy, PlayerSnapshot
+import protobuf.region_net_pb2 as region_net
+from typing import Dict, Union
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from region_node import RegionNode
+
+SECONDS_TO_MS = 1000
+ENEMY_DAMAGE = 5
+
+# IDs >= this value are RangedEnemy — client checks this to pick the right sprite
+RANGED_ID_OFFSET = 500_000_000
+
+def loop_time_ms():
+    return int(time.time() * SECONDS_TO_MS)
+
+class EnemyHandler:
+    def __init__(self, node: "RegionNode", x_range: Tuple[int, int], y_range: Tuple[int, int], tick_intervals: float = TICK_INTERVAL_SEC) -> None:
+        self.node = node
+        self.tick_intervals = tick_intervals
+        self.enemies = {}  # key: enemy_id -> value: EnemyModel
+        self.lock = asyncio.Lock()
+
+        # Maintain a constant population
+        self.target_enemy_count = 20
+
+        self.world_min_x = x_range[0]
+        self.world_min_y = y_range[0]
+        # self.world_max_x = 77400
+        # self.world_max_y = 43600
+        self.world_max_x = x_range[1]
+        self.world_max_y = y_range[1]
+        self.next_enemy_id = 1
+        # enemy_ids currently dead and awaiting respawn — skipped by bullets and movement
+        self._dead_ids: Set[int] = set()
+
+    def random_spawn(self) -> Tuple[int, int]:
+        x = self.world_min_x + (self.world_max_x - self.world_min_x) * random()
+        y = self.world_min_y + (self.world_max_y - self.world_min_y) * random()
+        return int(x), int(y)
+
+    def spawn_enemy(self, enemy_id: int | None = None) -> EnemyModel:
+        if enemy_id is None:
+            is_ranged = random() < 0.4
+            base_id = self.next_enemy_id
+            self.next_enemy_id += 1_000_000
+            enemy_id = base_id + (RANGED_ID_OFFSET if is_ranged else 0)
+
+        x, y = self.random_spawn()
+        if enemy_id >= RANGED_ID_OFFSET:
+            e: EnemyModel = RangedEnemy(enemy_id=enemy_id, x=x, y=y)
+        else:
+            e = MeleeEnemy(enemy_id=enemy_id, x=x, y=y)
+        e.reset_combat()
+        e.last_sent_x = e.x
+        e.last_sent_y = e.y
+        self.enemies[enemy_id] = e
+        return e
+
+    async def ensure_population(self) -> None:
+        """Create enemies until we have target_enemy_count."""
+        async with self.lock:
+            missing = self.target_enemy_count - len(self.enemies)
+            if missing <= 0:
+                return
+            spawned = [self.spawn_enemy() for _ in range(missing)]
+
+        # broadcast outside lock
+        for e in spawned:
+            await self.broadcast_enemy_spawn(e)
+
+    async def respawn_enemy(self, enemy_id: int) -> None:
+        """Respawn an enemy at a random location with full HP."""
+        # Wait before respawning — gives the client time to hide the dead enemy
+        # and ensures no in-flight bullets can hit the resetting enemy
+        await asyncio.sleep(2.0)
+
+        async with self.lock:
+            enemy = self.enemies.get(enemy_id)
+            if enemy is None:
+                enemy = self.spawn_enemy(enemy_id)
+            else:
+                enemy.x, enemy.y = self.random_spawn()
+                enemy.reset_combat()
+                enemy.last_sent_x = enemy.x
+                enemy.last_sent_y = enemy.y
+            snapshot_x = int(enemy.x)
+            snapshot_y = int(enemy.y)
+            snapshot_hp = int(enemy.hp)
+            # clear dead flag now that the enemy is fully reset
+            self._dead_ids.discard(enemy_id)
+
+        for cli in self.node.clients_in_view((enemy.x, enemy.y)):
+            await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
+
+    async def broadcast_enemy_spawn(self, enemy: EnemyModel) -> None:
+        """Broadcast enemy location (spawn/respawn)."""
+        update = region_net.ServerResponse()
+        update.sender_id = enemy.enemy_id
+        update.other_data.new_location.CopyFrom(
+            region_net.LocationBlock(
+                x=int(enemy.x),
+                y=int(enemy.y))
+        )
+
+        for cli in self.node.clients_in_view((enemy.x, enemy.y)):
+            await cli.write(update.SerializeToString())
+
+        await self.broadcast_enemy_hp(enemy)
+
+    async def broadcast_enemy_hp(self, enemy: EnemyModel) -> None:
+        """Broadcast HP (reuses OtherPlayerData payload)."""
+        update = region_net.ServerResponse()
+        update.sender_id = enemy.enemy_id
+        update.other_data.CopyFrom(
+            region_net.OtherPlayerData(
+                HP=int(enemy.hp),
+                player_id=enemy.enemy_id)
+        )
+        for cli in self.node.clients_in_view((enemy.x, enemy.y)):
+            await cli.write(update.SerializeToString())
+
+    async def tick(self) -> None:
+        pending_hits = []
+        pending_moves: List[EnemyModel] = []
+        pending_shots = []  # (spawn_x, spawn_y, enemy_id, angle)
+
+        async with self.lock:
+            now_ms = loop_time_ms()
+
+            for enemy in list(self.enemies.values()):
+                if enemy.enemy_id in self._dead_ids:
+                    continue
+
+                if isinstance(enemy, MeleeEnemy):
+                    attacked_player_id = enemy.update_state_machine(
+                        now_ms,
+                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in self.node.clients_in_view((enemy.x, enemy.y))]
+                    )
+                    if attacked_player_id is not None:
+                        pending_hits.append((attacked_player_id, enemy.enemy_id))
+                else:  # RangedEnemy
+                    shoot_angle = enemy.update_state_machine(
+                        now_ms,
+                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in self.node.clients_in_view((enemy.x, enemy.y))]
+                    )
+                    if shoot_angle is not None:
+                        pending_shots.append((
+                            enemy.x + enemy.w / 2,
+                            enemy.y + enemy.h / 2,
+                            enemy.enemy_id,
+                            shoot_angle,
+                        ))
+
+                old_cell_x, old_cell_y = enemy.cell_x, enemy.cell_y
+                enemy.move_and_collide([])
+                enemy.cell_x, enemy.cell_y = self.node.to_cell_pos((enemy.x, enemy.y))
+                self.node.grid_move(enemy, old_cell_x, old_cell_y, enemy.cell_x, enemy.cell_y)
+
+                if should_update_location((enemy.last_sent_x, enemy.last_sent_y),
+                                          (enemy.x, enemy.y)):
+                    pending_moves.append(enemy)
+                    enemy.last_sent_x = enemy.x
+                    enemy.last_sent_y = enemy.y
+
+        for attacked_player_id, enemy_id in pending_hits:
+            for c in self.node.clients_in_view((enemy.x, enemy.y)):
+                if c.user_id == attacked_player_id:
+                    await c.hit(ENEMY_DAMAGE, enemy_id)
+
+        for spawn_x, spawn_y, enemy_id, angle in pending_shots:
+            await self.node.projectile_handler.add_enemy_bullet(spawn_x, spawn_y, angle, enemy_id)
+
+        for enemy in pending_moves:
+            await self.node.propagate_entity(enemy)
+            for cli in self.node.clients_in_view((enemy.x, enemy.y)):
+                await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
+
+
+def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, float], min_dst=5) -> bool:
+    """returns true when the distance between the two pos are above min_dst"""
+    if old_pos == new_pos:
+        return False
+    traveled_dst_squared = (old_pos[0] - new_pos[0]) ** 2 + (old_pos[1] - new_pos[1]) ** 2
+    min_dst_squared = min_dst ** 2
+
+    return traveled_dst_squared > min_dst_squared

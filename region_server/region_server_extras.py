@@ -47,7 +47,6 @@ SERVER_MAX_AMMO = {
     5: 10     # Pistol
 }
 
-
 @dataclass
 class PlayerState:
     x: int
@@ -274,6 +273,24 @@ class Client:
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
         await self.node.propagate_entity(self)
+
+    async def saw_enemy(self, enemy_pos: Tuple[int, int], enemy_user_id: int) -> None:
+        """Notify this player about a new enemy's location"""
+        resp = region_net.ServerResponse()
+        resp.sender_id = enemy_user_id
+        resp.other_data.new_location.CopyFrom(
+            region_net.LocationBlock(x=enemy_pos[0], y=enemy_pos[1])
+        )
+        resp.other_data.player_id = enemy_user_id
+        await self.write_udp(resp)
+
+    async def saw_enemy_hp(self, enemy_user_id: int, new_hp: int) -> None:
+        """Notify this player about a enemy's hp change"""
+        resp = region_net.ServerResponse()
+        resp.sender_id = enemy_user_id
+        resp.other_data.HP = new_hp
+        resp.other_data.player_id = enemy_user_id
+        await self.write_udp(resp)
 
     async def saw_client(
         self, client_pos: Tuple[int, int], client_user_id: int

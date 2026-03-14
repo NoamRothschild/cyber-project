@@ -70,7 +70,10 @@ def start_redis_listener() -> None:
                     event.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
                     if event.HasField("client"):
                         for node in nodes.values():
-                            await node.receive_proxy_remove(event.client.player_id)
+                            await node.receive_proxy_remove(event.client.player_id, "Client")
+                    elif event.HasField("enemy"):
+                        for node in nodes.values():
+                            await node.receive_proxy_remove(event.enemy.player_id, "Enemy")
                 continue
 
             node_pos =  (
@@ -79,7 +82,7 @@ def start_redis_listener() -> None:
             )
 
             if data.startswith(PROXY_CREATE_PREFIX):
-                print(f"got proxy create event to {node_pos}")
+                # print(f"got proxy create event to {node_pos}")
                 event = region_net.ProxyEvent()
                 event.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
                 if node := nodes.get(node_pos):
@@ -108,7 +111,15 @@ def start_redis_listener() -> None:
                             writer=None,
                             session_id=None,
                             user_id=update.sender_id,
-                            node=NULL_NODE
+                            node=NULL_NODE,
+                            stats={
+                                "health": 400,
+                                "spawn_x": bs.x or 0,
+                                "spawn_y": bs.y or 0,
+                                "weapons": [0] * 10,
+                                "ammo": [30] * 10,
+                                "potions": [0] * 10,
+                            },
                         )
                         dummy.state.x = bs.x
                         dummy.state.y = bs.y

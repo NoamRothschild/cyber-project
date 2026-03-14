@@ -24,9 +24,11 @@ from proxy import (
     ProxyObject,
     ProxyClient,
     ProxyItem,
+    ProxyEnemy,
 )
 from grid_utils import AABB, GridField, ProxyField, Direction, ItemState
 from nodes import nodes
+from enemy_handler import EnemyHandler, EnemyModel
 
 VERTICAL_NODE_COUNT = 20
 HORIZONAL_NODE_COUNT = 17
@@ -49,7 +51,8 @@ class RegionNode:
         ]  # a set of proxies from each direction
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
-        self.projectile_handler = ProjectileHandler(self)
+        self.enemy_handler = EnemyHandler(self, self.x_range, self.y_range)
+        self.projectile_handler = ProjectileHandler(self, self.enemy_handler)
         self.items: Dict[int, GridField] = {}  # id -> GridField(obj -> ItemState, seen)
 
     def to_cell_pos(self, pos: Tuple[int, int]) -> Tuple[int, int]:
@@ -75,6 +78,9 @@ class RegionNode:
         if payload_type == "client":
             cp = event.client
             proxy = ProxyClient(cp.pos.x, cp.pos.y, cp.player_id, cp.HP)
+        elif payload_type == "enemy":
+            ep = event.enemy
+            proxy = ProxyEnemy(ep.pos.x, ep.pos.y, ep.player_id, ep.HP)
         elif payload_type == "item":
             cp = event.item
             if cp.action == region_net.ItemProxy.REMOVE:
@@ -127,6 +133,16 @@ class RegionNode:
                     old_hp = cast(ProxyClient, existing.proxy).hp
                     break
                 prx.discard(lookup)
+        elif isinstance(proxy, ProxyEnemy):
+            for prx in self.proxies:
+                for existing in prx:
+                    if existing != lookup:
+                        continue
+                    old_seen = existing.seen
+                    if existing.proxy.pos == proxy.pos:
+                        moved = False
+                    break
+                prx.discard(lookup)
 
         field = ProxyField(proxy, set())
         self.proxies[Direction.to_proxy_pos(direction)].add(field)
@@ -147,6 +163,8 @@ class RegionNode:
                     await cli.saw_client(proxy.pos, proxy.id)
                 if old_hp != proxy.hp:
                     await cli.update_other_hp(proxy.id, proxy.hp)
+            elif isinstance(proxy, ProxyEnemy):
+                await cli.saw_enemy(proxy.pos, proxy.id)
             elif isinstance(proxy, ProxyItem):
                 await cli.item_hendeling(proxy.name, proxy.kind, *proxy.pos, proxy.id)
 
@@ -157,14 +175,17 @@ class RegionNode:
                     await cli.entity_despawned(proxy.id)
                     break
 
-    async def receive_proxy_remove(self, sender_id: int) -> None:
-        """Remove all proxies matching sender_id and despawn for clients who had seen them."""
-        from region_server_extras import Client
-
+    async def receive_proxy_remove(self, sender_id: int, type: str = "Client") -> None:
+        """Remove all proxies matching sender_id and type; despawn for clients who had seen them."""
         for prx in self.proxies:
             to_remove = None
             for existing in prx:
-                if existing.proxy.id == sender_id:
+                # if existing.proxy.id != sender_id:
+                #     continue
+                if type == "Client" and isinstance(existing.proxy, ProxyClient):
+                    to_remove = existing
+                    break
+                if type == "Enemy" and isinstance(existing.proxy, ProxyEnemy):
                     to_remove = existing
                     break
             if to_remove:
@@ -229,6 +250,13 @@ class RegionNode:
                     yield from cell
                 if cell := self.grid.get((cell_x + r, cell_y + dy)):
                     yield from cell
+
+    def clients_in_view(self, pos: Tuple[int, int]) -> Generator[Client, None, None]:
+        from region_server_extras import Client
+        for grid_field in self.objects_in_view(pos):
+            obj = grid_field.obj
+            if isinstance(obj, Client):
+                yield obj
 
     def objects_in_view(self, pos: Tuple[int, int]) -> Generator[Any, None, None]:
         """Yield grid objects in cells overlapping the view rect (no per-pixel iteration)."""
@@ -368,17 +396,30 @@ class RegionNode:
         """Sync this entity's proxy state to all relevant neighboring nodes.
         Removes stale proxies from directions we moved away from and
         creates/updates proxies on directions we're currently near."""
-        bounds = self.possible_bounding_nodes(entity.state.x, entity.state.y)
+        from region_server_extras import Client
+        x, y = 0, 0
+        session_id = 0
+        user_id = 0
+        if isinstance(entity, EnemyModel):
+            x, y = entity.x, entity.y
+            user_id = entity.enemy_id
+        elif isinstance(entity, Client):
+            x, y = entity.state.x, entity.state.y
+            session_id = entity.session_id
+            user_id = entity.user_id
+        
+        bounds = self.possible_bounding_nodes(x, y)
         new_proxied = set(bounds)
         old_proxied: set = getattr(entity, "_proxied_directions", set())
 
+        entity_kind = "Enemy" if isinstance(entity, EnemyModel) else "Client"
         for direction in old_proxied - new_proxied:
             node_pos = (
                 self.node_pos[0] + direction.value[0],
                 self.node_pos[1] + direction.value[1],
             )
             await remove_proxy(
-                self.node_pos, node_pos, entity.user_id, entity.session_id
+                self.node_pos, node_pos, user_id, session_id, type=entity_kind
             )
         entity._proxied_directions = new_proxied
 
@@ -428,6 +469,8 @@ class RegionNode:
                     print(
                         f"showed {client.user_id}({client.node.view}) to {obj.id}({node_pos})"
                     )
+                elif isinstance(obj, ProxyEnemy):
+                    await client.saw_enemy(obj.pos, obj.id)
                 elif isinstance(obj, ProxyItem):
                     await client.item_hendeling(obj.name, obj.kind, *obj.pos, obj.id)
 
@@ -499,6 +542,13 @@ class RegionNode:
                     continue
                 grid_field.seen.add(client.user_id)
                 await client.saw_client((obj.state.x, obj.state.y), obj.user_id)
+            elif isinstance(obj, EnemyModel):
+                if obj.enemy_id == client.user_id:
+                    continue
+                if not Client.can_see_static(new_pos, (obj.x, obj.y)):
+                    continue
+                grid_field.seen.add(client.user_id)
+                await client.saw_enemy((obj.x, obj.y), obj.enemy_id)
             elif isinstance(obj, ItemState):
                 grid_field.seen.add(client.user_id)
                 await client.item_hendeling(obj.name, obj.kind, obj.x, obj.y, obj.id)
