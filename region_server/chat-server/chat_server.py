@@ -4,17 +4,20 @@ import asyncio
 from random import randint
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
-
+import redis
 import asyncio
 
-ZONE_HOST = "127.0.0.1"
-PORT = 8888
+
 
 BUFF_SIZE = 1024
 
 # TODO: sorround with a lock as well
 clients: Set[Client] = set()
 last_mess =["hii player"]
+PORT = 9999
+IP = '127.0.0.1'
+REDIS_PORT = 6379
+r = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
 
 class Client:
     @staticmethod
@@ -29,7 +32,6 @@ class Client:
 
         # TODO: get this one from the auth server
         user_id = randint(0, 2 ** 31 - 1)
-
         handshake.Clear()
         handshake.CopyFrom(region_net.HandshakeStart(
             kind=region_net.HandshakeStart.SERVER_OK,
@@ -78,10 +80,11 @@ class Client:
 
             update = region_net.ChatMessage()
             update.ParseFromString(data)
-            print(str(self.user_id) + f": {update}" )
+            username = await r.get(f"session:{self.session_id}:username")
+            print(str(username) + f": {update}" )
             payload_type = update.WhichOneof("mas")
             if payload_type == "message":
-                update.message = str(self.user_id) + f": {update.message}"
+                update.message = str(username) + f": {update.message}"
                 self.add_to_mas_stack(update.message)
                 await self.broadcast(update.SerializeToString())
 

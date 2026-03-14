@@ -1,6 +1,7 @@
 import pygame
 from game import Game
 import socket
+from config import CHAT_HOST, CHAT_PORT
 import protobuf.region_net_pb2 as region_net
 import threading
 
@@ -10,7 +11,7 @@ BUFF_SIZE = 1024
 
 
 class Chat(pygame.sprite.Sprite):
-    def __init__(self, ssid: int, host: str="127.0.0.1", reliable_port: int = 8888):
+    def __init__(self, ssid: int, host: str=CHAT_HOST, reliable_port: int = CHAT_PORT):
         super().__init__()
         self.rect = pygame.Rect(0, 80, width, height)
         self.screen = pygame.display.get_surface()
