@@ -12,6 +12,7 @@ from shop import ShopUI
 from potion import Potion
 from animation import Animation
 from AutoPlay import AutoMove as AutoMoveController
+import random
 
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE = 400
