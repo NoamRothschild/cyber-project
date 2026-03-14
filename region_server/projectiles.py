@@ -57,6 +57,11 @@ class ProjectileHandler:
         ) ** 2
         return dst_squared < proj["range"] ** 2
 
+    def bullet_hit_at(self, proj: Projectile, client: "Client", bx: float, by: float) -> bool:
+        """Check if bullet at (bx, by) is within range of client (avoids tunneling)."""
+        dst_squared = (client.state.x - bx) ** 2 + (client.state.y - by) ** 2
+        return dst_squared < proj["range"] ** 2
+
     @staticmethod
     def _build_bullet_response(proj: dict) -> bytes:
         """Serialize a single projectile into a ServerResponse for client delivery."""
@@ -73,11 +78,14 @@ class ProjectileHandler:
         return resp.SerializeToString()
 
     def bullet_hit_enemy(self, proj: dict, enemy: EnemyModel) -> bool:
+        return self._bullet_hit_enemy_at(proj, enemy, proj["x"], proj["y"])
+
+    def _bullet_hit_enemy_at(self, proj: dict, enemy: EnemyModel, bx: float, by: float) -> bool:
         hit_radius = (enemy.w + enemy.h) / 4  # ~17.5px to fit the sprite
         ex = enemy.x + enemy.w / 2
         ey = enemy.y + enemy.h / 2
-        dx = ex - proj["x"]
-        dy = ey - proj["y"]
+        dx = ex - bx
+        dy = ey - by
         return (dx * dx + dy * dy) < (hit_radius ** 2)
 
     async def tick(self, cycle: int) -> None:
@@ -141,7 +149,7 @@ class ProjectileHandler:
 
             # Spatial collision detection
             for proj in self.projectiles:
-                search_radius = math.ceil(proj["range"] / RegionNode.CELL_SIZE)
+                search_radius = math.ceil(proj["range"] / RegionNode.CELL_SIZE) + 2
                 for grid_field in node.nearby(
                     proj["cell_x"], proj["cell_y"], search_radius
                 ):
@@ -152,7 +160,10 @@ class ProjectileHandler:
                             continue
                         if client.user_id in proj["already_hit"]:
                             continue
-                        if self.bullet_hit(proj, client):
+                        # Check current and previous position to avoid tunneling through fast bullets
+                        prev_x = proj["x"] - proj["velocity_x"]
+                        prev_y = proj["y"] - proj["velocity_y"]
+                        if self.bullet_hit(proj, client) or self.bullet_hit_at(proj, client, prev_x, prev_y):
                             await client.hit(proj["damage"], proj["owner_uuid"])
                             proj["already_hit"].add(client.user_id)
 
@@ -165,7 +176,11 @@ class ProjectileHandler:
                         if enemy.enemy_id in self.enemy_handler._dead_ids:
                             continue
 
-                        if self.bullet_hit_enemy(proj, enemy):
+                        prev_x = proj["x"] - proj["velocity_x"]
+                        prev_y = proj["y"] - proj["velocity_y"]
+                        hit_now = self.bullet_hit_enemy(proj, enemy)
+                        hit_prev = self._bullet_hit_enemy_at(proj, enemy, prev_x, prev_y)
+                        if hit_now or hit_prev:
                             died = enemy.take_damage(int(proj["damage"]))
                             proj["already_hit"].add(enemy.enemy_id)
                             # snapshot hp now while lock is held

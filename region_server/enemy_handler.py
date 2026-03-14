@@ -178,6 +178,15 @@ class EnemyHandler:
 
                 old_cell_x, old_cell_y = enemy.cell_x, enemy.cell_y
                 enemy.move_and_collide([])
+                # Keep enemy inside this node's zone
+                enemy.x = int(max(
+                    self.world_min_x,
+                    min(self.world_max_x - enemy.w, enemy.x),
+                ))
+                enemy.y = int(max(
+                    self.world_min_y,
+                    min(self.world_max_y - enemy.h, enemy.y),
+                ))
                 enemy.cell_x, enemy.cell_y = self.node.to_cell_pos((enemy.x, enemy.y))
                 self.node.grid_move(enemy, old_cell_x, old_cell_y, enemy.cell_x, enemy.cell_y)
 
@@ -188,9 +197,11 @@ class EnemyHandler:
                     enemy.last_sent_y = enemy.y
 
         for attacked_player_id, enemy_id in pending_hits:
-            for c in self.node.clients_in_view((enemy.x, enemy.y)):
+            # Attacked player is on this node; find them by id and apply damage
+            for c in self.node.clients.values():
                 if c.user_id == attacked_player_id:
                     await c.hit(ENEMY_DAMAGE, enemy_id)
+                    break
 
         for spawn_x, spawn_y, enemy_id, angle in pending_shots:
             update_bytes, new_projs = await self.node.projectile_handler.add_enemy_bullet(

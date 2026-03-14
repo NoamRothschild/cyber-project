@@ -142,6 +142,7 @@ class RegionNode:
                     old_seen = existing.seen
                     if existing.proxy.pos == proxy.pos:
                         moved = False
+                    old_hp = cast(ProxyEnemy, existing.proxy).hp
                     break
                 prx.discard(lookup)
 
@@ -166,6 +167,8 @@ class RegionNode:
                     await cli.update_other_hp(proxy.id, proxy.hp)
             elif isinstance(proxy, ProxyEnemy):
                 await cli.saw_enemy(proxy.pos, proxy.id)
+                if old_hp != proxy.hp:
+                    await cli.saw_enemy_hp(proxy.id, proxy.hp)
             elif isinstance(proxy, ProxyItem):
                 await cli.item_hendeling(proxy.name, proxy.kind, *proxy.pos, proxy.id)
 
