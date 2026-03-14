@@ -50,11 +50,21 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
 
 user_stt={
     "user1":{
-                "Ak 47":1,
-                "arrows":1,
-                "sword hit":1,
-                "Assault rifle bullets":1,
-                "Pistol bullets":1,
+            "ammo_collection":{
+                                    "Ak 47":1,
+                                    "arrows":1,
+                                    "sword hit":1,
+                                    "Assault rifle bullets":1,
+                                    "Pistol bullets":1,
+                                },
+
+            "magazine": {
+                        "Ak 47": 2,
+                        "bow": 2,
+                        "Assault rifle": 2,
+                        "Pistol": 2,
+                        "sword": 1000
+                        },
 
                 "cash":300
             }
@@ -110,19 +120,19 @@ class ProjectileHandler:
                         proj["already_hit"].add(client.user_id)
 
 
-    def getPlayer_AMMO_Stat(self,userID,bulletType):
+    def get_player_mag_stat(self, user_id, bullet_type):
         try:
-            emmo = user_stt[userID][bulletType]
+            emmo = user_stt[user_id]["ammo_collection"][bullet_type]
         except:
-            print(userID," is not regestered or no gun type name: ",bulletType)
-            return None
+            print(user_id, " is not registered or no gun type name: ", bullet_type)
+            return 0
         return emmo
 
-    def decPlayer_AMMO_Stat(self,userID,bulletType):
+    def dec_player_mag_stat(self, user_id, bullet_type):
         try:
-           user_stt[userID][bulletType]-=1
+           user_stt[user_id]["ammo_collection"][bullet_type]-=1
         except:
-            print(userID," is not registered or no gun type name: ",bulletType)
+            print(user_id," is not registered or no gun type name: ",bullet_type)
         return
 
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
@@ -131,10 +141,11 @@ class ProjectileHandler:
             print(f"Warn: unknown bullet type fired: {bullet_shot.gun_type} by user with id {client.user_id}")
             return b''
 
-        ammo = self.getPlayer_AMMO_Stat("user1", bullet_shot.gun_type)
+        mag = self.get_player_mag_stat("user1", bullet_shot.gun_type)
         #ammo = self.getPlayer_AMMO_Stat(client.user_id, bullet_shot.gun_type)
-        if ammo is not None and ammo > 0:
-            self.decPlayer_AMMO_Stat("user1", bullet_shot.gun_type)
+
+        if mag > 0:
+            self.dec_player_mag_stat("user1", bullet_shot.gun_type)
             #self.decPlayer_AMMO_Stat(client.user_id, bullet_shot.gun_type)
 
             bullet = template.copy()
