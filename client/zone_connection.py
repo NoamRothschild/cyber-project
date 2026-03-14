@@ -106,7 +106,9 @@ class ZoneConnection:
                 else:
                     print(f"[WARNING] Server sent unknown potion ID: {potion_id}")
 
-        print(f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}")
+        print(
+            f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}"
+        )
 
         self._listener_thread = threading.Thread(
             target=server_listener, args=(self,), daemon=True
@@ -190,8 +192,8 @@ class ZoneConnection:
         self.send_tcp(update.SerializeToString())
 
         self.reliable_conn.sendall(update.SerializeToString())
-    
-    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+
+    def try_send_potion_use(self, potion_kind: str, how_much: int) -> None:
         print("Sending HP event to server...")
         update = region_net.RegionUpdate()
         update.potion_use.CopyFrom(
@@ -206,28 +208,22 @@ class ZoneConnection:
         )
         self.send_tcp(update.SerializeToString())
 
-
     def try_send_item_drop(self, inventory_index: int, item_kind: str) -> None:
         print(f"Sending drop request for {item_kind} at slot {inventory_index}")
         update = region_net.RegionUpdate()
         update.item_drop.CopyFrom(
-            region_net.ItemDrop(
-                inventory_index=inventory_index,
-                item_kind=item_kind
-            )
+            region_net.ItemDrop(inventory_index=inventory_index, item_kind=item_kind)
         )
         self.reliable_conn.sendall(update.SerializeToString())
 
-    def try_send_item_pickup(self, item_name: str, item_kind: str, ammo: int = 0) -> None:
+    def try_send_item_pickup(
+        self, item_name: str, item_kind: str, ammo: int = 0
+    ) -> None:
         """Tells the server we picked up an item and how much ammo it has."""
         update = region_net.RegionUpdate()
 
         update.item_drop.CopyFrom(
-            region_net.ItemDrop(
-                inventory_index=-1,
-                item_kind=item_name,
-                ammo=ammo
-            )
+            region_net.ItemDrop(inventory_index=-1, item_kind=item_name, ammo=ammo)
         )
         self.reliable_conn.sendall(update.SerializeToString())
 
@@ -423,22 +419,36 @@ def event_handler(
             hb = game.level.player.hitbox
             hb.x = update.move_self.x
             hb.y = update.move_self.y
-        elif payload_type == "other_data":
-            payload_type = update.other_data.WhichOneof("payload")
-            print(f"{payload_type=}, {update.other_data.player_id=}")
+        elif payload_type == "other_data" or payload_type == "enemy_data":
+            sender_id = update.sender_id
+            if payload_type == "other_data":
+                update = update.other_data
+                is_enemy = False
+            else:
+                update = update.enemy_data
+                is_enemy = True
+
+            payload_type = update.WhichOneof("payload")
+            print(f"{payload_type=}, {update.player_id=}")
             if payload_type == "new_location":
-                pos = update.other_data.new_location
+                pos = update.new_location
                 game.level.entities.add_or_update(
-                    [game.level.visible_sprites], update.sender_id, pos=(pos.x, pos.y)
+                    [game.level.visible_sprites],
+                    sender_id,
+                    pos=(pos.x, pos.y),
+                    type="ENEMY" if is_enemy else "PLAYER",
                 )
             elif payload_type == "New_Item":
-                item = update.other_data.New_Item
+                item = update.New_Item
                 print(f"{item.id}")
 
                 if item.Picked_up:
                     sprite = find(item, game)
                     if sprite:
-                        if sprite.kind == "money" and game.level.player.inventory.money<1950:
+                        if (
+                            sprite.kind == "money"
+                            and game.level.player.inventory.money < 1950
+                        ):
                             game.level.player.inventory.money += 50
                             sprite.kill()
                         else:
@@ -454,13 +464,14 @@ def event_handler(
                     )
             elif payload_type == "HP":
                 health_elem = game.level.player.health
-                new_hp = update.other_data.HP
-                print(f"{update.other_data.player_id=}")
-                if update.other_data.player_id != game.user_id:
+                new_hp = update.HP
+                print(f"{update.player_id=}")
+                if update.player_id != game.user_id:
                     game.level.entities.add_or_update(
                         [game.level.visible_sprites],
-                        update.other_data.player_id,
+                        update.player_id,
                         hp=new_hp,
+                        type="ENEMY" if is_enemy else "PLAYER",
                     )
                 else:
                     old_hp = health_elem.get_life()
@@ -471,8 +482,8 @@ def event_handler(
                     elif diff < 0:
                         health_elem.sub_life(abs(diff))
             elif payload_type == "state":
-                if update.other_data.state == region_net.OtherPlayerData.DESPAWNED:
-                    game.level.entities.remove(update.other_data.player_id)
+                if update.state == region_net.OtherPlayerData.DESPAWNED:
+                    game.level.entities.remove(update.player_id)
         elif len(update.bullet_shot) > 0:
             inc_bullets = update.bullet_shot
             for bullet in inc_bullets:

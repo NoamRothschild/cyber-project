@@ -121,7 +121,7 @@ class EnemyHandler:
         """Broadcast enemy location (spawn/respawn)."""
         update = region_net.ServerResponse()
         update.sender_id = enemy.enemy_id
-        update.other_data.new_location.CopyFrom(
+        update.enemy_data.new_location.CopyFrom(
             region_net.LocationBlock(
                 x=int(enemy.x),
                 y=int(enemy.y))
@@ -136,7 +136,7 @@ class EnemyHandler:
         """Broadcast HP (reuses OtherPlayerData payload)."""
         update = region_net.ServerResponse()
         update.sender_id = enemy.enemy_id
-        update.other_data.CopyFrom(
+        update.enemy_data.CopyFrom(
             region_net.OtherPlayerData(
                 HP=int(enemy.hp),
                 player_id=enemy.enemy_id)

@@ -278,18 +278,18 @@ class Client:
         """Notify this player about a new enemy's location"""
         resp = region_net.ServerResponse()
         resp.sender_id = enemy_user_id
-        resp.other_data.new_location.CopyFrom(
+        resp.enemy_data.new_location.CopyFrom(
             region_net.LocationBlock(x=enemy_pos[0], y=enemy_pos[1])
         )
-        resp.other_data.player_id = enemy_user_id
+        resp.enemy_data.player_id = enemy_user_id
         await self.write_udp(resp)
 
     async def saw_enemy_hp(self, enemy_user_id: int, new_hp: int) -> None:
         """Notify this player about a enemy's hp change"""
         resp = region_net.ServerResponse()
         resp.sender_id = enemy_user_id
-        resp.other_data.HP = new_hp
-        resp.other_data.player_id = enemy_user_id
+        resp.enemy_data.HP = new_hp
+        resp.enemy_data.player_id = enemy_user_id
         await self.write_udp(resp)
 
     async def saw_client(
@@ -316,8 +316,8 @@ class Client:
         """Notify this player that an entity left their viewport"""
         resp = region_net.ServerResponse()
         resp.sender_id = entity_user_id
-        resp.other_data.state = region_net.OtherPlayerData.DESPAWNED
-        resp.other_data.player_id = entity_user_id
+        resp.enemy_data.state = region_net.OtherPlayerData.DESPAWNED
+        resp.enemy_data.player_id = entity_user_id
         await self.write_udp(resp)
 
     def can_see(self, pos: Tuple[int, int]) -> bool:

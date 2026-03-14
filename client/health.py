@@ -78,3 +78,10 @@ class HealthBar(pygame.sprite.Sprite):
         self.plus_rect.width = num
         self.minus_rect.width = 400 - num
         self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
+
+    def set_absolute(self, current_width: int):
+        """Set the bar fill to current_width (0 to self.width). Used for fixed-width bars driven by hp/max_hp."""
+        current_width = max(0, min(current_width, self.width))
+        self.plus_rect.width = current_width
+        self.minus_rect.width = self.width - current_width
+        self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
