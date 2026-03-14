@@ -407,20 +407,6 @@ class EnemyHandler:
             )
             for c in list(clients):
                 await c.write(update.SerializeToString())
-        # Broadcast new location
-        # update = region_net.ServerResponse()
-        # update.sender_id = enemy.enemy_id
-        # update.other_data.new_location.CopyFrom(
-        #     region_net.LocationBlock(
-        #         x=int(enemy.x),
-        #         y=int(enemy.y)
-        #     )
-        # )
-        # enemy.last_sent_x = enemy.x
-        # enemy.last_sent_y = enemy.y
-        #
-        # for c in clients:
-        #     await c.write(update.SerializeToString())
 
 
 # TODO: surround with a lock as well
