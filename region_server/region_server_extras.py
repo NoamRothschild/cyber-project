@@ -48,13 +48,15 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,    }
 }
 
-user_emmo={
+user_stt={
     "user1":{
                 "Ak 47":1,
                 "arrows":1,
                 "sword hit":1,
                 "Assault rifle bullets":1,
-                "Pistol bullets":1
+                "Pistol bullets":1,
+
+                "cash":300
             }
 }
 
@@ -108,19 +110,19 @@ class ProjectileHandler:
                         proj["already_hit"].add(client.user_id)
 
 
-    def getPlayer_EMMO_Stat(self,userID,bulletType):
+    def getPlayer_AMMO_Stat(self,userID,bulletType):
         try:
-            emmo = user_emmo[userID][bulletType]
+            emmo = user_stt[userID][bulletType]
         except:
             print(userID," is not regestered or no gun type name: ",bulletType)
             return None
         return emmo
 
-    def decPlayer_EMMO_Stat(self,userID,bulletType):
+    def decPlayer_AMMO_Stat(self,userID,bulletType):
         try:
-           user_emmo[userID][bulletType]-=1
+           user_stt[userID][bulletType]-=1
         except:
-            print(userID," is not regestered or no gun type name: ",bulletType)
+            print(userID," is not registered or no gun type name: ",bulletType)
         return
 
     async def add(self, bullet_shot: region_net.BulletShot, client: Client) -> bytes:
@@ -129,10 +131,11 @@ class ProjectileHandler:
             print(f"Warn: unknown bullet type fired: {bullet_shot.gun_type} by user with id {client.user_id}")
             return b''
 
-        ammo = self.getPlayer_EMMO_Stat("user1", bullet_shot.gun_type)
-        #ammo = self.getPlayer_EMMO_Stat(client.user_id, bullet_shot.gun_type)
+        ammo = self.getPlayer_AMMO_Stat("user1", bullet_shot.gun_type)
+        #ammo = self.getPlayer_AMMO_Stat(client.user_id, bullet_shot.gun_type)
         if ammo is not None and ammo > 0:
-            self.decPlayer_EMMO_Stat("user1", bullet_shot.gun_type)
+            self.decPlayer_AMMO_Stat("user1", bullet_shot.gun_type)
+            #self.decPlayer_AMMO_Stat(client.user_id, bullet_shot.gun_type)
 
             bullet = template.copy()
             bullet["velocity_x"] = math.cos(bullet_shot.angle) * bullet["speed"]
@@ -249,6 +252,62 @@ class Client:
                 update_bytes = await projectile_handler.add(update.bullet_shot, self)
                 if update_bytes:
                     await self.broadcast(update_bytes)
+
+            #SHOP anticheat
+            elif payload_type == "shop_buy":
+
+                resp = region_net.ServerResponse()
+                resp.sender_id = self.user_id
+
+                kind = update.shop_buy.item_type
+                name = update.shop_buy.item_name
+                amount = update.shop_buy.amount
+                price= self.priceOfTheSHOPING(kind, name)
+
+                total = price * amount
+
+                player = user_stt["user1"]
+                #player = user_stt[client.user_id]
+                if player["cash"] >= total:
+                    player["cash"] -= total
+                    resp.other_data.result = True
+                else:
+                    resp.other_data.result = False
+
+                print(resp.other_data.result)
+                await self.write(resp.SerializeToString())
+
+    def priceOfTheSHOPING(self,kind,name):
+        price = 0
+
+        if kind == "weapon":
+            prices = {
+                "Ak 47": 300,
+                "Assault rifle": 350,
+                "Pistol": 200,
+                "bow": 80,
+                "sword": 60
+            }
+            price = prices.get(name, 0)
+
+        elif kind == "ammo":
+            prices = {
+                "Pistol bullets": 40,
+                "AK 47 bullets": 50,
+                "Assault rifle bullets": 60,
+                "arrows": 60
+            }
+            price = prices.get(name, 0)
+
+        elif kind == "potion":
+            prices = {
+                "healing": 140,
+                "speed": 70,
+                "super_speed": 140
+            }
+            price = prices.get(name, 0)
+
+        return price
 
     async def write(self, data: bytes):
         async with self.writer_lock:

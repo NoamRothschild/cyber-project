@@ -69,6 +69,18 @@ class ZoneConnection:
         )
 
         self.reliable_conn.sendall(update.SerializeToString())
+
+    def try_to_buy(self, item_type: str, item_name: str, amount: int) -> None:
+        update = region_net.RegionUpdate()
+        update.shop_buy.CopyFrom(
+            region_net.ShopBuy(
+                item_type=item_type,
+                item_name=item_name,
+                amount=amount
+            )
+        )
+        self.reliable_conn.sendall(update.SerializeToString())
+
     def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
         print("hi avram")
         update = region_net.RegionUpdate()
@@ -138,9 +150,15 @@ def server_listener(game: Game, zone: ZoneConnection):
             hb = game.level.player.hitbox
             hb.x = parsed.move_self.x
             hb.y = parsed.move_self.y
-        elif payload_type == "other_data":
+
+        elif payload_type == "other_data": # ask to buy pkt
             payload_type = parsed.other_data.WhichOneof("payload")
-            print(f"{payload_type=}")
+
+            if parsed.other_data.result:
+                game.last_shop_result = True
+            else:
+                game.last_shop_result = False
+
             if payload_type == "new_location":
                 pos = parsed.other_data.new_location
                 game.level.entities.add_or_update([game.level.visible_sprites], parsed.sender_id, pos=(pos.x, pos.y))

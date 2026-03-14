@@ -7,6 +7,7 @@ message RegionUpdate {
     LocationBlock location_block = 1;
     BulletShot bullet_shot = 2;
     PotionUse potion_use = 3;
+    ShopBuy shop_buy= 4;
   }
 }
 message PotionUse {
@@ -17,6 +18,14 @@ message PotionUse {
     health = 0;
   }
 }
+
+
+message ShopBuy {
+  string item_type = 1;  // ammo weapon potion
+  string item_name = 2;  // Ak 47 bullets.... Pistol... speed potion......
+  int32 amount = 3;
+}
+
 
 message LocationBlock {
   int32 x = 1;
@@ -52,12 +61,16 @@ message OtherPlayerData {
     int32 HP = 2;
     OtherState state = 3;
   }
+
   int32 player_id = 4;
+  bool result = 5;
+
   enum OtherState {
     WALKING = 0;
     ATTACKING = 1;
   }
 }
+
 
 message ServerResponse {
   int32 sender_id = 1;
