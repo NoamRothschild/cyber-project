@@ -42,8 +42,11 @@ async def create_proxy_on(node_idx: str, message: bytes):
 async def remove_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
 
-async def publish_player_disconnect(sender_id: int, session_id: int):
-    event = region_net.ProxyEvent(client=region_net.ClientProxy(player_id=sender_id, session_id=session_id))
+async def publish_proxy_remove_global(sender_id: int, session_id: int) -> None:
+    """Publish client proxy remove to GLOBAL_CHANNEL so all servers (including remote) run receive_proxy_remove."""
+    event = region_net.ProxyEvent(
+        client=region_net.ClientProxy(player_id=sender_id, session_id=session_id)
+    )
     await get_redis().publish(GLOBAL_CHANNEL, PROXY_REMOVE_PREFIX + event.SerializeToString())
 
 def start_redis_listener() -> None:

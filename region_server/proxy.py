@@ -1,7 +1,7 @@
 from projectiles import Projectile
-from typing import Tuple, Any
+from typing import Tuple, Any, Optional
 import protobuf.region_net_pb2 as region_net
-from servers_communication import create_proxy_on, remove_proxy_on
+from servers_communication import create_proxy_on, remove_proxy_on, publish_proxy_remove_global
 from grid_utils import ProxyObject, GridField, ProxyField, Direction, ItemState
 
 
@@ -70,11 +70,23 @@ async def remove_proxy(
         await remove_proxy_on(node_idx, event.SerializeToString())
 
 
+async def broadcast_proxy_remove(
+    sender_id: int, type: str = "Client", session_id: Optional[int] = None
+) -> None:
+    """Remove entity's proxy from every node (notify viewers). For Client type, also publish to global channel so other servers remove the proxy."""
+    from nodes import nodes
+
+    for node in nodes.values():
+        await node.receive_proxy_remove(sender_id, type)
+    if type == "Client" and session_id is not None:
+        await publish_proxy_remove_global(sender_id, session_id)
+
+
 async def broadcast_disconnect(sender_id: int, session_id: int) -> None:
     """Remove a player's proxy from every node on every server."""
     from nodes import nodes
-    from servers_communication import publish_player_disconnect
+    from servers_communication import publish_proxy_remove_global
 
     for node in nodes.values():
         await node.receive_proxy_remove(sender_id)
-    await publish_player_disconnect(sender_id, session_id)
+    await publish_proxy_remove_global(sender_id, session_id)

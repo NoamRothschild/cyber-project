@@ -463,10 +463,10 @@ def event_handler(
         if nep: print(f"{payload_type=}")
         if payload_type == "move_self":
             print("force moving self...")
-            # TODO: have a lock sorrounding player hitbox
-            hb = game.level.player.hitbox
-            hb.x = update.move_self.x
-            hb.y = update.move_self.y
+            player = game.level.player
+            player.hitbox.x = update.move_self.x
+            player.hitbox.y = update.move_self.y
+            player.rect.center = player.hitbox.center
         elif payload_type == "other_data" or payload_type == "enemy_data":
             sender_id = update.sender_id
             if payload_type == "other_data":

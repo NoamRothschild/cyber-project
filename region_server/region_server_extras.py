@@ -24,6 +24,7 @@ from constants import (
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
 from servers_communication import get_redis
 from region_node import RegionNode
+from proxy import broadcast_proxy_remove
 from grid_utils import AABB
 
 REDIS_PORT = 6379
@@ -40,7 +41,7 @@ def _get_server_private_key():
         )
     return _get_server_private_key._cache[server_id]
 
-    
+
 IP = "127.0.0.1"
 redis_client = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
 
@@ -297,7 +298,50 @@ class Client:
         update.other_data.CopyFrom(region_net.OtherPlayerData(HP=self.state.hp, player_id=self.user_id))
         await self.broadcast(update.SerializeToString())
         await self.write(update.SerializeToString())
+
+        if self.state.hp <= 0:
+            await self._handle_death()
+            return
+
         await self.node.propagate_entity(self)
+
+    WORLD_SPAWN = (74000, 32600)
+    SPAWN_NODE_POS = RegionNode.which_node(*WORLD_SPAWN)
+
+    async def _handle_death(self) -> None:
+        """Broadcast DESPAWN to viewers, force TP to spawn, reset HP, move to spawn node."""
+        from nodes import nodes
+
+        dead_pos = (self.state.x, self.state.y)
+        node = self.node
+
+        for cli in node.clients.values():
+            if cli is self:
+                continue
+            if Client.can_see_static((cli.state.x, cli.state.y), dead_pos):
+                await cli.client_despawned(self.user_id)
+
+        await broadcast_proxy_remove(self.user_id, "Client", self.session_id)
+
+        self.state.hp = 400
+        spawn_node = nodes.get(Client.SPAWN_NODE_POS)
+
+        if spawn_node is None:
+            # Spawn is on another server: detach here so we don't leave a ghost client.
+            node.detach_client(self)
+            self.node = NULL_NODE
+            return
+        if spawn_node != node:
+            node.detach_client(self)
+            self.node = spawn_node
+            await spawn_node.register_client(self, self.WORLD_SPAWN)
+        else:
+            self.state.x, self.state.y = self.WORLD_SPAWN[0], self.WORLD_SPAWN[1]
+            cell_x, cell_y = node.to_cell_pos(self.WORLD_SPAWN)
+            old_cx, old_cy = self.state.cell_x, self.state.cell_y
+            self.state.cell_x, self.state.cell_y = cell_x, cell_y
+            node.grid_move(self, old_cx, old_cy, cell_x, cell_y)
+            await node.propagate_entity(self)
 
     async def saw_enemy(self, enemy_pos: Tuple[int, int], enemy_user_id: int) -> None:
         """Notify this player about a new enemy's location"""
@@ -338,11 +382,19 @@ class Client:
         await self.write_udp(resp)
 
     async def entity_despawned(self, entity_user_id: int) -> None:
-        """Notify this player that an entity left their viewport"""
+        """Notify this player that an entity (enemy) left their viewport."""
         resp = region_net.ServerResponse()
         resp.sender_id = entity_user_id
         resp.enemy_data.state = region_net.OtherPlayerData.DESPAWNED
         resp.enemy_data.player_id = entity_user_id
+        await self.write_udp(resp)
+
+    async def client_despawned(self, other_user_id: int) -> None:
+        """Notify this player that another client (player) left their viewport."""
+        resp = region_net.ServerResponse()
+        resp.sender_id = other_user_id
+        resp.other_data.state = region_net.OtherPlayerData.DESPAWNED
+        resp.other_data.player_id = other_user_id
         await self.write_udp(resp)
 
     def can_see(self, pos: Tuple[int, int]) -> bool:

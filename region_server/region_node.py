@@ -189,8 +189,8 @@ class RegionNode:
         for prx in self.proxies:
             to_remove = None
             for existing in prx:
-                # if existing.proxy.id != sender_id:
-                #     continue
+                if existing.proxy.id != sender_id:
+                    continue
                 if type == "Client" and isinstance(existing.proxy, ProxyClient):
                     to_remove = existing
                     break
