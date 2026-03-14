@@ -82,12 +82,13 @@ class ProjectileHandler:
         return self._bullet_hit_enemy_at(proj, enemy, proj["x"], proj["y"])
 
     def _bullet_hit_enemy_at(self, proj: dict, enemy: EnemyModel, bx: float, by: float) -> bool:
-        hit_radius = (enemy.w + enemy.h) / 4  # ~17.5px to fit the sprite
-        ex = enemy.x + enemy.w / 2
-        ey = enemy.y + enemy.h / 2
-        dx = ex - bx
-        dy = ey - by
-        return (dx * dx + dy * dy) < (hit_radius ** 2)
+        """True if (bx, by) is inside the enemy AABB (or within a small margin for fast bullets)."""
+        # Point-in-AABB: bullet inside enemy rect
+        margin = max(abs(proj["velocity_x"]), abs(proj["velocity_y"]), 1.0)
+        return (
+            enemy.x - margin <= bx <= enemy.x + enemy.w + margin
+            and enemy.y - margin <= by <= enemy.y + enemy.h + margin
+        )
 
     async def tick(self, cycle: int) -> None:
         from nodes import nodes
@@ -98,8 +99,7 @@ class ProjectileHandler:
         to_remove: list[Projectile] = []
         to_transfer: list[tuple[Projectile, tuple[int, int]]] = []
         node = self._node
-        dead_enemy_ids: list[int] = []
-        # list of (enemy_id, hp) — snapshot hp at hit time, not after lock release
+        dead_enemies: list[tuple[int, int, int]] = []  # (enemy_id, x, y) for DESPAWN broadcast and respawn
         enemies_to_broadcast_hp: list[EnemyModel] = []
 
         async with self.lock:
@@ -150,12 +150,15 @@ class ProjectileHandler:
 
             # Spatial collision detection
             for proj in self.projectiles:
-                search_radius = math.ceil(proj["range"] / RegionNode.CELL_SIZE) + 2
+                search_radius = math.ceil(proj["range"] / RegionNode.CELL_SIZE) + 1
                 for grid_field in node.nearby(
                     proj["cell_x"], proj["cell_y"], search_radius
                 ):
+                    # can_print = proj.get("src") == "CLIENT"
+                    # prnt = print if can_print else lambda *args, **kwargs: None
                     # TODO: expand to also catch Enemy objects when pulled
                     if isinstance(grid_field.obj, Client):
+                        # prnt(f'bullet found a close client')
                         client = grid_field.obj
                         if proj["owner_uuid"] == client.user_id:
                             continue
@@ -165,10 +168,12 @@ class ProjectileHandler:
                         prev_x = proj["x"] - proj["velocity_x"]
                         prev_y = proj["y"] - proj["velocity_y"]
                         if self.bullet_hit(proj, client) or self.bullet_hit_at(proj, client, prev_x, prev_y):
+                            # prnt(f'BULLET HIT CLIENT')
                             await client.hit(proj["damage"], proj["owner_uuid"])
                             proj["already_hit"].add(client.user_id)
 
                     elif isinstance(grid_field.obj, EnemyModel):
+                        # prnt(f'bullet found a close enemy')
                         enemy = grid_field.obj
                         # skip enemies already dead or already hit by this bullet
                         if enemy.enemy_id in proj["already_hit"]:
@@ -182,24 +187,27 @@ class ProjectileHandler:
                         hit_now = self.bullet_hit_enemy(proj, enemy)
                         hit_prev = self._bullet_hit_enemy_at(proj, enemy, prev_x, prev_y)
                         if hit_now or hit_prev:
+                            # prnt(f'BULLET HIT ENEMY')
                             died = enemy.take_damage(int(proj["damage"]))
                             proj["already_hit"].add(enemy.enemy_id)
                             # snapshot hp now while lock is held
                             enemies_to_broadcast_hp.append(enemy)
 
                             if died:
-                                dead_enemy_ids.append(enemy.enemy_id)
+                                dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y))
                                 self.enemy_handler._dead_ids.add(enemy.enemy_id)
                                 # override the hp broadcast to max_hp so the client resets the enemy
                                 enemy.hp = enemy.max_hp
         
+        for enemy_id, ex, ey in dead_enemies:
+            for cli in node.clients_in_view((ex, ey)):
+                await cli.entity_despawned(enemy_id)
+            asyncio.create_task(self.enemy_handler.respawn_enemy(enemy_id))
+
         for enemy in enemies_to_broadcast_hp:
             await self._node.propagate_entity(enemy)
             for cli in self._node.clients_in_view((enemy.x, enemy.y)):
                 await cli.saw_enemy_hp(enemy.enemy_id, enemy.hp)
-        
-        for enemy_id in dead_enemy_ids:
-            asyncio.create_task(self.enemy_handler.respawn_enemy(enemy_id))
 
         for proj, new_node_pos in to_transfer:
             if new_node := nodes.get(new_node_pos):
@@ -238,6 +246,7 @@ class ProjectileHandler:
         bullet["angle"] = bullet_shot.angle
         bullet["x"] = client.state.x
         bullet["y"] = client.state.y
+        bullet["src"] = "CLIENT"
 
         update = region_net.ServerResponse(sender_id=client.user_id)
         new_projectiles: list[Projectile] = []
@@ -297,6 +306,7 @@ class ProjectileHandler:
         bullet["x"] = spawn_x
         bullet["y"] = spawn_y
         bullet["gun_type"] = "Assault rifle bullets"
+        bullet["src"] = "ENEMY"
 
         update = region_net.ServerResponse(sender_id=enemy_id)
         update.bullet_shot.add(
