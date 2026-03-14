@@ -16,11 +16,12 @@ if TYPE_CHECKING:
 _proj_start_id = (2**31 // SERVER_COUNT) * int(os.getenv("server_id", "0"))
 _next_projectile_id = itertools.count(start=_proj_start_id)
 
+# Match client "Assault rifle bullets" so server hit detection aligns with client display
 ENEMY_RANGED_BULLET: Dict[str, Union[int, float]] = {
     "ttl": 80,
-    "speed": 15,
+    "speed": BULLET_TYPES["Assault rifle bullets"]["speed"],
     "damage": 15,
-    "range": 30,
+    "range": BULLET_TYPES["Assault rifle bullets"]["range"],
 }
 
 class Projectile(dict):

@@ -25,36 +25,36 @@ CLIENT_ASPECT_RATIO = CLIENT_WIDTH / CLIENT_HEIGHT
 MIN_DIST_SQR_FOR_ITEM_DROP = 100 ** 2
 MAX_DIST_FOR_ITEM_DROP = 100
 
-# TODO: might parse this from a bullets config json file
+# Match client/bullets.py bullet_types (ttl, speed, damage). range used for server hit detection.
 BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
     "AK 47 bullets": {
-        "ttl": 50,
-        "speed": 20,
+        "ttl": 20,
+        "speed": 25,
         "damage": 40,
         "range": 50,
     },
     "arrows": {
         "ttl": 50,
-        "speed": 20,
-        "damage": 50,
+        "speed": 30,
+        "damage": 40,
         "range": 50,
     },
-    "sword hit":{
+    "sword hit": {
         "ttl": 5,
         "speed": 4,
         "damage": 60,
         "range": 80,
     },
-    "Pistol bullets":{
+    "Pistol bullets": {
         "ttl": 10,
         "speed": 19,
         "damage": 30,
         "range": 50,
     },
-    "Assault rifle bullets":{
+    "Assault rifle bullets": {
         "ttl": 15,
         "speed": 30,
         "damage": 25,
         "range": 50,
-    }
+    },
 }

@@ -402,6 +402,8 @@ def event_handler(
     """
     from bullets import Bullets
 
+    not_enemy_packet = lambda p: not (p.HasField("enemy_data") and p.enemy_data.HasField("new_location"))
+
     while not stop_event.is_set():
         try:
             update = zone_queue.get(timeout=0.5)
@@ -409,10 +411,11 @@ def event_handler(
             continue
         if update is None:
             break
-        print(f"received: {update}")
+        nep = not_enemy_packet(update)
+        if nep: print(f"received: {update}")
 
         payload_type = update.WhichOneof("payload")
-        print(f"{payload_type=}")
+        if nep: print(f"{payload_type=}")
         if payload_type == "move_self":
             print("force moving self...")
             # TODO: have a lock sorrounding player hitbox
@@ -429,7 +432,7 @@ def event_handler(
                 is_enemy = True
 
             payload_type = update.WhichOneof("payload")
-            print(f"{payload_type=}, {update.player_id=}")
+            if nep: print(f"{payload_type=}, {update.player_id=}")
             if payload_type == "new_location":
                 pos = update.new_location
                 game.level.entities.add_or_update(
