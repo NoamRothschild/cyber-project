@@ -107,6 +107,14 @@ class Player(pygame.sprite.Sprite):
             "Pistol bullets": 101
         }
 
+        self.magazine = {
+            "Ak 47": 0,
+            "bow": 0,
+            "Assault rifle": 0,
+            "Pistol": 0,
+            "sword": 1000
+        }
+
         self.health = HealthBar(HEALTH_BAR_POS, HEALTH_BAR_SCALE)
         self.injured_until = 0
 
@@ -176,19 +184,19 @@ class Player(pygame.sprite.Sprite):
                         if w.bullet != "null":
                             if w.bullet != "sword hit":
                                 capability = Arsenal.Arsenal_gunType[w.gun_type][6]
-                                need = max(0, capability - w.mag)
+                                need = max(0, capability - self.magazine[w.gun_type])
                                 have = self.ammo_collection[w.bullet]
 
                                 take = min(need, have)
 
-                                w.mag += take
+                                self.magazine[w.gun_type] += take
                                 self.ammo_collection[w.bullet] = have - take
 
             mouse_buttons = pygame.mouse.get_pressed()
 
             if mouse_buttons[0] and not self.inventory.is_wep_empty():
                 try:
-                    if self.current_Weapon().mag > 0:
+                    if self.magazine[self.current_Weapon().gun_type] > 0:
 
                         now = pygame.time.get_ticks()
                         if now - self.last_shoot >= self.current_Weapon().fire_cooldown:
@@ -227,7 +235,7 @@ class Player(pygame.sprite.Sprite):
                                 Bullets.BulletLS.append(bullet)
                                 ZoneConnectionSingleton().zone.try_send_bullet(self.current_Weapon().get_name(),
                                                                                bullet.angle, 1)
-                                self.current_Weapon().mag -= 1
+                                self.magazine[weapon.gun_type] -= 1
                 except:
                     print("error")
 
@@ -335,7 +343,7 @@ class Player(pygame.sprite.Sprite):
             if len(self.inventory.wep_inventory) != 0:
                 if not self.is_dead:
                     self.current_Weapon().draw(WIDTH / 2, HEIGHT / 2)
-                    self.current_Weapon().draw_mag_stat()
+                    self.current_Weapon().draw_mag_stat(self)
 
         self.move()
         self.inventory.open([self.colect_sprite, self.groups[0]], self)

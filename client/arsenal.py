@@ -110,6 +110,8 @@ class Arsenal:
         self.gun_type = gun_type
         self.weapon_path,self.img_num, self.bullet, self.movement, coordinates, self.scale, self.mag, self.fire_cooldown,self.pivot,self.spawn_points = \
             Arsenal.Arsenal_gunType[gun_type]
+
+        self.mag=0
         
         self.weapon_img = Arsenal.get_weapon_img(gun_type)
         self.smaller_v = pygame.transform.scale(self.weapon_img, (30, 30))
@@ -279,12 +281,12 @@ class Arsenal:
             self.weapon_frame_i = 0
             self.weapon_last_time = pygame.time.get_ticks()
 
-    def draw_mag_stat(self):
+    def draw_mag_stat(self,player):
         x = 300
         y = 705
 
         if not self.bullet == "null":
-            bullet_left = self.mag
+            bullet_left = player.magazine[self.gun_type]
 
             offset_x = 0
 
