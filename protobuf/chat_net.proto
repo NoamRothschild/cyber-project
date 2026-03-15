@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package game.region;
+
+message ChatMessage {
+  oneof mas {
+    string message = 1;
+  }
+}
+
+message HandshakeStart {
+  Kind kind = 1;
+  oneof payload {
+    int64 session_id = 2;
+  }
+  optional int32 user_id = 3; // only set from server -> client
+  bytes client_public_key = 4; // client's RSA public key for server to encrypt messages
+
+  enum Kind {
+    LOGIN = 0;
+    SERVER_OK = 1;
+    AUTH_FAIL = 2;
+  }
+}
