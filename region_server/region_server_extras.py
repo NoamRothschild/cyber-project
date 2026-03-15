@@ -143,8 +143,9 @@ class ProjectileHandler:
 
         mag = self.get_player_mag_stat("user1", bullet_shot.gun_type)
         #ammo = self.getPlayer_AMMO_Stat(client.user_id, bullet_shot.gun_type)
-
+        print(mag)
         if mag > 0:
+            print("shoot")
             self.dec_player_mag_stat("user1", bullet_shot.gun_type)
             #self.decPlayer_AMMO_Stat(client.user_id, bullet_shot.gun_type)
 
@@ -287,6 +288,45 @@ class Client:
 
                 print(resp.other_data.shop_ans)
                 await self.write(resp.SerializeToString())
+
+
+
+            elif payload_type == "reload_act":
+                try:
+                    user_id = "user1"
+                    # user_id = self.user_id
+
+                    gun_type = update.reload_act.gun_type
+                    full_mag = update.reload_act.full_mag
+
+                    ammo_type = {
+                        "Ak 47": "Ak 47",
+                        "bow": "arrows",
+                        "Assault rifle": "Assault rifle bullets",
+                        "Pistol": "Pistol bullets",
+                        "sword": "sword hit"
+                    }
+
+                    ammo_name = ammo_type.get(gun_type)
+                    if ammo_name is None:
+                        return
+
+                    player = user_stt[user_id]
+                    current_mag = player["magazine"].get(gun_type, 0)
+                    ammo_have = player["ammo_collection"].get(ammo_name, 0)
+                    need = full_mag - current_mag
+
+                    if need <= 0:
+                        return
+                    reload_amount = min(need, ammo_have)
+                    player["magazine"][gun_type] += reload_amount
+                    player["ammo_collection"][ammo_name] -= reload_amount
+
+                    print("was needed: ",reload_amount)
+                    print("ammo_collection left: ", player["ammo_collection"][ammo_name])
+
+                except Exception as e:
+                    print("reload error:", e)
 
     def priceOfTheSHOPING(self,kind,name):
         price = 0

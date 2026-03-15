@@ -181,6 +181,8 @@ class Player(pygame.sprite.Sprite):
                     if now - self.last_r_press >= w.fire_cooldown:
                         self.last_r_press = now
 
+                        ZoneConnectionSingleton().zone.try_to_reload(w.gun_type,Arsenal.Arsenal_gunType[w.gun_type][6])
+
                         if w.bullet != "null":
                             if w.bullet != "sword hit":
                                 capability = Arsenal.Arsenal_gunType[w.gun_type][6]

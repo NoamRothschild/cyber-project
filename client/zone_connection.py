@@ -81,6 +81,16 @@ class ZoneConnection:
         )
         self.reliable_conn.sendall(update.SerializeToString())
 
+    def try_to_reload(self,gun_type: str ,full_mag: int ) -> None:
+        update = region_net.RegionUpdate()
+        update.reload_act.CopyFrom(
+            region_net.ReloadAct(
+                gun_type=gun_type,
+                full_mag=full_mag
+            )
+        )
+        self.reliable_conn.sendall(update.SerializeToString())
+
     def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
         print("hi avram")
         update = region_net.RegionUpdate()
