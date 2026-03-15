@@ -1,7 +1,17 @@
 import pygame, math
 from game import *
+import os
+import sys
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
 
+    return os.path.join(base_path, relative_path)
 
 def draw_AND_update_Bullets(player):
     # Derive camera scroll exactly like Camera.custom_draw does:
@@ -27,47 +37,24 @@ class Bullets:
 
     bullet_types = {
         "AK 47 bullets": (
-            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
-            (-15, 15),  # relative offset from the player
-            20,  # ttl
-            25,  # speed
-            40,  # damage
-            0.1 #scale
+            pygame.image.load(resource_path("arsenal-images/bullets/AK 47 bullets.png")).convert_alpha(),
+            (-15, 15), 20, 25, 40, 0.1
         ),
         "Assault rifle bullets": (
-            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
-            (-15, 15),  # relative offset from the player
-            15,  # ttl
-            30,  # speed
-            25,  # damage
-            0.1  # scale
+            pygame.image.load(resource_path("arsenal-images/bullets/AK 47 bullets.png")).convert_alpha(),
+            (-15, 15), 15, 30, 25, 0.1
         ),
-
         "Pistol bullets": (
-            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
-            (-15, 15),  # relative offset from the player
-            10,  # ttl
-            19,  # speed
-            30,  # damage
-            0.1  # scale
+            pygame.image.load(resource_path("arsenal-images/bullets/AK 47 bullets.png")).convert_alpha(),
+            (-15, 15), 10, 19, 30, 0.1
         ),
-
         "arrows": (
-            pygame.image.load("arsenal-images/bullets/arrows.png").convert_alpha(),
-            (-15, 5),  # relative offset from the player
-            50,  # ttl
-            30,  # speed
-            40,  # damage
-            1  # scale
+            pygame.image.load(resource_path("arsenal-images/bullets/arrows.png")).convert_alpha(),
+            (-15, 5), 50, 30, 40, 1
         ),
-
-        "sword hit":(
-            pygame.image.load("arsenal-images/bullets/sword hit.png").convert_alpha(),
-            (-15, 5),  # relative offset from the player
-            1,  # ttl
-            20,  # speed
-            60,  # damage
-            0.3  # scale
+        "sword hit": (
+            pygame.image.load(resource_path("arsenal-images/bullets/sword hit.png")).convert_alpha(),
+            (-15, 5), 1, 20, 60, 0.3
         )
     }
 
