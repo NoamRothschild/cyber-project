@@ -1,22 +1,29 @@
-# Provides utility functions for the client for easier communication with server
 from __future__ import annotations
 import asyncio
 from pathlib import Path
-from random import randint
 from typing import Set
 
 import protobuf.chat_net_pb2 as chat_net
-import redis
+from redis.asyncio import Redis
 import auth_crypto
+from config import REDIS_HOST
+REDIS_PORT = 6379
 
 # TODO: protect with a lock as well if access patterns change
 clients: Set["Client"] = set()
 message_history = ["hii player"]
 MESSAGE_HISTORY_LIMIT = 18
-IP = "127.0.0.1"
-REDIS_PORT = 6379
 
 _CHAT_SERVER_DIR = Path(__file__).resolve().parent
+
+_redis: Redis | None = None
+
+
+def get_redis() -> Redis:
+    global _redis
+    if _redis is None:
+        _redis = Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+    return _redis
 
 
 def _get_server_private_key():
@@ -25,12 +32,6 @@ def _get_server_private_key():
             _CHAT_SERVER_DIR, "chat_keys.pem"
         )
     return _get_server_private_key._cached
-
-
-try:
-    r = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
-except Exception as e:
-    print(f"Error connecting to Redis: {e}")
 
 
 def _build_history_payload() -> str:
@@ -87,11 +88,11 @@ class Client:
         self.client_public_key = client_public_key
         self.username = "Unknown"
     
-    def fetch_username(self) -> None:
+    async def fetch_username(self) -> None:
         try:
-            self.username = r.get(f"session:{self.session_id}:username")
-            if self.username is None:
-                self.username = "Unknown"
+            r = get_redis()
+            value = await r.get(f"session:{self.session_id}:username")
+            self.username = value if value is not None else "Unknown"
         except Exception as e:
             print(f"Warning: Redis error getting username: {e}")
             self.username = "Unknown"
@@ -103,7 +104,7 @@ class Client:
 
     async def handle(self):
         server_private_key = _get_server_private_key()
-        self.fetch_username()
+        await self.fetch_username()
 
         try:
             history_payload = _build_history_payload()
