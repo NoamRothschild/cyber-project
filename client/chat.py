@@ -8,6 +8,7 @@ from cryptography.hazmat.backends import default_backend
 
 import protobuf.chat_net_pb2 as chat_net
 import auth_crypto
+from config import CHAT_HOST, CHAT_PORT
 import threading
 
 # הגדרות בסיסיות
@@ -29,7 +30,7 @@ def _get_chat_client_key_pair():
 
 
 class Chat(pygame.sprite.Sprite):
-    def __init__(self, ssid: int, host: str="127.0.0.1", reliable_port: int = 8888):
+    def __init__(self, ssid: int, host: str=CHAT_HOST, reliable_port: int = CHAT_PORT):
         super().__init__()
         self.rect = pygame.Rect(0, 80, width, height)
         self.screen = pygame.display.get_surface()

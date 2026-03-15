@@ -197,7 +197,7 @@ def handle_login(username, password):
                 # set data to redis db for 24h
                 # Key = session id, Value = user id
                 r.setex(f"session:{session_id}", CACHE_TIME, user_id_from_db)
-
+                r.setex(f"session:{session_id}:username", CACHE_TIME, username)
                 connection.commit()
                 return f"LOGIN_SUCCESS:{session_id}"
             else:
