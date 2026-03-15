@@ -177,7 +177,8 @@ class EnemyHandler:
                         ))
 
                 old_cell_x, old_cell_y = enemy.cell_x, enemy.cell_y
-                enemy.move_and_collide([])
+                for _ in range(5):
+                    enemy.move_and_collide([])
                 # Keep enemy inside this node's zone
                 enemy.x = int(max(
                     self.world_min_x,

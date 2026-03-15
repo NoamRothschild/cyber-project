@@ -91,6 +91,7 @@ message OtherPlayerData {
     WALKING = 0;
     ATTACKING = 1;
     DESPAWNED = 2;
+    DIED = 3;
   }
 }
 

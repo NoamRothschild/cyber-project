@@ -175,6 +175,7 @@ class Level:
 
         self.player.inventory.items_hendeling(self.player)
 
+        self.entities.cleanup_dead()
         self.visible_sprites.update(self.chat.is_open)
         self.chat.draw()
         Green_hit.draw_fill()
@@ -247,6 +248,8 @@ class Camera(pygame.sprite.Group):
                 self.display.blit(sprite.image, (view_offset_x, view_offset_y))
 
             elif hasattr(sprite, 'plus_rect'):
+                if getattr(sprite, '_hidden', False):
+                    continue
                 sprite.draw(self.point.x, self.point.y)
 
         # 4. ייעול ה-Grid (שימוש בטווחים שכבר חישבנו)

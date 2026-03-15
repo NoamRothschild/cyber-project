@@ -201,7 +201,7 @@ class ProjectileHandler:
         
         for enemy_id, ex, ey in dead_enemies:
             for cli in node.clients_in_view((ex, ey)):
-                await cli.entity_despawned(enemy_id)
+                await cli.entity_died(enemy_id)
             asyncio.create_task(self.enemy_handler.respawn_enemy(enemy_id))
 
         for enemy in enemies_to_broadcast_hp:

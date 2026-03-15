@@ -227,7 +227,7 @@ class RegionNode:
             old_seen = set()
             if cell := self.grid.get((old_cx, old_cy)):
                 target = GridField(obj)
-                for field in cell:
+                for field in tuple(cell):  # snapshot in case set is modified during iteration
                     if field == target:
                         old_seen = field.seen
                         break
@@ -245,20 +245,20 @@ class RegionNode:
         for r in range(radius + 1):
             if r == 0:
                 if cell := self.grid.get((cell_x, cell_y)):
-                    yield from cell
+                    yield from tuple(cell)  # snapshot: avoid "set changed size during iteration"
                 continue
             # top and bottom edges of the ring
             for dx in range(-r, r + 1):
                 if cell := self.grid.get((cell_x + dx, cell_y - r)):
-                    yield from cell
+                    yield from tuple(cell)
                 if cell := self.grid.get((cell_x + dx, cell_y + r)):
-                    yield from cell
+                    yield from tuple(cell)
             # left and right edges (corners already covered above)
             for dy in range(-r + 1, r):
                 if cell := self.grid.get((cell_x - r, cell_y + dy)):
-                    yield from cell
+                    yield from tuple(cell)
                 if cell := self.grid.get((cell_x + r, cell_y + dy)):
-                    yield from cell
+                    yield from tuple(cell)
 
     def clients_in_view(self, pos: Tuple[int, int]) -> Generator[Client, None, None]:
         from region_server_extras import Client
@@ -289,7 +289,7 @@ class RegionNode:
         for cell_y in range(cell_y_min, cell_y_max + 1):
             for cell_x in range(cell_x_min, cell_x_max + 1):
                 if cell := self.grid.get((cell_x, cell_y)):
-                    yield from cell
+                    yield from tuple(cell)  # snapshot: avoid "set changed size during iteration"
 
     # ---- static helpers ----
 

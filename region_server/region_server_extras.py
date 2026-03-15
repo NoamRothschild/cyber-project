@@ -389,6 +389,14 @@ class Client:
         resp.enemy_data.player_id = entity_user_id
         await self.write_udp(resp)
 
+    async def entity_died(self, entity_user_id: int) -> None:
+        """Notify this player that an entity (enemy) was killed; client plays death animation then removes."""
+        resp = region_net.ServerResponse()
+        resp.sender_id = entity_user_id
+        resp.enemy_data.state = region_net.OtherPlayerData.DIED
+        resp.enemy_data.player_id = entity_user_id
+        await self.write_udp(resp)
+
     async def client_despawned(self, other_user_id: int) -> None:
         """Notify this player that another client (player) left their viewport."""
         resp = region_net.ServerResponse()

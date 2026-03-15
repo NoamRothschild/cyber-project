@@ -529,8 +529,12 @@ def event_handler(
                         health_elem.add_life(diff)
                     elif diff < 0:
                         health_elem.sub_life(abs(diff))
+                        # sender_id is the enemy who hit us (server sets it in hit())
+                        game.level.entities.refresh_activity(sender_id, only_if_enemy=True)
             elif payload_type == "state":
-                if update.state == region_net.OtherPlayerData.DESPAWNED:
+                if update.state == region_net.OtherPlayerData.DIED:
+                    game.level.entities.entity_died(update.player_id)
+                elif update.state == region_net.OtherPlayerData.DESPAWNED:
                     game.level.entities.remove(update.player_id)
         elif len(update.bullet_shot) > 0:
             inc_bullets = update.bullet_shot
@@ -544,6 +548,8 @@ def event_handler(
                         from_network=True,
                     )
                 )
+            # update.sender_id is the shooter (enemy or player); keep that entity visible
+            game.level.entities.refresh_activity(update.sender_id, only_if_enemy=True)
 
 
 def find(item, game):
