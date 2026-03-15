@@ -1,5 +1,5 @@
-import pygame, sys
-from auth_server import client_auth
+import pygame
+import client_auth
 from login import LogIn
 import protobuf.auth_net_pb2 as auth_net
 
