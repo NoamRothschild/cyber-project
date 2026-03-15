@@ -1,7 +1,19 @@
 import pygame
 import time
 from functools import cache
+import os
+import sys
 
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class Potion(pygame.sprite.Sprite):
     # Start with None. We will load the images safely AFTER the window is created.
@@ -10,13 +22,12 @@ class Potion(pygame.sprite.Sprite):
     @classmethod
     def load_assets(cls):
         if cls.potions is None:
-            # We only load these the first time a potion is requested
             cls.potions = {
-                "healing": (pygame.image.load("Potion/super_health.png").convert_alpha(),
+                "healing": (pygame.image.load(resource_path("Potion/super_health.png")).convert_alpha(),
                             "health_bar", 15, 15),
-                "speed": (pygame.image.load("Potion/speed.png").convert_alpha(),
+                "speed": (pygame.image.load(resource_path("Potion/speed.png")).convert_alpha(),
                           "speed", 10, 1),
-                "super_speed": (pygame.image.load("Potion/super_speed.png").convert_alpha(),
+                "super_speed": (pygame.image.load(resource_path("Potion/super_speed.png")).convert_alpha(),
                                 "speed", 40, 10)
             }
 
