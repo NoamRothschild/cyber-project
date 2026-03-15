@@ -122,11 +122,12 @@ class ProjectileHandler:
         from region_node import RegionNode
         from servers_communication import broadcast_on
         from region_server_extras import Client
+        from proxy import remove_proxy
 
         to_remove: list[Projectile] = []
         to_transfer: list[tuple[Projectile, tuple[int, int]]] = []
         node = self._node
-        dead_enemies: list[tuple[int, int, int]] = []  # (enemy_id, x, y) for DESPAWN broadcast and respawn
+        dead_enemies: list[tuple[int, int, int, set]] = []  # (enemy_id, x, y, proxied_directions)
         enemies_to_broadcast_hp: list[EnemyModel] = []
 
         async with self.lock:
@@ -221,17 +222,30 @@ class ProjectileHandler:
                             enemies_to_broadcast_hp.append(enemy)
 
                             if died:
-                                dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y))
+                                proxied = getattr(enemy, "_proxied_directions", set())
+                                dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y, proxied))
+                                enemy._proxied_directions = set()
                                 self.enemy_handler._dead_ids.add(enemy.enemy_id)
                                 # override the hp broadcast to max_hp so the client resets the enemy
                                 enemy.hp = enemy.max_hp
         
-        for enemy_id, ex, ey in dead_enemies:
+        for enemy_id, ex, ey, proxied_directions in dead_enemies:
             for cli in node.clients_in_view((ex, ey)):
                 await cli.entity_died(enemy_id)
+            for direction in proxied_directions:
+                adj_node_pos = (
+                    node.node_pos[0] + direction.value[0],
+                    node.node_pos[1] + direction.value[1],
+                )
+                await remove_proxy(
+                    node.node_pos, adj_node_pos, enemy_id, 0, type="Enemy"
+                )
             asyncio.create_task(self.enemy_handler.respawn_enemy(enemy_id))
 
+        dead_ids = {e[0] for e in dead_enemies}
         for enemy in enemies_to_broadcast_hp:
+            if enemy.enemy_id in dead_ids:
+                continue
             await self._node.propagate_entity(enemy)
             for cli in self._node.clients_in_view((enemy.x, enemy.y)):
                 await cli.saw_enemy_hp(enemy.enemy_id, enemy.hp)
