@@ -9,9 +9,11 @@ message RegionUpdate {
     PotionUse potion_use = 3;
     ItemDrop item_drop = 4;
     Item item_pickup = 5;
+    ShopBuy shop_buy = 6;
+    ReloadAct reload_act = 7;
   }
-  optional uint64 seq_num = 6;
-  optional int32 sender_id = 7;
+  optional uint64 seq_num = 8;
+  optional int32 sender_id = 9;
 }
 
 message ItemDrop {
@@ -29,6 +31,18 @@ message PotionUse {
     damage = 1;
   }
 }
+
+message ReloadAct {
+  string gun_type = 1;
+  int32 full_mag = 2;
+}
+
+message ShopBuy {
+  string item_type = 1;  // ammo weapon potion
+  string item_name = 2;  // Ak 47 bullets.... Pistol... speed potion......
+  int32 amount = 3;
+}
+
 
 message LocationBlock {
   int32 x = 1;
@@ -85,8 +99,11 @@ message OtherPlayerData {
     int32 HP = 2;
     OtherState state = 3;
     Item New_Item = 4;
+    bool shop_ans = 5;
+    bool reload=6;
   }
-  int32 player_id = 5;
+  int32 player_id = 7;
+
   enum OtherState {
     WALKING = 0;
     ATTACKING = 1;
@@ -94,6 +111,7 @@ message OtherPlayerData {
     DIED = 3;
   }
 }
+
 
 message ServerResponse {
   int32 sender_id = 1;

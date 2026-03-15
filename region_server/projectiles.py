@@ -7,6 +7,7 @@ from constants import BULLET_TYPES, TICK_INTERVAL_SEC, SERVER_COUNT
 import os
 from enemy_model import EnemyModel
 from typing import TYPE_CHECKING, Dict, Union
+from nodes import get_global_client
 
 if TYPE_CHECKING:
     from region_node import RegionNode
@@ -89,6 +90,32 @@ class ProjectileHandler:
             enemy.x - margin <= bx <= enemy.x + enemy.w + margin
             and enemy.y - margin <= by <= enemy.y + enemy.h + margin
         )
+
+    @staticmethod
+    async def get_player_mag_stat(session_id: int, bullet_type: str) -> int:
+        """
+        Look up the player's remaining ammo for the given bullet type
+        using the global connected-clients registry.
+        """
+        client = await get_global_client(session_id)
+        if client is None:
+            print(f"Warning: {session_id} is not registered (no global client found)")
+            return 0
+
+        return client.user_state["ammo_collection"].get(bullet_type, 0)
+
+    @staticmethod
+    async def dec_player_mag_stat(session_id: int, bullet_type: str, shot_count: int) -> None:
+        """
+        Decrease the player's ammo for the given bullet type by 1
+        using the global connected-clients registry.
+        """
+        client = await get_global_client(session_id)
+        if client is None:
+            print(session_id, "is not registered (no global client found)")
+            return
+
+        client.user_state["ammo_collection"][bullet_type] -= shot_count
 
     async def tick(self, cycle: int) -> None:
         from nodes import nodes
@@ -238,6 +265,13 @@ class ProjectileHandler:
                 f"Warn: unknown bullet type fired: {bullet_shot.gun_type} "
                 f"by user with id {client.user_id}"
             )
+            return b"", []
+
+        shot_count = bullet_shot.count
+        mag = await ProjectileHandler.get_player_mag_stat(client.session_id, bullet_shot.gun_type)
+        if mag - shot_count >= 0:
+            await ProjectileHandler.dec_player_mag_stat(client.session_id, bullet_shot.gun_type, shot_count)
+        else:
             return b"", []
 
         bullet = template.copy()

@@ -227,6 +227,7 @@ class ZoneConnection:
         self.server_known_pos = pos
         self.send_udp(update)
 
+
     def try_send_bullet(self, gun_type: str, angle: float, count: int) -> None:
         """NOTE: currently uses TCP. TODO: move to udp"""
         update = region_net.RegionUpdate()
@@ -235,8 +236,29 @@ class ZoneConnection:
         )
         self.send_tcp(update.SerializeToString())
 
-    def try_send_potion_use(self, potion_kind: str, how_much: int) -> None:
-        print("Sending HP event to server...")
+    def try_to_buy(self, item_type: str, item_name: str, amount: int) -> None:
+        update = region_net.RegionUpdate()
+        update.shop_buy.CopyFrom(
+            region_net.ShopBuy(
+                item_type=item_type,
+                item_name=item_name,
+                amount=amount
+            )
+        )
+        self.send_tcp(update.SerializeToString())
+
+    def try_to_reload(self,gun_type: str ,full_mag: int ) -> None:
+        update = region_net.RegionUpdate()
+        update.reload_act.CopyFrom(
+            region_net.ReloadAct(
+                gun_type=gun_type,
+                full_mag=full_mag
+            )
+        )
+        self.send_tcp(update.SerializeToString())
+
+    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+        print("hi avram")
         update = region_net.RegionUpdate()
         update.potion_use.CopyFrom(
             region_net.PotionUse(potion_type=potion_kind, HowMuch=how_much)
@@ -467,6 +489,8 @@ def event_handler(
             player.hitbox.x = update.move_self.x
             player.hitbox.y = update.move_self.y
             player.rect.center = player.hitbox.center
+        elif update.HasField("other_data") and update.other_data.HasField("shop_ans"):
+            game.last_shop_ans = update.other_data.shop_ans
         elif payload_type == "other_data" or payload_type == "enemy_data":
             sender_id = update.sender_id
             if payload_type == "other_data":

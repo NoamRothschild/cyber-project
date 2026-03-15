@@ -23,6 +23,7 @@ class Game:
     def __init__(self, hosts: List[str], tcp_port: int, udp_port: int, session_id: int):
         ZoneConnectionSingleton.set_creds(self, hosts, tcp_port, udp_port)
         pygame.init()
+        self.last_shop_ans = None
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()

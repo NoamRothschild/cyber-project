@@ -4,6 +4,7 @@ import pygame
 # from client import potion
 from arsenal import Arsenal
 from bullets import Bullets
+from zone_connection import ZoneConnectionSingleton
 from potion import Potion
 
 class ShopUI:
@@ -139,27 +140,59 @@ class ShopUI:
         if not self.selected:
             return
 
-        price = self.item_price(self.selected)
-        if player.inventory.money < price:
-            return
-            # ᓚᘏᗢ
         kind, name = self.selected
-        player.inventory.money -= price
+        price = self.item_price(self.selected)
+        if price is None or player.inventory.money < price:
+            return  # don't send buy packet if frontend says we can't afford it
 
-        if kind == "weapon":
-            player.inventory.add_item_toThe_Inventory(Arsenal(name), "weapon")
-
-        elif kind == "ammo":
-            if not hasattr(player, "ammo_collection"):
-                player.ammo_collection = {}
-            _, amount = self.ammo_packs[name]
-            player.ammo_collection[name] = player.ammo_collection.get(name, 0) + amount
-
-        elif kind == "potion":
-            player.inventory.add_item_toThe_Inventory(Potion(name), "potion")
-        else:
+        try:
+            zone = ZoneConnectionSingleton().zone
+        except RuntimeError:
+            print("server not ok")
             return
 
+        game = zone.game
+        game.last_shop_result = None
+
+        # can I buy pleas :c (Me asking the server)
+        zone.try_to_buy(kind, name, 1)
+        # The server replay on game var named: game.last_shop_ans
+
+        # waiting to server replay
+        import time
+        start = time.time()
+
+        while game.last_shop_ans is None:
+            if time.time() - start > 1:
+                print("server timeout")
+                return
+            time.sleep(0.01)
+
+
+        print("Server say ",game.last_shop_ans," to the buy!!!")
+        if game.last_shop_ans:
+            print("buy success")
+            player.inventory.money -= price
+
+            if kind == "weapon":
+                player.inventory.add_item_toThe_Inventory(Arsenal(name), "weapon")
+
+            elif kind == "ammo":
+                if name not in player.ammo_collection:
+                    player.ammo_collection[name] = 0
+
+                amount = 10
+                if name in self.ammo_packs:
+                    amount = self.ammo_packs[name][1]
+
+                player.ammo_collection[name] += amount
+
+            elif kind == "potion":
+                player.inventory.add_item_toThe_Inventory(Potion(name), "potion")
+
+        else:
+            print("buy failed")
+        game.last_shop_ans = None
     # ᓚᘏᗢ
 
     def draw_categories(self, screen, left):

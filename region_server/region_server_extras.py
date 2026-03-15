@@ -77,6 +77,24 @@ class PlayerState:
     ammo: list[int] = field(default_factory=lambda: [30] * 10)
     potions: list[int] = field(default_factory=lambda: [0] * 10)
 
+TEMPLATE_USER_STATE = {
+    "ammo_collection": {
+        "Ak 47": 100,
+        "arrows": 100,
+        "sword hit": 100,
+        "Assault rifle bullets": 100,
+        "Pistol bullets": 100,
+    },
+    "magazine": {
+        "Ak 47": 5,
+        "bow": 5,
+        "Assault rifle": 5,
+        "Pistol": 5,
+        "sword": 1000
+    },
+    "cash": 300
+}
+
 
 @dataclass
 class ConnectionState:
@@ -284,6 +302,7 @@ class Client:
         self.state.weapons = stats["weapons"]
         self.state.ammo = stats["ammo"]
         self.state.potions = stats["potions"]
+        self.user_state = TEMPLATE_USER_STATE.copy() # TODO: copy from redis
 
     async def hit(self, count, hitter_id: int):
         self.state.hp -= count
@@ -452,6 +471,30 @@ class Client:
             )
         )
         await self.write(update.SerializeToString())
+    
+    @staticmethod
+    def priceOfTheSHOPING(kind: str, name: str) -> int:
+        prices = {
+            "weapon": {
+                "Ak 47": 300,
+                "Assault rifle": 350,
+                "Pistol": 200,
+                "bow": 80,
+                "sword": 60
+            },
+            "ammo": {
+                "Pistol bullets": 40,
+                "AK 47 bullets": 50,
+                "Assault rifle bullets": 60,
+                "arrows": 60
+            },
+            "potion": {
+                "healing": 140,
+                "speed": 70,
+                "super_speed": 140
+            }
+        }
+        return prices.get(kind, {}).get(name, 0)
 
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
@@ -516,6 +559,57 @@ class Client:
                     for cli in self.node.clients.values():
                         proj["seen_by"].add(cli.user_id)
                 await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
+        elif payload_type == "shop_buy": #SHOP anticheat
+            resp = region_net.ServerResponse()
+            resp.sender_id = self.user_id
+
+            kind, name = update.shop_buy.item_type, update.shop_buy.item_name
+            amount = update.shop_buy.amount
+            price = Client.priceOfTheSHOPING(kind, name)
+
+            total = price * amount
+
+            if self.user_state["cash"] >= total:
+                self.user_state["cash"] -= total
+                resp.other_data.shop_ans = True
+            else:
+                resp.other_data.shop_ans = False
+
+            print(resp.other_data.shop_ans)
+            await self.write(resp.SerializeToString())
+        elif payload_type == "reload_act":
+            try:
+                gun_type = update.reload_act.gun_type
+                full_mag = update.reload_act.full_mag
+
+                ammo_type = {
+                    "Ak 47": "Ak 47",
+                    "bow": "arrows",
+                    "Assault rifle": "Assault rifle bullets",
+                    "Pistol": "Pistol bullets",
+                    "sword": "sword hit"
+                }
+
+                ammo_name = ammo_type.get(gun_type)
+                if ammo_name is None:
+                    return
+
+                current_mag = self.user_state["magazine"].get(gun_type, 0)
+                ammo_have = self.user_state["ammo_collection"].get(ammo_name, 0)
+                need = full_mag - current_mag
+
+                if need <= 0:
+                    return
+                
+                reload_amount = min(need, ammo_have)
+                self.user_state["magazine"][gun_type] += reload_amount
+                self.user_state["ammo_collection"][ammo_name] -= reload_amount
+
+                print("was needed: ",reload_amount)
+                print("ammo_collection left: ", self.user_state["ammo_collection"][ammo_name])
+
+            except Exception as e:
+                print("reload error:", e)
 
     async def handle_tcp(self) -> None:
         server_private_key = _get_server_private_key()

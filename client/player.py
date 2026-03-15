@@ -13,6 +13,7 @@ from shop import ShopUI
 from potion import Potion
 from animation import Animation
 from AutoPlay import AutoMove as AutoMoveController
+import random
 
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE = 400
@@ -70,7 +71,9 @@ class Player(pygame.sprite.Sprite):
 
         self.display_surface = pygame.display.get_surface()
 
-        self.skin = "fiona"
+        skins=["blue golden knight", "fiona", "golden knight","red knight","king"]
+        self.skin = random.choice(skins)
+
         self.animation = Player.player_skins_and_animatiom[self.skin]
 
         self.image = self.animation.image()
@@ -103,6 +106,14 @@ class Player(pygame.sprite.Sprite):
             "arrows": 103,
             "Assault rifle bullets": 102,
             "Pistol bullets": 101
+        }
+
+        self.magazine = {
+            "Ak 47": 5,
+            "bow": 5,
+            "Assault rifle": 5,
+            "Pistol": 5,
+            "sword": 1000
         }
 
         self.health = HealthBar(HEALTH_BAR_POS, HEALTH_BAR_SCALE)
@@ -166,23 +177,24 @@ class Player(pygame.sprite.Sprite):
                     if now - self.last_r_press >= w.fire_cooldown:
                         self.last_r_press = now
 
+                        ZoneConnectionSingleton().zone.try_to_reload(w.gun_type,Arsenal.Arsenal_gunType[w.gun_type][6])
+
                         if w.bullet != "null":
                             if w.bullet != "sword hit":
                                 capability = Arsenal.Arsenal_gunType[w.gun_type][6]
-                                need = max(0, capability - w.mag)
+                                need = max(0, capability - self.magazine[w.gun_type])
                                 have = self.ammo_collection[w.bullet]
 
                                 take = min(need, have)
 
-                                w.mag += take
+                                self.magazine[w.gun_type] += take
                                 self.ammo_collection[w.bullet] = have - take
 
             mouse_buttons = pygame.mouse.get_pressed()
 
             if mouse_buttons[0] and not self.inventory.is_wep_empty():
                 try:
-                    # Check client-side ammo before allowing the shot
-                    if self.current_Weapon().mag > 0:
+                    if self.magazine[self.current_Weapon().gun_type] > 0:
 
                         now = pygame.time.get_ticks()
                         if now - self.last_shoot >= self.current_Weapon().fire_cooldown:
@@ -232,6 +244,8 @@ class Player(pygame.sprite.Sprite):
                                     angle_for_server,
                                     len(weapon.spawn_points),
                                 )
+                                
+                                self.magazine[weapon.gun_type] -= 1
                 except:
                     print("error")
 
@@ -351,7 +365,7 @@ class Player(pygame.sprite.Sprite):
             if len(self.inventory.wep_inventory) != 0:
                 if not self.is_dead:
                     self.current_Weapon().draw(WIDTH / 2, HEIGHT / 2)
-                    self.current_Weapon().draw_mag_stat()
+                    self.current_Weapon().draw_mag_stat(self)
 
         self.move()
         self.inventory.open([self.colect_sprite,self.groups[0]],self)

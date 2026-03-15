@@ -309,15 +309,14 @@ class Arsenal:
             self.weapon_anim_playing = True
             self.weapon_frame_i = 0
             self.weapon_last_time = pygame.time.get_ticks()
-
         return True
 
-    def draw_mag_stat(self):
+    def draw_mag_stat(self,player):
         x = 300
         y = 705
 
         if not self.bullet == "null":
-            bullet_left = self.mag
+            bullet_left = player.magazine[self.gun_type]
 
             offset_x = 0
 
