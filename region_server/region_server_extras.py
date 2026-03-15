@@ -198,57 +198,79 @@ class Client:
             return
 
         user_id = int(stored_uid)
-
-        player_stats = await load_player_stats_from_redis(user_id)
-        initial_pos = (player_stats["spawn_x"], player_stats["spawn_y"])
-
-        node_pos = RegionNode.which_node(*initial_pos)
-        node = nodes.get(node_pos)
-        if node is None:
-            node = NULL_NODE
-
-        self = Client(reader, writer, session_id, user_id, node, player_stats, client_public_key)
-        await register_global_client(session_id, self)
-        if node != NULL_NODE:
-            await node.register_client(self, initial_pos)
-
-        response = region_net.HandshakeStart(
-            kind=region_net.HandshakeStart.SERVER_OK,
-            user_id=user_id,
-            health=player_stats["health"],
-            money=player_stats["money"],
-            pos_x=player_stats["spawn_x"],
-            pos_y=player_stats["spawn_y"]
-        )
-        response.weapons.extend(player_stats["weapons"])
-        response.potions.extend(player_stats["potions"])
-        response.ammo.extend(player_stats["ammo"])
-
-        encrypted = auth_crypto.encrypt_and_prefix(response.SerializeToString(), client_public_key)
-        writer.write(encrypted)
-        await writer.drain()
+        client_created = False
 
         try:
+            player_stats = await load_player_stats_from_redis(user_id)
+            initial_pos = (player_stats["spawn_x"], player_stats["spawn_y"])
+
+            node_pos = RegionNode.which_node(*initial_pos)
+            node = nodes.get(node_pos)
+            if node is None:
+                node = NULL_NODE
+
+            self = Client(reader, writer, session_id, user_id, node, player_stats, client_public_key)
+            client_created = True
+            await register_global_client(session_id, self)
+            if node != NULL_NODE:
+                await node.register_client(self, initial_pos)
+            response = region_net.HandshakeStart(
+                kind=region_net.HandshakeStart.SERVER_OK,
+                user_id=user_id,
+                health=player_stats["health"],
+                money=player_stats["money"],
+                pos_x=player_stats["spawn_x"],
+                pos_y=player_stats["spawn_y"]
+            )
+            response.weapons.extend(player_stats["weapons"])
+            response.potions.extend(player_stats["potions"])
+            response.ammo.extend(player_stats["ammo"])
+
+            encrypted = auth_crypto.encrypt_and_prefix(response.SerializeToString(), client_public_key)
+            writer.write(encrypted)
+            await writer.drain()
+
             await self.handle_tcp()
+        except Exception as e:
+            print(f"Client disconnect/error (session {session_id}, user_id {user_id}): {e}")
         finally:
-            self.conn_state.stop_udp_conn.set()
-            await remove_global_client(self.session_id)
-            await node.unregister_client(self)
-
-            print(f"User {user_id} disconnected. Saving state to database...")
-
-            payload = json.dumps({
-                "user_id": self.user_id,
-                "health": self.state.hp,
-                "money": self.state.money,
-                "weapons": list(self.state.weapons),
-                "ammo": list(self.state.ammo),
-                "potions": list(self.state.potions),
-                "spawn_x": self.state.x,
-                "spawn_y": self.state.y,
-            })
-            await r.publish("auth-update", payload)
-            print(f"User {user_id} state published to auth-update.")
+            # Always disconnect and close all client resources; never let one client bring down the server.
+            if client_created:
+                self.conn_state.stop_udp_conn.set()
+                try:
+                    self.conn_state.writer.close()
+                    await self.conn_state.writer.wait_closed()
+                except Exception:
+                    pass
+                try:
+                    await remove_global_client(self.session_id)
+                except Exception as e:
+                    print(f"Error removing global client {user_id}: {e}")
+                try:
+                    await node.unregister_client(self)
+                except Exception as e:
+                    print(f"Error unregistering client {user_id} from node: {e}")
+                try:
+                    payload = json.dumps({
+                        "user_id": self.user_id,
+                        "health": self.state.hp,
+                        "money": self.state.money,
+                        "weapons": list(self.state.weapons),
+                        "ammo": list(self.state.ammo),
+                        "potions": list(self.state.potions),
+                        "spawn_x": self.state.x,
+                        "spawn_y": self.state.y,
+                    })
+                    await r.publish("auth-update", payload)
+                    print(f"User {user_id} disconnected; state published to auth-update.")
+                except Exception as pub_err:
+                    print(f"User {user_id} disconnected; failed to publish state: {pub_err}")
+            else:
+                try:
+                    writer.close()
+                    await writer.wait_closed()
+                except Exception:
+                    pass
 
 
     @staticmethod
