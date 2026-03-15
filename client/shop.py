@@ -1,9 +1,9 @@
 # Fixler the pro ᓚᘏᗢ
 import pygame
 
-from client import potion
-from client.arsenal import Arsenal
-from client.bullets import Bullets
+import potion
+from arsenal import Arsenal
+from bullets import Bullets
 from potion import Potion
 
 class ShopUI:
