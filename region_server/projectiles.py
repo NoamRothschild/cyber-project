@@ -129,6 +129,7 @@ class ProjectileHandler:
         node = self._node
         dead_enemies: list[tuple[int, int, int, set]] = []  # (enemy_id, x, y, proxied_directions)
         enemies_to_broadcast_hp: list[EnemyModel] = []
+        pending_client_hits: dict[int, tuple[Client, int, int]] = {}  # user_id -> (client, total_dmg, last_hitter)
 
         async with self.lock:
             # Merge incoming transfers and place on the grid
@@ -196,9 +197,13 @@ class ProjectileHandler:
                         prev_x = proj["x"] - proj["velocity_x"]
                         prev_y = proj["y"] - proj["velocity_y"]
                         if self.bullet_hit(proj, client) or self.bullet_hit_at(proj, client, prev_x, prev_y):
-                            # prnt(f'BULLET HIT CLIENT')
-                            await client.hit(proj["damage"], proj["owner_uuid"])
-                            proj["already_hit"].add(client.user_id)
+                            uid = client.user_id
+                            prev = pending_client_hits.get(uid)
+                            if prev is not None:
+                                pending_client_hits[uid] = (client, prev[1] + proj["damage"], proj["owner_uuid"])
+                            else:
+                                pending_client_hits[uid] = (client, proj["damage"], proj["owner_uuid"])
+                            proj["already_hit"].add(uid)
 
                     elif isinstance(grid_field.obj, EnemyModel):
                         # prnt(f'bullet found a close enemy')
@@ -229,6 +234,9 @@ class ProjectileHandler:
                                 # override the hp broadcast to max_hp so the client resets the enemy
                                 enemy.hp = enemy.max_hp
         
+        for client, total_damage, hitter_id in pending_client_hits.values():
+            await client.hit(total_damage, hitter_id)
+
         for enemy_id, ex, ey, proxied_directions in dead_enemies:
             for cli in node.clients_in_view((ex, ey)):
                 await cli.entity_died(enemy_id)

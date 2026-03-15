@@ -47,6 +47,10 @@ def start_global_tick_loop() -> None:
             sleep_time = TICK_INTERVAL_SEC - (loop.time() - start_time)
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
+                print(f"[INFO] tick {cycle} took {(loop.time()-start_time)*1000:.3f}ms")
+            else:
+                print(f"[WARN] tick {cycle} OVERRAN by {-sleep_time*1000:.1f}ms (elapsed={loop.time()-start_time:.3f}s)")
+                await asyncio.sleep(0)  # yield to event loop to prevent I/O starvation
 
     asyncio.create_task(_ticker())
 

@@ -51,6 +51,7 @@ class RegionNode:
         ]  # a set of proxies from each direction
 
         self.clients: Dict[int, Client] = {}  # session_id -> Client
+        self._had_viewers = False
         node_index = RegionNode.node_pos_to_idx(*self.node_pos)
         self.enemy_handler = EnemyHandler(self, node_index, self.x_range, self.y_range)
         self.projectile_handler = ProjectileHandler(self, self.enemy_handler)
@@ -71,6 +72,26 @@ class RegionNode:
             self.x_range[0] <= x <= self.x_range[1]
             and self.y_range[0] <= y <= self.y_range[1]
         )
+
+    def has_nearby_viewers(self) -> bool:
+        """True if this node, any local adjacent node has clients,
+        or any adjacent position is a remote node (conservatively assume viewers)."""
+        if self.clients:
+            return True
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                if dx == 0 and dy == 0:
+                    continue
+                adj_x = self.node_pos[0] + dx
+                adj_y = self.node_pos[1] + dy
+                if not (0 <= adj_x < HORIZONAL_NODE_COUNT and 0 <= adj_y < VERTICAL_NODE_COUNT):
+                    continue
+                adj_node = nodes.get((adj_x, adj_y))
+                if adj_node is None:
+                    return True
+                if adj_node.clients:
+                    return True
+        return False
 
     async def receive_proxy_event(self, event: region_net.ProxyEvent) -> None:
         from region_server_extras import Client

@@ -679,14 +679,15 @@ class Client:
             except Exception as e:
                 print(f"Failed to send UDP to client {self.user_id}: {e}")
         else:
-            await self.write(encrypted)
+            await self.write(encrypted, encrypt=False)
 
-    async def write(self, data: bytes) -> bool:
-        """Write data to the TCP stream (encrypted). Returns False if the connection is dead."""
-        encrypted = auth_crypto.encrypt_and_prefix(data, self.client_public_key)
+    async def write(self, data: bytes, encrypt: bool = True) -> bool:
+        """Write data to the TCP stream. Returns False if the connection is dead."""
+        if encrypt:
+            data = auth_crypto.encrypt_and_prefix(data, self.client_public_key)
         try:
             async with self.conn_state.writer_lock:
-                self.conn_state.writer.write(encrypted)
+                self.conn_state.writer.write(data)
                 await self.conn_state.writer.drain()
             return True
         except (

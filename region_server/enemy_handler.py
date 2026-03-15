@@ -217,10 +217,33 @@ class EnemyHandler:
                     proj["seen_by"].add(cli.user_id)
             await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
 
-        for enemy in pending_moves:
-            await self.node.propagate_entity(enemy)
-            for cli in self.node.clients_in_view((enemy.x, enemy.y)):
-                await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
+        has_viewers = self.node.has_nearby_viewers()
+
+        if self.node._had_viewers and not has_viewers:
+            await self._cleanup_enemy_proxies()
+        self.node._had_viewers = has_viewers
+
+        if has_viewers:
+            for enemy in pending_moves:
+                await self.node.propagate_entity(enemy)
+                for cli in self.node.clients_in_view((enemy.x, enemy.y)):
+                    await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
+
+    async def _cleanup_enemy_proxies(self) -> None:
+        """Remove all outgoing enemy proxies when no viewers remain,
+        so adjacent nodes don't keep stale proxy entries."""
+        from proxy import remove_proxy
+        for enemy in self.enemies.values():
+            old_dirs = getattr(enemy, "_proxied_directions", set())
+            for direction in old_dirs:
+                adj_pos = (
+                    self.node.node_pos[0] + direction.value[0],
+                    self.node.node_pos[1] + direction.value[1],
+                )
+                await remove_proxy(
+                    self.node.node_pos, adj_pos, enemy.enemy_id, 0, type="Enemy"
+                )
+            enemy._proxied_directions = set()
 
 
 def should_update_location(old_pos: Tuple[float, float], new_pos: Tuple[float, float], min_dst=5) -> bool:
