@@ -108,10 +108,10 @@ class Player(pygame.sprite.Sprite):
         }
 
         self.magazine = {
-            "Ak 47": 0,
-            "bow": 0,
-            "Assault rifle": 0,
-            "Pistol": 0,
+            "Ak 47": 5,
+            "bow": 5,
+            "Assault rifle": 5,
+            "Pistol": 5,
             "sword": 1000
         }
 

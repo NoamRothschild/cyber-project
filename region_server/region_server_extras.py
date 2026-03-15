@@ -51,18 +51,18 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
 user_stt={
     "user1":{
             "ammo_collection":{
-                                    "Ak 47":1,
-                                    "arrows":1,
-                                    "sword hit":1,
-                                    "Assault rifle bullets":1,
-                                    "Pistol bullets":1,
+                                    "Ak 47":100,
+                                    "arrows":100,
+                                    "sword hit":100,
+                                    "Assault rifle bullets":100,
+                                    "Pistol bullets":100,
                                 },
 
             "magazine": {
-                        "Ak 47": 2,
-                        "bow": 2,
-                        "Assault rifle": 2,
-                        "Pistol": 2,
+                        "Ak 47": 5,
+                        "bow": 5,
+                        "Assault rifle": 5,
+                        "Pistol": 5,
                         "sword": 1000
                         },
 
