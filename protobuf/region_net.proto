@@ -8,6 +8,7 @@ message RegionUpdate {
     BulletShot bullet_shot = 2;
     PotionUse potion_use = 3;
     ShopBuy shop_buy= 4;
+    RelodeAct reload_act=5;
   }
 }
 message PotionUse {
@@ -19,6 +20,10 @@ message PotionUse {
   }
 }
 
+message RelodeAct{
+    string gun_name=1;
+    int32 amount_bullet=2;
+}
 
 message ShopBuy {
   string item_type = 1;  // ammo weapon potion
@@ -61,6 +66,7 @@ message OtherPlayerData {
     int32 HP = 2;
     OtherState state = 3;
     bool shop_ans = 5;
+    bool reload=6;
   }
   int32 player_id = 4;
 
