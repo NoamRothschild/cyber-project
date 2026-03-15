@@ -10,6 +10,20 @@ from random import randint
 from zone_connection import *
 from enter_screen import EnterScreen
 import traceback
+import os
+import sys
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
@@ -25,7 +39,7 @@ class Game:
         pygame.init()
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
-        self.image = pygame.image.load("grass.png")  # Placeholder background
+        self.image = pygame.image.load(resource_path("grass.png"))  # Placeholder background
         self.image = pygame.transform.scale(self.image, (WIDTH, HEIGHT))
 
         pygame.display.set_caption('Game')
