@@ -4,6 +4,9 @@ from mapset import *
 from arsenal import *
 import time
 from colectibes import Colectible_sprite
+import os
+import sys
+
 # ==========================================
 # --- THE TRANSLATOR---
 # This dictionary will map the database numbers to Pygame strings.
@@ -27,12 +30,21 @@ POTION_MAP = {
     3: "super_speed"
 }
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class Inventory(pygame.sprite.Sprite):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('inventory.png').convert()
+        self.image = pygame.image.load(resource_path('inventory.png')).convert()
         self.image.set_colorkey(PINK)  # image background
         self.rect = self.image.get_rect()
         self.rect.y = HEIGHT - (self.rect.height)
