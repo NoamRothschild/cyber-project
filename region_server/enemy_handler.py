@@ -147,6 +147,16 @@ class EnemyHandler:
 
     async def respawn_enemy(self, enemy_id: int) -> None:
         """Respawn an enemy at a random location with full HP."""
+
+        async with self.lock:
+            # Capture death position before sleeping so the drop lands on the corpse
+            dead_enemy = self.enemies.get(enemy_id)
+            death_x = int(dead_enemy.x) if dead_enemy else 0
+            death_y = int(dead_enemy.y) if dead_enemy else 0
+
+        if dead_enemy is not None:
+            await self.drop_items_at(death_x, death_y)
+
         # Wait before respawning — gives the client time to hide the dead enemy
         # and ensures no in-flight bullets can hit the resetting enemy
         await asyncio.sleep(2.0)
