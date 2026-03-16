@@ -110,10 +110,18 @@ class EnemyHandler:
             e: EnemyModel = RangedEnemy(enemy_id=enemy_id, x=x, y=y)
         else:
             e = MeleeEnemy(enemy_id=enemy_id, x=x, y=y)
+
+        e.zone_min_x = self.world_min_x
+        e.zone_min_y = self.world_min_y
+        e.zone_max_x = self.world_max_x
+        e.zone_max_y = self.world_max_y
+        e.pick_patrol_target()
+
         e.reset_combat()
         e.last_sent_x = e.x
         e.last_sent_y = e.y
         self.enemies[enemy_id] = e
+
         return e
 
     async def ensure_population(self) -> None:
