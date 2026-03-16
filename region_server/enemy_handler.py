@@ -17,14 +17,18 @@ ENEMY_DAMAGE = 5
 NODE_COUNT = 340
 MAX_ID = (2 ** 31) - 1
 
-def _melee_base_id(node_index: int) -> int:
+
+def melee_base_id(node_index: int) -> int:
     return int(MAX_ID / NODE_COUNT * node_index)
 
-def _ranged_base_id(node_index: int) -> int:
+
+def ranged_base_id(node_index: int) -> int:
     return int(MAX_ID / NODE_COUNT * (node_index + 0.5))
+
 
 def loop_time_ms():
     return int(time.time() * SECONDS_TO_MS)
+
 
 class EnemyHandler:
     def __init__(self, node: "RegionNode", node_index: int, x_range: Tuple[int, int], y_range: Tuple[int, int], tick_intervals: float = TICK_INTERVAL_SEC) -> None:
@@ -61,20 +65,20 @@ class EnemyHandler:
         self.world_max_y = y_range[1]
 
         # Per-node ID bases so IDs don't conflict across nodes
-        self._melee_base = _melee_base_id(node_index)
-        self._ranged_base = _ranged_base_id(node_index)
+        self._melee_base = melee_base_id(node_index)
+        self._ranged_base = ranged_base_id(node_index)
         self._next_melee_slot = 0
         self._next_ranged_slot = 0
 
         # enemy_ids currently dead and awaiting respawn — skipped by bullets and movement
-        self._dead_ids: Set[int] = set()
+        self.dead_ids: Set[int] = set()
 
     def random_spawn(self) -> Tuple[int, int]:
         x = self.world_min_x + (self.world_max_x - self.world_min_x) * random()
         y = self.world_min_y + (self.world_max_y - self.world_min_y) * random()
         return int(x), int(y)
 
-    def _is_ranged_id(self, enemy_id: int) -> bool:
+    def is_ranged_id(self, enemy_id: int) -> bool:
         """True if this ID was assigned to a ranged enemy on this node."""
         return enemy_id >= self._ranged_base
 
@@ -89,7 +93,7 @@ class EnemyHandler:
                 self._next_melee_slot += 1
 
         x, y = self.random_spawn()
-        if self._is_ranged_id(enemy_id):
+        if self.is_ranged_id(enemy_id):
             e: EnemyModel = RangedEnemy(enemy_id=enemy_id, x=x, y=y)
         else:
             e = MeleeEnemy(enemy_id=enemy_id, x=x, y=y)
@@ -130,7 +134,7 @@ class EnemyHandler:
             snapshot_y = int(enemy.y)
             snapshot_hp = int(enemy.hp)
             # clear dead flag now that the enemy is fully reset
-            self._dead_ids.discard(enemy_id)
+            self.dead_ids.discard(enemy_id)
 
         for cli in self.node.clients_in_view((enemy.x, enemy.y)):
             await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
@@ -165,7 +169,7 @@ class EnemyHandler:
     async def tick(self, cycle: int) -> None:
         has_viewers = self.node.has_nearby_viewers()
         if not has_viewers and cycle % 3 == 0:
-            return # lower tick rate on nodes with no viewers
+            return  # lower tick rate on nodes with no viewers
 
         pending_hits = []
         pending_moves: List[EnemyModel] = []
@@ -175,20 +179,22 @@ class EnemyHandler:
             now_ms = loop_time_ms()
 
             for enemy in list(self.enemies.values()):
-                if enemy.enemy_id in self._dead_ids:
+                if enemy.enemy_id in self.dead_ids:
                     continue
 
                 if isinstance(enemy, MeleeEnemy):
                     attacked_player_id = enemy.update_state_machine(
                         now_ms,
-                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in self.node.clients_in_view((enemy.x, enemy.y))]
+                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in
+                         self.node.clients_in_view((enemy.x, enemy.y))]
                     )
                     if attacked_player_id is not None:
                         pending_hits.append((attacked_player_id, enemy.enemy_id))
                 else:  # RangedEnemy
                     shoot_angle = enemy.update_state_machine(
                         now_ms,
-                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in self.node.clients_in_view((enemy.x, enemy.y))]
+                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in
+                         self.node.clients_in_view((enemy.x, enemy.y))]
                     )
                     if shoot_angle is not None:
                         pending_shots.append((
