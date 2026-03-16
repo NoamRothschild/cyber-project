@@ -32,6 +32,10 @@ def start_global_tick_loop() -> None:
     async def _ticker() -> None:
         loop = asyncio.get_running_loop()
         cycle = 0
+
+        FPS_SEND_INTERVAL_SEC = 2.0
+        ticked_since_last_sent = 0
+        last_sent_wall = loop.time()
         while True:
             cycle += 1
             start_time = loop.time()
@@ -44,12 +48,26 @@ def start_global_tick_loop() -> None:
                 print(f"[ERROR] tick {cycle} failed: {e}")
                 import traceback
                 traceback.print_exc()
-            sleep_time = TICK_INTERVAL_SEC - (loop.time() - start_time)
+
+            elapsed = loop.time() - start_time
+            sleep_time = TICK_INTERVAL_SEC - elapsed
+            ticked_since_last_sent += 1
+
+            wall_now = loop.time()
+            if wall_now - last_sent_wall >= FPS_SEND_INTERVAL_SEC:
+                elapsed_sec = wall_now - last_sent_wall
+                fps = int(ticked_since_last_sent / elapsed_sec) if elapsed_sec > 0 else 0
+                last_sent_wall = wall_now
+                ticked_since_last_sent = 0
+                for node in nodes.values():
+                    for cli in node.clients.values():
+                        await cli.send_fps(fps)
+
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-                print(f"[INFO] tick {cycle} took {(loop.time()-start_time)*1000:.3f}ms")
+                print(f"[INFO] tick {cycle} took {elapsed*1000:.3f}ms")
             else:
-                print(f"[WARN] tick {cycle} OVERRAN by {-sleep_time*1000:.1f}ms (elapsed={loop.time()-start_time:.3f}s)")
+                print(f"[WARN] tick {cycle} OVERRAN by {-sleep_time*1000:.1f}ms (elapsed={elapsed:.3f}s)")
                 await asyncio.sleep(0)  # yield to event loop to prevent I/O starvation
 
     asyncio.create_task(_ticker())

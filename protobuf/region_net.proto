@@ -112,16 +112,16 @@ message OtherPlayerData {
   }
 }
 
-
 message ServerResponse {
   int32 sender_id = 1;
   oneof payload {
     LocationBlock move_self = 2; // force tp back - block invalid movements
     OtherPlayerData other_data = 3;
     OtherPlayerData enemy_data = 4;
+    int32 fps = 5;
   }
-  repeated BulletShot bullet_shot = 5;
-  optional uint64 seq_num = 6;
+  repeated BulletShot bullet_shot = 6;
+  optional uint64 seq_num = 7;
 }
 
 message ClientProxy {

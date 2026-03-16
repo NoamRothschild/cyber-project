@@ -489,6 +489,8 @@ def event_handler(
             player.hitbox.x = update.move_self.x
             player.hitbox.y = update.move_self.y
             player.rect.center = player.hitbox.center
+        elif payload_type == "fps":
+            game.server_fps = update.fps
         elif update.HasField("other_data") and update.other_data.HasField("shop_ans"):
             game.last_shop_ans = update.other_data.shop_ans
         elif payload_type == "other_data" or payload_type == "enemy_data":

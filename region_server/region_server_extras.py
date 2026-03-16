@@ -447,6 +447,11 @@ class Client:
         resp.other_data.player_id = other_user_id
         await self.write_udp(resp)
 
+    async def send_fps(self, fps: int) -> None:
+        resp = region_net.ServerResponse()
+        resp.fps = int(fps)
+        await self.write_udp(resp)
+
     def can_see(self, pos: Tuple[int, int]) -> bool:
         return abs(self.state.x - pos[0]) < (CLIENT_RECEIVE_WIDTH / 2) and abs(
             self.state.y - pos[1]

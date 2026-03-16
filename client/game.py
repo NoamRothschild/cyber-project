@@ -30,6 +30,7 @@ class Game:
         self.font = pygame.font.SysFont(FONT, 30, bold=True)
         self.zone = lambda: cast(ZoneConnection, ZoneConnectionSingleton().zone)
         self.session_id = session_id
+        self.server_fps: int | None = None  # updated by zone event handler from server
         self.level = Level(self.session_id)
         self.is_running = False
 
@@ -62,9 +63,11 @@ class Game:
                 # 2. Drawing
                 self.screen.fill(GREEN)
 
-                # FPS Counter
-                fps = str(int(self.clock.get_fps()))
-                fps_surface = self.font.render(fps, True, "White")
+                # FPS Counter (client + server)
+                client_fps = str(int(self.clock.get_fps()))
+                server_fps_str = str(self.server_fps) if self.server_fps is not None else "-"
+                fps_text = f"FPS: {client_fps} | Server: {server_fps_str}"
+                fps_surface = self.font.render(fps_text, True, "White")
                 self.screen.blit(fps_surface, fps_screen_pos)
 
                 self.level.run()
