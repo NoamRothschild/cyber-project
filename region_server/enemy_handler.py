@@ -1,33 +1,50 @@
 import asyncio
 from typing import List, Set, Tuple
-from random import random
+from random import random, randint, choice
 import time
 from constants import TICK_INTERVAL_SEC
 from enemy_model import EnemyModel, MeleeEnemy, RangedEnemy, PlayerSnapshot
 import protobuf.region_net_pb2 as region_net
 from typing import Dict, Union
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from region_node import RegionNode
 
 SECONDS_TO_MS = 1000
 ENEMY_DAMAGE = 5
 
+DROP_TABLE = [
+    ("money", "money", 50),
+    ("potion", "healing", 20),
+    ("potion", "speed", 10),
+    ("potion", "super_speed", 5),
+    ("weapon", "sword", 10),
+    ("weapon", "bow", 5),
+]
+DROP_TOTAL_WEIGHT = sum(w for _, _, w in DROP_TABLE)
+
 # Per-node enemy ID scheme: no conflicts across nodes (NODE_COUNT = 340)
 NODE_COUNT = 340
 MAX_ID = (2 ** 31) - 1
+ITEM_DROP_SCATTER_MAX = 20
 
-def _melee_base_id(node_index: int) -> int:
+
+def melee_base_id(node_index: int) -> int:
     return int(MAX_ID / NODE_COUNT * node_index)
 
-def _ranged_base_id(node_index: int) -> int:
+
+def ranged_base_id(node_index: int) -> int:
     return int(MAX_ID / NODE_COUNT * (node_index + 0.5))
+
 
 def loop_time_ms():
     return int(time.time() * SECONDS_TO_MS)
 
+
 class EnemyHandler:
-    def __init__(self, node: "RegionNode", node_index: int, x_range: Tuple[int, int], y_range: Tuple[int, int], tick_intervals: float = TICK_INTERVAL_SEC) -> None:
+    def __init__(self, node: "RegionNode", node_index: int, x_range: Tuple[int, int], y_range: Tuple[int, int],
+                 tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.node = node
         self.node_index = node_index
         self.tick_intervals = tick_intervals
@@ -61,20 +78,20 @@ class EnemyHandler:
         self.world_max_y = y_range[1]
 
         # Per-node ID bases so IDs don't conflict across nodes
-        self._melee_base = _melee_base_id(node_index)
-        self._ranged_base = _ranged_base_id(node_index)
+        self._melee_base = melee_base_id(node_index)
+        self._ranged_base = ranged_base_id(node_index)
         self._next_melee_slot = 0
         self._next_ranged_slot = 0
 
         # enemy_ids currently dead and awaiting respawn — skipped by bullets and movement
-        self._dead_ids: Set[int] = set()
+        self.dead_ids: Set[int] = set()
 
     def random_spawn(self) -> Tuple[int, int]:
         x = self.world_min_x + (self.world_max_x - self.world_min_x) * random()
         y = self.world_min_y + (self.world_max_y - self.world_min_y) * random()
         return int(x), int(y)
 
-    def _is_ranged_id(self, enemy_id: int) -> bool:
+    def is_ranged_id(self, enemy_id: int) -> bool:
         """True if this ID was assigned to a ranged enemy on this node."""
         return enemy_id >= self._ranged_base
 
@@ -89,7 +106,7 @@ class EnemyHandler:
                 self._next_melee_slot += 1
 
         x, y = self.random_spawn()
-        if self._is_ranged_id(enemy_id):
+        if self.is_ranged_id(enemy_id):
             e: EnemyModel = RangedEnemy(enemy_id=enemy_id, x=x, y=y)
         else:
             e = MeleeEnemy(enemy_id=enemy_id, x=x, y=y)
@@ -111,8 +128,35 @@ class EnemyHandler:
         for e in spawned:
             await self.broadcast_enemy_spawn(e)
 
+    def pick_random_drop(self) -> tuple[str, str]:
+        roll = randint(1, DROP_TOTAL_WEIGHT)
+        cumulative = 0
+        for kind, name, weight in DROP_TABLE:
+            cumulative += weight
+            if roll <= cumulative:
+                return kind, name
+        return "money", "money"
+
+    async def drop_items_at(self, x: int, y: int, count: int = 2) -> None:
+        for i in range(count):
+            kind, name = self.pick_random_drop()
+            item_id = randint(1, MAX_ID)
+            drop_x = x + choice([-1, 1]) * randint(0, ITEM_DROP_SCATTER_MAX)
+            drop_y = y + choice([-1, 1]) * randint(0, ITEM_DROP_SCATTER_MAX)
+            await self.node.register_item(name, kind, drop_x, drop_y, item_id)
+
     async def respawn_enemy(self, enemy_id: int) -> None:
         """Respawn an enemy at a random location with full HP."""
+
+        async with self.lock:
+            # Capture death position before sleeping so the drop lands on the corpse
+            dead_enemy = self.enemies.get(enemy_id)
+            death_x = int(dead_enemy.x) if dead_enemy else 0
+            death_y = int(dead_enemy.y) if dead_enemy else 0
+
+        if dead_enemy is not None:
+            await self.drop_items_at(death_x, death_y)
+
         # Wait before respawning — gives the client time to hide the dead enemy
         # and ensures no in-flight bullets can hit the resetting enemy
         await asyncio.sleep(2.0)
@@ -130,7 +174,7 @@ class EnemyHandler:
             snapshot_y = int(enemy.y)
             snapshot_hp = int(enemy.hp)
             # clear dead flag now that the enemy is fully reset
-            self._dead_ids.discard(enemy_id)
+            self.dead_ids.discard(enemy_id)
 
         for cli in self.node.clients_in_view((enemy.x, enemy.y)):
             await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
@@ -165,7 +209,7 @@ class EnemyHandler:
     async def tick(self, cycle: int) -> None:
         has_viewers = self.node.has_nearby_viewers()
         if not has_viewers and cycle % 3 == 0:
-            return # lower tick rate on nodes with no viewers
+            return  # lower tick rate on nodes with no viewers
 
         pending_hits = []
         pending_moves: List[EnemyModel] = []
@@ -175,20 +219,22 @@ class EnemyHandler:
             now_ms = loop_time_ms()
 
             for enemy in list(self.enemies.values()):
-                if enemy.enemy_id in self._dead_ids:
+                if enemy.enemy_id in self.dead_ids:
                     continue
 
                 if isinstance(enemy, MeleeEnemy):
                     attacked_player_id = enemy.update_state_machine(
                         now_ms,
-                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in self.node.clients_in_view((enemy.x, enemy.y))]
+                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in
+                         self.node.clients_in_view((enemy.x, enemy.y))]
                     )
                     if attacked_player_id is not None:
                         pending_hits.append((attacked_player_id, enemy.enemy_id))
                 else:  # RangedEnemy
                     shoot_angle = enemy.update_state_machine(
                         now_ms,
-                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in self.node.clients_in_view((enemy.x, enemy.y))]
+                        [PlayerSnapshot(c.user_id, c.state.x, c.state.y) for c in
+                         self.node.clients_in_view((enemy.x, enemy.y))]
                     )
                     if shoot_angle is not None:
                         pending_shots.append((

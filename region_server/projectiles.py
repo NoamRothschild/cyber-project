@@ -212,7 +212,7 @@ class ProjectileHandler:
                         if enemy.enemy_id in proj["already_hit"]:
                             continue
                         # TODO: go over the bellow again
-                        if enemy.enemy_id in self.enemy_handler._dead_ids:
+                        if enemy.enemy_id in self.enemy_handler.dead_ids:
                             continue
 
                         prev_x = proj["x"] - proj["velocity_x"]
@@ -230,7 +230,7 @@ class ProjectileHandler:
                                 proxied = getattr(enemy, "_proxied_directions", set())
                                 dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y, proxied))
                                 enemy._proxied_directions = set()
-                                self.enemy_handler._dead_ids.add(enemy.enemy_id)
+                                self.enemy_handler.dead_ids.add(enemy.enemy_id)
                                 # override the hp broadcast to max_hp so the client resets the enemy
                                 enemy.hp = enemy.max_hp
         
