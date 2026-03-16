@@ -50,7 +50,7 @@ class MeleeEnemy:
 
     w: float = 30
     h: float = 40
-    speed: float = 6.0
+    speed: float = 6.0 * 2
 
     state: str = "PATROL"  # PATROL | CHASE | ATTACK
     direction_x: float = 1.0
@@ -201,7 +201,7 @@ class RangedEnemy:
 
     w: float = 30
     h: float = 40
-    speed: float = 4  # slower than melee
+    speed: float = 4 * 2  # slower than melee
 
     state: str = "PATROL"  # PATROL | CHASE | SHOOT
     direction_x: float = 1.0

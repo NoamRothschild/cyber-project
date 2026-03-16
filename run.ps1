@@ -78,6 +78,7 @@ switch ($Command) {
         Write-Host "Starting Redis (with password)..."
         Set-Location $ProjectRoot
         # docker rm -f redis-auth-session 2>$null
+        Ensure-Network
         docker compose up -d --force-recreate redis
 
         Write-Host "Waiting for Redis to be ready..."
