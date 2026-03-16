@@ -40,7 +40,7 @@ class Potion(pygame.sprite.Sprite):
 
             }
 
-    def __init__(self, potion_type):
+    def __init__(self, potion_type, item_id=None):
         super().__init__()
         # Ensure the assets are loaded before we try to use them!
         Potion.load_assets()
@@ -54,10 +54,7 @@ class Potion(pygame.sprite.Sprite):
         self.is_potion_is = False
         self.delete_last_action_time = time.time()
         self.health = HealthBar((0, 0), 30)
-        if id == 0:
-            self.id = randint(0, 2**31 - 1)
-        else:
-            self.id = id
+        self.id = item_id if item_id is not None else randint(0, 2**31 - 1)
 
     @staticmethod
     def get_potion_img(potion: str) -> pygame.Surface:
