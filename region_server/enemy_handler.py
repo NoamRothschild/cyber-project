@@ -42,7 +42,8 @@ def loop_time_ms():
 
 
 class EnemyHandler:
-    def __init__(self, node: "RegionNode", node_index: int, x_range: Tuple[int, int], y_range: Tuple[int, int], tick_intervals: float = TICK_INTERVAL_SEC) -> None:
+    def __init__(self, node: "RegionNode", node_index: int, x_range: Tuple[int, int], y_range: Tuple[int, int],
+                 tick_intervals: float = TICK_INTERVAL_SEC) -> None:
         self.node = node
         self.node_index = node_index
         self.tick_intervals = tick_intervals
