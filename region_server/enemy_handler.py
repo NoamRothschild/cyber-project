@@ -34,8 +34,26 @@ class EnemyHandler:
         self.enemies = {}  # key: enemy_id -> value: EnemyModel
         self.lock = asyncio.Lock()
 
-        # Maintain a constant population
-        self.target_enemy_count = 20
+        # # Dynamic enemy population based on distance from (14, 14)
+        # # Max at (14,14) is 20, approached 0 in an area of roughly 5x5 from there
+        # target_center_x, target_center_y = 14, 14
+        # max_count = 20
+        # fade_dist_x, fade_dist_y = 5, 5
+        # # Get our node position (RegionNode keeps this as .node_pos)
+        # # node_index -> (x, y) conversion (import constants or local mapping)
+        # from region_node import HORIZONAL_NODE_COUNT
+        # node_x = node_index % HORIZONAL_NODE_COUNT
+        # node_y = node_index // HORIZONAL_NODE_COUNT
+
+        # dx = abs(node_x - target_center_x) / fade_dist_x
+        # dy = abs(node_y - target_center_y) / fade_dist_y
+
+        # distance_score = max(dx, dy)
+        # if distance_score >= 1.0:
+        #     self.target_enemy_count = 0
+        # else:
+        #     self.target_enemy_count = int(round(max_count * (1.0 - distance_score)))
+        self.target_enemy_count = 3
 
         self.world_min_x = x_range[0]
         self.world_min_y = y_range[0]
@@ -144,7 +162,11 @@ class EnemyHandler:
         for cli in self.node.clients_in_view((enemy.x, enemy.y)):
             await cli.write(update.SerializeToString())
 
-    async def tick(self) -> None:
+    async def tick(self, cycle: int) -> None:
+        has_viewers = self.node.has_nearby_viewers()
+        if not has_viewers and cycle % 3 == 0:
+            return # lower tick rate on nodes with no viewers
+
         pending_hits = []
         pending_moves: List[EnemyModel] = []
         pending_shots = []  # (spawn_x, spawn_y, enemy_id, angle)
@@ -177,8 +199,7 @@ class EnemyHandler:
                         ))
 
                 old_cell_x, old_cell_y = enemy.cell_x, enemy.cell_y
-                for _ in range(5):
-                    enemy.move_and_collide([])
+                enemy.move_and_collide([])
                 # Keep enemy inside this node's zone
                 enemy.x = int(max(
                     self.world_min_x,
@@ -216,8 +237,6 @@ class EnemyHandler:
                 for proj in new_projs:
                     proj["seen_by"].add(cli.user_id)
             await self.node.projectile_handler.broadcast_to_adjacent(new_projs)
-
-        has_viewers = self.node.has_nearby_viewers()
 
         if self.node._had_viewers and not has_viewers:
             await self._cleanup_enemy_proxies()

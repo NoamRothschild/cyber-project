@@ -37,7 +37,7 @@ def start_global_tick_loop() -> None:
             start_time = loop.time()
             try:
                 for node in nodes.values():
-                    await node.enemy_handler.tick()
+                    await node.enemy_handler.tick(cycle)
                     await node.projectile_handler.tick(cycle)
                     await node.enemy_handler.ensure_population()
             except Exception as e:
