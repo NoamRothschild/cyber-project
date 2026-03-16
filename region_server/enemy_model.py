@@ -1,6 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, Sequence, Tuple
+from random import random
 import math
 import protobuf.region_net_pb2 as region_net
 
@@ -59,9 +60,16 @@ class MeleeEnemy:
     max_hp: int = 50
     hp: int = 50
 
-    patrol_index: int = 0
-    patrol_switch_ms: int = 600
+    zone_min_x: int = 0
+    zone_min_y: int = 0
+    zone_max_x: int = 10000
+    zone_max_y: int = 10000
+
+    patrol_target_x: float = 0.0
+    patrol_target_y: float = 0.0
+    patrol_switch_ms: int = 4000
     next_patrol_switch_ms: int = 0
+    patrol_target_reached_dist: float = 20.0
 
     chase_radius: float = 260.0
     attack_radius: float = 40.0
@@ -106,9 +114,9 @@ class MeleeEnemy:
                 best_d2, best = d2, p
         return best
 
-    def set_patrol_dir(self) -> None:
-        dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-        self.direction_x, self.direction_y = dirs[self.patrol_index]
+    def pick_patrol_target(self) -> None:
+        self.patrol_target_x = self.zone_min_x + random() * (self.zone_max_x - self.zone_min_x - self.w)
+        self.patrol_target_y = self.zone_min_y + random() * (self.zone_max_y - self.zone_min_y - self.h)
 
     def update_state_machine(
         self, now_ms: int, players: Sequence[PlayerSnapshot]
@@ -119,11 +127,11 @@ class MeleeEnemy:
             self.state = "PATROL"
             return None
 
-        cx = self.x + self.w / 2
-        cy = self.y + self.h / 2
+        current_x = self.x + self.w / 2
+        current_y = self.y + self.h / 2
         tx = target.x + target.w / 2
         ty = target.y + target.h / 2
-        dx, dy = tx - cx, ty - cy
+        dx, dy = tx - current_x, ty - current_y
         d2 = dx*dx + dy*dy
 
         if d2 <= self.attack_radius ** 2:
@@ -134,10 +142,19 @@ class MeleeEnemy:
             self.state = "PATROL"
 
         if self.state == "PATROL":
-            if now_ms >= self.next_patrol_switch_ms:
-                self.patrol_index = (self.patrol_index + 1) % 4
+            current_x = self.x + self.w / 2
+            current_y = self.y + self.h / 2
+            patrol_delta_x = self.patrol_target_x - current_x
+            patrol_delta_y = self.patrol_target_y - current_y
+            reached = ((patrol_delta_x * patrol_delta_x + patrol_delta_y * patrol_delta_y)
+                       <= self.patrol_target_reached_dist ** 2)
+            if reached or now_ms >= self.next_patrol_switch_ms:
+                self.pick_patrol_target()
                 self.next_patrol_switch_ms = now_ms + self.patrol_switch_ms
-            self.set_patrol_dir()
+                patrol_delta_x = self.patrol_target_x - current_x
+                patrol_delta_y = self.patrol_target_y - current_y
+            self.direction_x = patrol_delta_x
+            self.direction_y = patrol_delta_y
             return None
 
         if self.state == "CHASE":
@@ -210,9 +227,16 @@ class RangedEnemy:
     max_hp: int = 30  # squishier than melee
     hp: int = 30
 
-    patrol_index: int = 0
-    patrol_switch_ms: int = 600
+    zone_min_x: int = 0
+    zone_min_y: int = 0
+    zone_max_x: int = 10000
+    zone_max_y: int = 10000
+
+    patrol_target_x: float = 0.0
+    patrol_target_y: float = 0.0
+    patrol_switch_ms: int = 4000
     next_patrol_switch_ms: int = 0
+    patrol_target_reached_dist: float = 20.0
 
     chase_radius: float = 400.0
     shoot_range: float = 200.0   # stops here and shoots
@@ -257,9 +281,9 @@ class RangedEnemy:
                 best_d2, best = d2, p
         return best
 
-    def set_patrol_dir(self) -> None:
-        dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
-        self.direction_x, self.direction_y = dirs[self.patrol_index]
+    def pick_patrol_target(self) -> None:
+        self.patrol_target_x = self.zone_min_x + random() * (self.zone_max_x - self.zone_min_x - self.w)
+        self.patrol_target_y = self.zone_min_y + random() * (self.zone_max_y - self.zone_min_y - self.h)
 
     def update_state_machine(
         self, now_ms: int, players: Sequence[PlayerSnapshot]
