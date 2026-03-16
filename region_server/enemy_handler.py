@@ -27,6 +27,7 @@ DROP_TOTAL_WEIGHT = sum(w for _, _, w in DROP_TABLE)
 # Per-node enemy ID scheme: no conflicts across nodes (NODE_COUNT = 340)
 NODE_COUNT = 340
 MAX_ID = (2 ** 31) - 1
+ITEM_DROP_SCATTER_MAX = 20
 
 
 def melee_base_id(node_index: int) -> int:
@@ -126,6 +127,23 @@ class EnemyHandler:
         # broadcast outside lock
         for e in spawned:
             await self.broadcast_enemy_spawn(e)
+
+    def pick_random_drop(self) -> tuple[str, str]:
+        roll = randint(1, DROP_TOTAL_WEIGHT)
+        cumulative = 0
+        for kind, name, weight in DROP_TABLE:
+            cumulative += weight
+            if roll <= cumulative:
+                return kind, name
+        return "money", "money"
+
+    async def drop_items_at(self, x: int, y: int, count: int = 2) -> None:
+        for i in range(count):
+            kind, name = self.pick_random_drop()
+            item_id = randint(1, MAX_ID)
+            drop_x = x + choice([-1, 1]) * randint(0, ITEM_DROP_SCATTER_MAX)
+            drop_y = y + choice([-1, 1]) * randint(0, ITEM_DROP_SCATTER_MAX)
+            await self.node.register_item(name, kind, drop_x, drop_y, item_id)
 
     async def respawn_enemy(self, enemy_id: int) -> None:
         """Respawn an enemy at a random location with full HP."""
