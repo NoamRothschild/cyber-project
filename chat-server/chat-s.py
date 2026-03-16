@@ -1,8 +1,8 @@
 from __future__ import annotations
 from chat_server import *
 import asyncio
-from config import CHAT_HOST, CHAT_PORT
-
+from config import CHAT_PORT
+CHAT_HOST = '0.0.0.0'
 
 
 

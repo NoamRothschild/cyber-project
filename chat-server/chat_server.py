@@ -6,7 +6,9 @@ from typing import Set
 import protobuf.chat_net_pb2 as chat_net
 from redis.asyncio import Redis
 import auth_crypto
-from config import REDIS_HOST
+import os
+from config import REDIS_PASSWORD
+REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = 6379
 
 # TODO: protect with a lock as well if access patterns change
@@ -22,7 +24,7 @@ _redis: Redis | None = None
 def get_redis() -> Redis:
     global _redis
     if _redis is None:
-        _redis = Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
+        _redis = Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
     return _redis
 
 

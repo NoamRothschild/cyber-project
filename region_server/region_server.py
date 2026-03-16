@@ -3,12 +3,11 @@ import asyncio
 import signal
 import aioudp
 import aioudp.server
-from config import ZONE_HOSTS, ZONE_TCP_PORT, ZONE_UDP_PORT
+from config import ZONE_TCP_PORT, ZONE_UDP_PORT
 from region_server_extras import Client
 from state import start_global_tick_loop, create_initial_nodes
 from servers_communication import start_redis_listener
-from constants import THIS_SERVER_IP
-ZONE_HOST = THIS_SERVER_IP
+ZONE_HOST = '0.0.0.0'
 
 # aioudp's error_received raises unconditionally, which kills the UDP
 # transport's read loop on Windows when a client crashes (ICMP unreachable).

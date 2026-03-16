@@ -13,14 +13,21 @@ import data_db_handler as db
 
 DB_NAME = 'Auth.db'
 PORT = 9999
-IP = '127.0.0.1'
+BIND_ADDRESS = __import__('os').environ.get('AUTH_BIND', '127.0.0.1')
 BYTES_TO_DECODE = 8192
 
 _AUTH_SERVER_DIR = Path(__file__).resolve().parent
 
 REDIS_PORT = 6379
 CACHE_TIME = 86400 # in seconds
-r = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
+
+def _redis_host():
+    import os
+    from config import REDIS_PASSWORD as _p
+    return os.environ.get("REDIS_HOST", "127.0.0.1"), _p
+
+_rhost, _rpass = _redis_host()
+r = redis.Redis(host=_rhost, port=REDIS_PORT, password=_rpass, decode_responses=True)
 
 
 def get_db_connection():
@@ -134,7 +141,8 @@ def handle_auth_update(conn: sqlite3.Connection, raw_data: str) -> None:
 
 def auth_update_listener() -> None:
     conn = sqlite3.connect(db.DB_PATH)
-    sub = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
+    _rhost, _rpass = _redis_host()
+    sub = redis.Redis(host=_rhost, port=REDIS_PORT, password=_rpass, decode_responses=True)
     ps = sub.pubsub()
     ps.subscribe("auth-update")
     print("[auth-update] listening on channel 'auth-update'")
@@ -210,8 +218,10 @@ def handle_login(username, password):
 
 
 def run_server():
+     import os
+     bind_addr = os.environ.get("AUTH_BIND", "127.0.0.1")
      server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-     server_socket.bind((IP, PORT))
+     server_socket.bind((bind_addr, PORT))
      server_socket.listen()
      print("Server is running and waiting to register users...")
 
@@ -222,7 +232,8 @@ def run_server():
          try:
              try:
                  plaintext = auth_crypto.receive_and_decrypt(client_socket.recv, server_private_key)
-             except ValueError:
+             except ValueError as e:
+                 print(f"[auth] Decrypt failed (key mismatch?): {e}")
                  continue
              data = auth_net.RequestLogin()
              data.ParseFromString(plaintext)

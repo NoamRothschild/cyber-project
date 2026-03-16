@@ -4,7 +4,9 @@ import redis
 from redis.asyncio.client import Redis, PubSub
 import asyncio
 import protobuf.region_net_pb2 as region_net
-from config import REDIS_HOST
+import os
+from config import REDIS_PASSWORD
+REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = 6379
 
 
@@ -16,7 +18,7 @@ class RedisSingleton:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(RedisSingleton, cls).__new__(cls)
-            cls.redis_conn = Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=False)
+            cls.redis_conn = Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=False)
             cls.pubsub = cls.redis_conn.pubsub()
 
         return cls._instance

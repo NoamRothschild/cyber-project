@@ -1,0 +1,4 @@
+redis>=5.0
+protobuf>=4.0
+cryptography>=42.0
+aioudp>=0.1.0

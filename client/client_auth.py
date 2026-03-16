@@ -1,3 +1,4 @@
+import os
 import socket
 from pathlib import Path
 
@@ -6,9 +7,7 @@ from cryptography.hazmat.backends import default_backend
 
 import protobuf.auth_net_pb2 as auth_net
 import auth_crypto
-
-IP = '127.0.0.1'
-PORT = 9999
+from config import AUTH_HOST, AUTH_PORT
 
 _CLIENT_DIR = Path(__file__).resolve().parent
 
@@ -28,7 +27,7 @@ def _get_client_key_pair():
 def connect(username, password, command):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        client.connect((IP, PORT))
+        client.connect((AUTH_HOST, AUTH_PORT))
 
         client_private_key, client_public_key = _get_client_key_pair()
         server_public_key = auth_crypto.load_public_key_from_dir(_CLIENT_DIR)

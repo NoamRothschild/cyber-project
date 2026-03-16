@@ -3,8 +3,8 @@ from typing import Dict, Tuple, Union
 import os
 
 BUFF_SIZE = 1024
-THIS_SERVER_IP = os.getenv("region_server_ip", "127.0.0.1")
-print(f"{THIS_SERVER_IP=}")
+THIS_SERVER_ID = int(os.getenv("server_id", "0"))
+print(f"{THIS_SERVER_ID=}")
 SERVER_COUNT = 5
 
 # for collision checking

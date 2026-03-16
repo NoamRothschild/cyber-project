@@ -10,7 +10,6 @@ from dataclasses import dataclass, field
 from random import randint, choice
 import aioudp
 import auth_crypto
-from config import ZONE_HOSTS
 from constants import (
     BUFF_SIZE,
     CLIENT_RECEIVE_WIDTH,
@@ -18,7 +17,7 @@ from constants import (
     PLAYER_WIDTH,
     PLAYER_HEIGHT,
     MAX_DIST_FOR_ITEM_DROP,
-    THIS_SERVER_IP,
+    THIS_SERVER_ID,
 )
 
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
@@ -32,7 +31,7 @@ _REGION_SERVER_DIR = Path(__file__).resolve().parent
 
 
 def _get_server_private_key():
-    server_id = list(ZONE_HOSTS).index(THIS_SERVER_IP)
+    server_id = THIS_SERVER_ID
     if not hasattr(_get_server_private_key, "_cache"):
         _get_server_private_key._cache = {}
     if server_id not in _get_server_private_key._cache:
@@ -42,8 +41,10 @@ def _get_server_private_key():
     return _get_server_private_key._cache[server_id]
 
 
-IP = "127.0.0.1"
-redis_client = redis.Redis(host=IP, port=REDIS_PORT, decode_responses=True)
+import os
+from config import REDIS_PASSWORD
+_redis_host = os.environ.get("REDIS_HOST", "127.0.0.1")
+redis_client = redis.Redis(host=_redis_host, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
 
 NULL_NODE = RegionNode((-1, -1))
 item_count = 0

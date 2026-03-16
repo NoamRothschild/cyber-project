@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple, cast, Set
-from constants import TICK_INTERVAL_SEC, THIS_SERVER_IP
+from constants import TICK_INTERVAL_SEC, THIS_SERVER_ID
 from region_node import RegionNode, HORIZONAL_NODE_COUNT
 from nodes import nodes
 from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL
@@ -10,7 +10,7 @@ from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL
 async def create_initial_nodes() -> None:
     """Create the single whole-map node. Call once at startup."""
     r = get_redis()
-    my_nodes = await r.smembers(f"region:{THIS_SERVER_IP}")
+    my_nodes = await r.smembers(f"region:{THIS_SERVER_ID}")
     ps = get_pubsub()
 
     for node_idx_raw in cast(Set[bytes], my_nodes):

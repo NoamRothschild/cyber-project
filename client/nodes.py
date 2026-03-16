@@ -1,5 +1,7 @@
+import os
 import redis
-from config import REDIS_HOST
+from config import REDIS_PASSWORD
+REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
 from mapset import NODE_WIDTH, NODE_HEIGHT, HORIZONAL_NODE_COUNT
 from typing import Dict, Tuple
 
@@ -10,13 +12,13 @@ REDIS_PORT = 6379
 
 def fetch_zone_map() -> Dict[int, str]:
     """Fetch from Redis and return a dict mapping zone index -> host string."""
-    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-    server_ips = r.smembers('server_ips')
+    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
+    server_ids = r.smembers('server_ids')
     zone_map: Dict[int, str] = {}
-    for ip in server_ips:
-        node_indices = r.smembers(f'region:{ip}')
+    for id in server_ids:
+        node_indices = r.smembers(f'region:{id}')
         for idx in node_indices:
-            zone_map[int(idx)] = ip
+            zone_map[int(idx)] = id
     return zone_map
 
 

@@ -1,8 +1,49 @@
 services:
   redis:
-    image: redis/redis-stack:latest
+    image: redis:7-alpine
     container_name: redis-auth-session
     ports:
-      - "6379:6379"   # Redis database port
-      - "8001:8001"   # Redis Insight Web UI (optional)
+      - "6379:6379"   # Host 6379 -> container 6379 (avoids conflict with local Redis on 6379)
+    command: ["redis-server", "--requirepass", "36f52b82c90c161f0"]
     restart: always
+
+  auth_server:
+    build:
+      context: .
+      dockerfile: auth_server/Dockerfile
+    image: cyber-auth-server
+    container_name: auth-server
+    ports:
+      - "9999:9999"
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+
+  chat_server:
+    build:
+      context: .
+      dockerfile: chat-server/Dockerfile
+    image: cyber-chat-server
+    container_name: chat-server
+    ports:
+      - "8888:8888"
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+
+  region_server:
+    build:
+      context: .
+      dockerfile: region_server/Dockerfile
+    image: cyber-region-server
+    container_name: region-server
+    ports:
+      - "8085:8085"
+      - "8086:8086/udp"
+    environment:
+      REDIS_HOST: redis
+      server_id: 0
+    depends_on:
+      - redis
