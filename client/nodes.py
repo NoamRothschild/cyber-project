@@ -1,7 +1,6 @@
 import os
 import redis
-from config import REDIS_PASSWORD
-REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
+from config import REDIS_PASSWORD, REDIS_HOST, ZONE_HOST_MAP
 from mapset import NODE_WIDTH, NODE_HEIGHT, HORIZONAL_NODE_COUNT
 from typing import Dict, Tuple
 
@@ -18,7 +17,7 @@ def fetch_zone_map() -> Dict[int, str]:
     for id in server_ids:
         node_indices = r.smembers(f'region:{id}')
         for idx in node_indices:
-            zone_map[int(idx)] = id
+            zone_map[int(idx)] = ZONE_HOST_MAP[str(id)]
     return zone_map
 
 
