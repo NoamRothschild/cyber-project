@@ -1,17 +1,28 @@
 import asyncio
 from typing import List, Set, Tuple
-from random import random
+from random import random, randint, choice
 import time
 from constants import TICK_INTERVAL_SEC
 from enemy_model import EnemyModel, MeleeEnemy, RangedEnemy, PlayerSnapshot
 import protobuf.region_net_pb2 as region_net
 from typing import Dict, Union
 from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from region_node import RegionNode
 
 SECONDS_TO_MS = 1000
 ENEMY_DAMAGE = 5
+
+DROP_TABLE = [
+    ("money", "money", 50),
+    ("potion", "healing", 20),
+    ("potion", "speed", 10),
+    ("potion", "super_speed", 5),
+    ("weapon", "sword", 10),
+    ("weapon", "bow", 5),
+]
+DROP_TOTAL_WEIGHT = sum(w for _, _, w in DROP_TABLE)
 
 # Per-node enemy ID scheme: no conflicts across nodes (NODE_COUNT = 340)
 NODE_COUNT = 340
