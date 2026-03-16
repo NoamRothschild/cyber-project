@@ -38,6 +38,8 @@ class RegionNode:
     NODE_WIDTH = 4600  # [px]
     NODE_HEIGHT = 2200  # [px]
     CELL_SIZE = 200  # [px]
+    _grid_w = NODE_WIDTH // CELL_SIZE
+    _grid_h = NODE_HEIGHT // CELL_SIZE
 
     def __init__(self, topleft: Tuple[int, int]) -> None:
         self.topleft = topleft
@@ -45,7 +47,7 @@ class RegionNode:
         self.view = str(self.node_pos)
         self.x_range = (topleft[0], topleft[0] + RegionNode.NODE_WIDTH)
         self.y_range = (topleft[1], topleft[1] + RegionNode.NODE_HEIGHT)
-        self.grid: Dict[Tuple[int, int], Set[GridField]] = {}
+        self.grid: List[Set[GridField]] = [set() for _ in range(RegionNode._grid_w * RegionNode._grid_h)]
         self.proxies: List[Set[ProxyField]] = [
             set() for _ in range(8)
         ]  # a set of proxies from each direction
@@ -229,24 +231,20 @@ class RegionNode:
     def grid_add(
         self, obj: Any, cell_x: int, cell_y: int, seen: set[int] = set()
     ) -> GridField:
-        key = (cell_x, cell_y)
         field = GridField(obj, seen)
-        if cell := self.grid.get(key):
-            cell.add(field)
-        else:
-            self.grid[key] = {field}
+        self.grid[cell_y * RegionNode._grid_w + cell_x].add(field)
         return field
 
     def grid_remove(self, obj: Any, cell_x: int, cell_y: int) -> None:
-        if cell := self.grid.get((cell_x, cell_y)):
-            cell.discard(GridField(obj))
+        self.grid[cell_y * RegionNode._grid_w + cell_x].discard(GridField(obj))
 
     def grid_move(
         self, obj: Any, old_cx: int, old_cy: int, new_cx: int, new_cy: int
     ) -> None:
         if (old_cx, old_cy) != (new_cx, new_cy):
             old_seen = set()
-            if cell := self.grid.get((old_cx, old_cy)):
+            cell = self.grid[old_cy * RegionNode._grid_w + old_cx]
+            if cell:
                 target = GridField(obj)
                 for field in tuple(cell):  # snapshot in case set is modified during iteration
                     if field == target:
@@ -263,23 +261,42 @@ class RegionNode:
 
             radius = ceil(detection_range_px / CELL_SIZE)
         """
+        grid = self.grid
+        w = RegionNode._grid_w
+        h = RegionNode._grid_h
         for r in range(radius + 1):
             if r == 0:
-                if cell := self.grid.get((cell_x, cell_y)):
-                    yield from tuple(cell)  # snapshot: avoid "set changed size during iteration"
+                if 0 <= cell_x < w and 0 <= cell_y < h:
+                    cell = grid[cell_y * w + cell_x]
+                    if cell:
+                        yield from tuple(cell)
                 continue
-            # top and bottom edges of the ring
             for dx in range(-r, r + 1):
-                if cell := self.grid.get((cell_x + dx, cell_y - r)):
-                    yield from tuple(cell)
-                if cell := self.grid.get((cell_x + dx, cell_y + r)):
-                    yield from tuple(cell)
-            # left and right edges (corners already covered above)
+                nx = cell_x + dx
+                if 0 <= nx < w:
+                    ny = cell_y - r
+                    if 0 <= ny < h:
+                        cell = grid[ny * w + nx]
+                        if cell:
+                            yield from tuple(cell)
+                    ny = cell_y + r
+                    if 0 <= ny < h:
+                        cell = grid[ny * w + nx]
+                        if cell:
+                            yield from tuple(cell)
             for dy in range(-r + 1, r):
-                if cell := self.grid.get((cell_x - r, cell_y + dy)):
-                    yield from tuple(cell)
-                if cell := self.grid.get((cell_x + r, cell_y + dy)):
-                    yield from tuple(cell)
+                ny = cell_y + dy
+                if 0 <= ny < h:
+                    nx = cell_x - r
+                    if 0 <= nx < w:
+                        cell = grid[ny * w + nx]
+                        if cell:
+                            yield from tuple(cell)
+                    nx = cell_x + r
+                    if 0 <= nx < w:
+                        cell = grid[ny * w + nx]
+                        if cell:
+                            yield from tuple(cell)
 
     def clients_in_view(self, pos: Tuple[int, int]) -> Generator[Client, None, None]:
         from region_server_extras import Client
@@ -288,29 +305,30 @@ class RegionNode:
             if isinstance(obj, Client):
                 yield obj
 
-    def objects_in_view(self, pos: Tuple[int, int]) -> Generator[Any, None, None]:
-        """Yield grid objects in cells overlapping the view rect (no per-pixel iteration)."""
-        left = pos[0] - int(CLIENT_RECEIVE_WIDTH) // 2
-        top = pos[1] - int(CLIENT_RECEIVE_HEIGHT) // 2
-        right = pos[0] + int(CLIENT_RECEIVE_WIDTH) // 2
-        bottom = pos[1] + int(CLIENT_RECEIVE_HEIGHT) // 2
+    _VIEW_HALF_W = int(CLIENT_RECEIVE_WIDTH) // 2
+    _VIEW_HALF_H = int(CLIENT_RECEIVE_HEIGHT) // 2
 
-        cell_x_min = (left - self.x_range[0]) // RegionNode.CELL_SIZE
-        cell_x_max = (right - 1 - self.x_range[0]) // RegionNode.CELL_SIZE
-        cell_y_min = (top - self.y_range[0]) // RegionNode.CELL_SIZE
-        cell_y_max = (bottom - 1 - self.y_range[0]) // RegionNode.CELL_SIZE
+    def objects_in_view(self, pos: Tuple[int, int]) -> List[GridField]:
+        """Return grid objects in cells overlapping the view rect."""
+        x0 = self.x_range[0]
+        y0 = self.y_range[0]
+        cs = RegionNode.CELL_SIZE
+        w = RegionNode._grid_w
 
-        max_cx = RegionNode.NODE_WIDTH // RegionNode.CELL_SIZE - 1
-        max_cy = RegionNode.NODE_HEIGHT // RegionNode.CELL_SIZE - 1
-        cell_x_min = max(0, cell_x_min)
-        cell_x_max = min(max_cx, cell_x_max)
-        cell_y_min = max(0, cell_y_min)
-        cell_y_max = min(max_cy, cell_y_max)
+        cell_x_min = max(0, (pos[0] - self._VIEW_HALF_W - x0) // cs)
+        cell_x_max = min(w - 1, (pos[0] + self._VIEW_HALF_W - 1 - x0) // cs)
+        cell_y_min = max(0, (pos[1] - self._VIEW_HALF_H - y0) // cs)
+        cell_y_max = min(RegionNode._grid_h - 1, (pos[1] + self._VIEW_HALF_H - 1 - y0) // cs)
 
+        result: List[GridField] = []
+        grid = self.grid
         for cell_y in range(cell_y_min, cell_y_max + 1):
+            row = cell_y * w
             for cell_x in range(cell_x_min, cell_x_max + 1):
-                if cell := self.grid.get((cell_x, cell_y)):
-                    yield from tuple(cell)  # snapshot: avoid "set changed size during iteration"
+                cell = grid[row + cell_x]
+                if cell:
+                    result.extend(cell)
+        return result
 
     # ---- static helpers ----
 
