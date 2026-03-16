@@ -47,6 +47,12 @@ function Get-LanIPs {
         Select-Object -ExpandProperty IPAddressToString -Unique
 }
 
+# Ensure Docker network exists (idempotent - no error if already exists)
+function Ensure-Network {
+    docker network inspect $NetworkName 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { docker network create $NetworkName | Out-Null }
+}
+
 # When container needs to reach host's localhost (e.g. redis on host port)
 function Resolve-RedisHostForContainer {
     param([string]$HostOrIp)
@@ -108,7 +114,7 @@ switch ($Command) {
         Set-Location $ProjectRoot
         docker build -f auth_server/Dockerfile -t cyber-auth-server .
 
-        # docker rm -f auth-server 2>$null
+        Ensure-Network
         Write-Host "Running auth server (REDIS_HOST=$redisHost)..."
         docker run -d `
             --name auth-server `
@@ -128,7 +134,7 @@ switch ($Command) {
         Set-Location $ProjectRoot
         docker build -f chat-server/Dockerfile -t cyber-chat-server .
 
-        # docker rm -f chat-server 2>$null
+        Ensure-Network
         Write-Host "Running chat server (REDIS_HOST=$redisHost)..."
         docker run -d `
             --name chat-server `
@@ -148,6 +154,7 @@ switch ($Command) {
         Set-Location $ProjectRoot
         docker build -f region_server/Dockerfile -t cyber-region-server .
 
+        Ensure-Network
         $tcpPort = 8085 + [int]$serverId
         $udpPort = 8086 + [int]$serverId
         # docker rm -f "region-server-$serverId" 2>$null
