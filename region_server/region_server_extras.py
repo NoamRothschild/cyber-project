@@ -18,6 +18,8 @@ from constants import (
     PLAYER_HEIGHT,
     MAX_DIST_FOR_ITEM_DROP,
     THIS_SERVER_ID,
+    SERVER_WEAPON_MAP,
+    SERVER_MAX_AMMO,
 )
 
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
@@ -48,23 +50,6 @@ redis_client = redis.Redis(host=_redis_host, port=REDIS_PORT, password=REDIS_PAS
 
 NULL_NODE = RegionNode((-1, -1))
 item_count = 0
-
-SERVER_WEAPON_MAP = {
-    "Ak 47": 1,
-    "bow": 2,
-    "sword": 3,
-    "Assault rifle": 4,
-    "Pistol": 5
-}
-
-# The absolute maximum ammo allowed for each weapon ID
-SERVER_MAX_AMMO = {
-    1: 15,    # Ak 47
-    2: 3,     # bow
-    3: 1000,  # sword
-    4: 30,    # Assault rifle
-    5: 10     # Pistol
-}
 
 @dataclass
 class PlayerState:
@@ -123,7 +108,7 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
     if health is None or money is None or spawn_x is None or spawn_y is None:
         return {
             "health": 400,
-            "money": 0,
+            "money": 200,
             "weapons": [0] * 10,
             "ammo": [30] * 10,
             "potions": [0] * 10,
@@ -563,20 +548,66 @@ class Client:
             if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
                 await self.hit(-update.potion_use.HowMuch, self.user_id)
         elif payload_type == "item_pickup":
-            # TODO: verify the dropped item exists on the client
+            # Client requests to DROP an item from their inventory into the world.
+            # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)
+            # We reflect this in PlayerState (weapons/potions/money) and then spawn the dropped item.
+            kind = update.item_pickup.Kind
+            name = update.item_pickup.Name
 
+            dropped = False
+
+            if kind == "money":
+                # Client already subtracted 50 locally; mirror on server, clamped at 0.
+                if self.state.money >= 50:
+                    self.state.money -= 50
+                    dropped = True
+                    print(f"[MONEY] player {self.user_id} dropped 50; now has {self.state.money}")
+            elif kind == "potion":
+                # Mirror client.inventory.POTION_MAP: 1: healing, 2: speed, 3: super_speed
+                potion_id_map = {
+                    "healing": 1,
+                    "speed": 2,
+                    "super_speed": 3,
+                }
+                potion_id = potion_id_map.get(name)
+                if potion_id is None:
+                    print(f"[WARN] item_drop: unknown potion '{name}' from player {self.user_id}")
+                else:
+                    for i, slot in enumerate(self.state.potions):
+                        if slot == potion_id:
+                            self.state.potions[i] = 0
+                            dropped = True
+                            break
+            elif kind == "weapon":
+                weapon_id = SERVER_WEAPON_MAP.get(name)
+                if weapon_id is None:
+                    print(f"[WARN] item_drop: unknown weapon '{name}' from player {self.user_id}")
+                else:
+                    for i, slot in enumerate(self.state.weapons):
+                        if slot == weapon_id:
+                            self.state.weapons[i] = 0
+                            # Clear ammo for that slot as well
+                            if 0 <= i < len(self.state.ammo):
+                                self.state.ammo[i] = 0
+                            dropped = True
+                            break
+
+            if not dropped:
+                # Inventory/server state didn't change; don't spawn a ghost drop.
+                return
+
+            # Spawn the dropped item near the player, same as before.
             x_offset = randint(-120, 120)
             y_offset = MAX_DIST_FOR_ITEM_DROP - abs(x_offset)
             y_offset = choice([-1, 1]) * randint(y_offset, 120)
 
             await self.node.register_item(
-                update.item_pickup.Name,
-                update.item_pickup.Kind,
+                name,
+                kind,
                 self.state.x + x_offset,
                 self.state.y + y_offset,
                 update.item_pickup.id,
             )
-            # await self.item_hendeling(update.item_pickup.Name, update.item_pickup.Kind, update.item_pickup.x, update.item_pickup.y)
         elif payload_type == "bullet_shot":
             update_bytes, new_projs = await self.node.projectile_handler.add(
                 update.bullet_shot, self
@@ -600,10 +631,10 @@ class Client:
             if self.user_state["cash"] >= total:
                 self.user_state["cash"] -= total
                 resp.other_data.shop_ans = True
+                print(f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.user_state['cash']}")
             else:
                 resp.other_data.shop_ans = False
-
-            print(resp.other_data.shop_ans)
+                print(f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.user_state['cash']}")
             await self.write(resp.SerializeToString())
         elif payload_type == "reload_act":
             try:

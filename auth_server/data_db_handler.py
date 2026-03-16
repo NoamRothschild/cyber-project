@@ -32,7 +32,7 @@ def create_table():
             CREATE TABLE IF NOT EXISTS INVENTORY (
             Player_id INTEGER PRIMARY KEY,
             health INTEGER NOT NULL DEFAULT 400 CHECK (health <= 400),
-            money INTEGER NOT NULL DEFAULT 0,
+            money INTEGER NOT NULL DEFAULT 200,
             
             weapon1 INTEGER NOT NULL DEFAULT 1,
             weapon2 INTEGER NOT NULL DEFAULT 2,

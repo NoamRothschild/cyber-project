@@ -7,7 +7,7 @@ from animation import Animation
 
 SCALE_FROM_LIFE = 5
 MIN_SMOOTH_DST = 25  # pixels; below this we interpolate, above we snap
-HIDE_AFTER_NO_MOVE_MS = 1000  # hide entity from view if no position update for this long (we probably screwd up on the server, lets hide it)
+HIDE_AFTER_NO_MOVE_MS = 100000  # hide entity from view if no position update for this long (we probably screwd up on the server, lets hide it)
 DEATH_ANIMATION_MS = 1200  # time to show death animation before removing entity (DIED)
 BASE_HP_PLAYER = 400
 BASE_HP_ENEMY = 50

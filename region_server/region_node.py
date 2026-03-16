@@ -16,6 +16,8 @@ from constants import (
     CLIENT_RECEIVE_HEIGHT,
     ITEM_HEIGHT,
     ITEM_WIDTH,
+    SERVER_WEAPON_MAP,
+    SERVER_MAX_AMMO,
 )
 from proxy import (
     create_proxy,
@@ -535,19 +537,51 @@ class RegionNode:
                 continue
             item = obj
 
-            print(new_pos)
-            print(obj.x, obj.y)
-
             if obj.collision.intersects(client.collision):
-                print("l3")
-                print(obj.id)
+                picked_up = False
 
-                # item picked up -> remove it
+                if item.kind == "money":
+                    client.state.money += 50
+                    picked_up = True
+                    print(f"[MONEY] player {client.user_id} picked up 50; now has {client.state.money}")
+                elif item.kind == "potion":
+                    # Map potion name to ID (must stay in sync with client.inventory.POTION_MAP)
+                    potion_id_map = {
+                        "healing": 1,
+                        "speed": 2,
+                        "super_speed": 3,
+                    }
+                    potion_id = potion_id_map.get(item.name)
+                    if potion_id is None:
+                        print(f"[WARN] Unknown potion name '{item.name}', ignoring pickup")
+                    else:
+                        for i, slot in enumerate(client.state.potions):
+                            if slot == 0:
+                                client.state.potions[i] = potion_id
+                                picked_up = True
+                                break
+                elif item.kind == "weapon":
+                    weapon_id = SERVER_WEAPON_MAP.get(item.name)
+                    if weapon_id is None:
+                        print(f"[WARN] Unknown weapon name '{item.name}', ignoring pickup")
+                    else:
+                        for i, slot in enumerate(client.state.weapons):
+                            if slot == 0:
+                                client.state.weapons[i] = weapon_id
+                                client.state.ammo[i] = 0
+                                picked_up = True
+                                break
+
+                # If the inventory was full (or item kind unknown), leave the item on the ground
+                if not picked_up:
+                    continue
+
+                # Item successfully picked up -> remove it from this node and all proxies
                 self.items.pop(obj.id, None)
                 to_remove.add((obj, obj.cell_x, obj.cell_y))
                 await self.propagate_item(
                     item, remove_instead=True
-                )  # remove proxies of item
+                )
 
                 update = region_net.ServerResponse()
                 update.other_data.CopyFrom(

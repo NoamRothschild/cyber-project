@@ -58,3 +58,19 @@ BULLET_TYPES: Dict[str, Dict[str, Union[int, float]]] = {
         "range": 50,
     },
 }
+
+SERVER_WEAPON_MAP = {
+    "Ak 47": 1,
+    "bow": 2,
+    "sword": 3,
+    "Assault rifle": 4,
+    "Pistol": 5
+}
+
+SERVER_MAX_AMMO = {
+    1: 15,    # Ak 47
+    2: 3,     # bow
+    3: 1000,  # sword
+    4: 30,    # Assault rifle
+    5: 10     # Pistol
+}
