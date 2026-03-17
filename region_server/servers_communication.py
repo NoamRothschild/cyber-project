@@ -33,6 +33,7 @@ def get_pubsub() -> PubSub:
 BROADCAST_PREFIX = b'BRD'
 PROXY_CREATE_PREFIX = b'PRX'
 PROXY_REMOVE_PREFIX = b'PRM'
+NOTIFY_CLIENT_PREFIX = b'NFY'
 GLOBAL_CHANNEL = b'global'
 
 async def broadcast_on(node_idx: str, message: bytes):
@@ -43,6 +44,10 @@ async def create_proxy_on(node_idx: str, message: bytes):
 
 async def remove_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
+
+async def notify_client_with(node_idx: str, message: region_net.ServerResponse):
+    message_bytes = message.SerializeToString()
+    await get_redis().publish(node_idx, NOTIFY_CLIENT_PREFIX + message_bytes)
 
 async def publish_proxy_remove_global(sender_id: int, session_id: int) -> None:
     """Publish client proxy remove to GLOBAL_CHANNEL so all servers (including remote) run receive_proxy_remove."""
@@ -95,14 +100,33 @@ def start_redis_listener() -> None:
                     if event.HasField("client"):
                         await update_global_client_state(event.client.session_id, event.client)
 
-            if data.startswith(PROXY_REMOVE_PREFIX):
+            elif data.startswith(PROXY_REMOVE_PREFIX):
                 event = region_net.ProxyEvent()
                 event.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
                 if node := nodes.get(node_pos):
                     if event.HasField("client"):
                         await node.receive_proxy_remove(event.client.player_id)
 
-            if data.startswith(BROADCAST_PREFIX):
+            elif data.startswith(NOTIFY_CLIENT_PREFIX):
+                node = nodes.get(node_pos)
+                if not node:
+                    continue
+                update = region_net.ServerResponse()
+                update.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
+                to_client = update.sender_id
+                client: Client = None
+                for cli_id, cli in node.clients.items():
+                    if cli_id != to_client:
+                        continue
+                    client = cli
+                    break
+                if client is None:
+                    continue
+                if update.HasField("enemy_data"):
+                    update.sender_id = update.enemy_data.player_id
+                await client.write(update.SerializeToString())
+
+            elif data.startswith(BROADCAST_PREFIX):
                 update = region_net.RegionUpdate()
                 update.ParseFromString(data[len(BROADCAST_PREFIX):])
                 if node := nodes.get(node_pos):

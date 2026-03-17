@@ -199,6 +199,8 @@ class Client:
             client_created = True
             await register_global_client(session_id, self)
             if node != NULL_NODE:
+                node_key = f"client:{self.user_id}:node"
+                await r.set(node_key, str(node.index))
                 await node.register_client(self, initial_pos)
             response = region_net.HandshakeStart(
                 kind=region_net.HandshakeStart.SERVER_OK,
@@ -311,6 +313,7 @@ class Client:
         self.state.ammo = stats["ammo"]
         self.state.potions = stats["potions"]
         self.user_state = TEMPLATE_USER_STATE.copy() # TODO: copy from redis
+        self.old_view = [] # List[GridField]
 
     async def hit(self, count, hitter_id: int):
         self.state.hp -= count
@@ -542,6 +545,9 @@ class Client:
                 await self.node.register_client(
                     self, (update.location_block.x, update.location_block.y)
                 )
+                r = get_redis()
+                node_key = f"client:{self.user_id}:node"
+                await r.set(node_key, str(self.node.index))
 
             await self.node.handle_movement(self, update.location_block)
         elif payload_type == "potion_use":

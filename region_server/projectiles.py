@@ -8,6 +8,7 @@ import os
 from enemy_model import EnemyModel
 from typing import TYPE_CHECKING, Dict, Union
 from nodes import get_global_client
+from servers_communication import get_redis, notify_client_with
 
 if TYPE_CHECKING:
     from region_node import RegionNode
@@ -127,7 +128,7 @@ class ProjectileHandler:
         to_remove: list[Projectile] = []
         to_transfer: list[tuple[Projectile, tuple[int, int]]] = []
         node = self._node
-        dead_enemies: list[tuple[int, int, int, set]] = []  # (enemy_id, x, y, proxied_directions)
+        dead_enemies: list[tuple[int, int, int, set, set]] = []  # (enemy_id, x, y, proxied_directions, seen)
         enemies_to_broadcast_hp: list[EnemyModel] = []
         pending_client_hits: dict[int, tuple[Client, int, int]] = {}  # user_id -> (client, total_dmg, last_hitter)
 
@@ -228,7 +229,7 @@ class ProjectileHandler:
 
                             if died:
                                 proxied = getattr(enemy, "_proxied_directions", set())
-                                dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y, proxied))
+                                dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y, proxied, grid_field.seen))
                                 enemy._proxied_directions = set()
                                 self.enemy_handler.dead_ids.add(enemy.enemy_id)
                                 # override the hp broadcast to max_hp so the client resets the enemy
@@ -237,9 +238,27 @@ class ProjectileHandler:
         for client, total_damage, hitter_id in pending_client_hits.values():
             await client.hit(total_damage, hitter_id)
 
-        for enemy_id, ex, ey, proxied_directions in dead_enemies:
+        r = get_redis()
+        for enemy_id, ex, ey, proxied_directions, seen in dead_enemies:
             for cli in node.clients_in_view((ex, ey)):
                 await cli.entity_died(enemy_id)
+                seen.discard(cli.user_id)
+            for cli_id in seen: # each client that should get the despawn we don't own
+                node_idx = int(await r.get(f"client:{cli_id}:node"))
+                node_pos = RegionNode.node_idx_to_pos(node_idx)
+                if clients_node := nodes.get(node_pos):
+                    cli = clients_node.clients.get(cli_id, None)
+                    if cli is None:
+                        continue
+                    await cli.entity_died(enemy_id)
+                else:
+                    enemy_data = region_net.OtherPlayerData()
+                    enemy_data.state = region_net.OtherPlayerData.DIED
+                    enemy_data.player_id = enemy_id
+                    await notify_client_with(str(node_idx), region_net.ServerResponse(
+                        sender_id=cli_id,
+                        enemy_data=enemy_data,
+                    ))
             for direction in proxied_directions:
                 adj_node_pos = (
                     node.node_pos[0] + direction.value[0],

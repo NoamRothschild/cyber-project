@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 import math
 from projectiles import ProjectileHandler
 import protobuf.region_net_pb2 as region_net
-from servers_communication import broadcast_on
+from servers_communication import get_redis, notify_client_with
 from constants import (
     CLIENT_ASPECT_RATIO,
     CLIENT_RECEIVE_WIDTH,
@@ -46,6 +46,7 @@ class RegionNode:
     def __init__(self, topleft: Tuple[int, int]) -> None:
         self.topleft = topleft
         self.node_pos = RegionNode.which_node(*topleft)
+        self.index = RegionNode.node_pos_to_idx(*self.node_pos)
         self.view = str(self.node_pos)
         self.x_range = (topleft[0], topleft[0] + RegionNode.NODE_WIDTH)
         self.y_range = (topleft[1], topleft[1] + RegionNode.NODE_HEIGHT)
@@ -54,7 +55,7 @@ class RegionNode:
             set() for _ in range(8)
         ]  # a set of proxies from each direction
 
-        self.clients: Dict[int, Client] = {}  # session_id -> Client
+        self.clients: Dict[int, Client] = {}  # user_id -> Client
         self._had_viewers = False
         node_index = RegionNode.node_pos_to_idx(*self.node_pos)
         self.enemy_handler = EnemyHandler(self, node_index, self.x_range, self.y_range)
@@ -223,10 +224,28 @@ class RegionNode:
                     to_remove = existing
                     break
             if to_remove:
-                for cli in self.clients.values():
-                    if cli.user_id in to_remove.seen:
-                        await cli.entity_despawned(sender_id)
                 prx.discard(to_remove)
+                seen = to_remove.seen
+                r = get_redis()
+                for cli_id in seen:
+                    if cli := self.clients.get(cli_id):
+                        await cli.entity_despawned(sender_id)
+                    else:
+                        node_idx = int(await r.get(f"client:{cli_id}:node"))
+                        node_pos = RegionNode.node_idx_to_pos(node_idx)
+                        if clients_node := nodes.get(node_pos):
+                            cli = clients_node.clients.get(cli_id, None)
+                            if cli is None:
+                                continue
+                            await cli.entity_despawned(sender_id)
+                        else:
+                            enemy_data = region_net.OtherPlayerData()
+                            enemy_data.state = region_net.OtherPlayerData.DESPAWNED
+                            enemy_data.player_id = sender_id
+                            await notify_client_with(str(node_idx), region_net.ServerResponse(
+                                sender_id=cli_id,
+                                enemy_data=enemy_data,
+                            ))
 
     # ---- grid helpers ----
 
@@ -357,6 +376,13 @@ class RegionNode:
     def node_pos_to_idx(pos_x: int, pos_y: int) -> int:
         return pos_y * HORIZONAL_NODE_COUNT + pos_x
 
+    @staticmethod
+    def node_idx_to_pos(idx: int) -> Tuple[int, int]:
+        return  (
+            idx % HORIZONAL_NODE_COUNT,
+            idx // HORIZONAL_NODE_COUNT
+        )
+
     def possible_bounding_nodes(self, raw_x: int, raw_y: int) -> List[Direction]:
         """
         Returns relative node offsets (dx, dy) for neighboring nodes that can see an object at (raw_x, raw_y),
@@ -398,7 +424,7 @@ class RegionNode:
         client.state.x, client.state.y = initial_pos
         cell_x, cell_y = self.to_cell_pos(initial_pos)
         client.state.cell_x, client.state.cell_y = cell_x, cell_y
-        self.clients[client.session_id] = client
+        self.clients[client.user_id] = client
         self.grid_add(client, cell_x, cell_y)
         await self.propagate_entity(client)
 
@@ -432,7 +458,7 @@ class RegionNode:
         """Remove client from this node's grid and client list without global cleanup."""
         try:
             self.grid_remove(client, client.state.cell_x, client.state.cell_y)
-            self.clients.pop(client.session_id, None)
+            self.clients.pop(client.user_id, None)
         except:
             pass
 
@@ -613,6 +639,20 @@ class RegionNode:
 
         new_pos = (client.state.x, client.state.y)
 
+        for grid_field in client.old_view:
+            obj = grid_field.obj
+            if not isinstance(obj, Client):
+                continue
+            if obj.user_id == client.user_id:
+                continue
+            if client.user_id not in grid_field.seen:
+                continue
+            if Client.can_see_static(new_pos, (obj.state.x, obj.state.y)):
+                continue
+            grid_field.seen.discard(client.user_id)
+            await client.entity_despawned(obj.user_id)
+        client.old_view.clear()
+
         for grid_field in self.objects_in_view(new_pos):
             obj = grid_field.obj
             if client.user_id in grid_field.seen:
@@ -634,19 +674,7 @@ class RegionNode:
             elif isinstance(obj, ItemState):
                 grid_field.seen.add(client.user_id)
                 await client.item_hendeling(obj.name, obj.kind, obj.x, obj.y, obj.id)
-
-        for grid_field in self.objects_in_view(old_pos):
-            obj = grid_field.obj
-            if not isinstance(obj, Client):
-                continue
-            if obj.user_id == client.user_id:
-                continue
-            if client.user_id not in grid_field.seen:
-                continue
-            if Client.can_see_static(new_pos, (obj.state.x, obj.state.y)):
-                continue
-            grid_field.seen.discard(client.user_id)
-            await client.entity_despawned(obj.user_id)
+            client.old_view.append(grid_field)
 
         for cli in self.clients.values():
             if cli.user_id == client.user_id:
