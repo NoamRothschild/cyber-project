@@ -2,10 +2,10 @@ import threading
 from typing import Any, Dict, Tuple
 
 import pygame
-from helth import HealthBar
+from health import HealthBar
+from mapset import PINK
 import os
 import sys
-
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
     try:
