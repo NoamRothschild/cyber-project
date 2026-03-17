@@ -10,6 +10,7 @@ from cryptography.hazmat.backends import default_backend
 import protobuf.region_net_pb2 as region_net
 import auth_crypto
 from potion import Potion
+from config import ZONE_HOST_MAP
 from arsenal import Arsenal
 
 if TYPE_CHECKING:
@@ -291,6 +292,10 @@ class ZoneConnection:
         self.send_tcp(update.SerializeToString())
 
 
+# maps zone host -> host server id
+HOST_ZONE_MAP: Dict[str, int] = {v: int(k) for k, v in ZONE_HOST_MAP.items()}
+
+
 class ZoneConnectionSingleton:
     _instance: None | ZoneConnectionSingleton = None
     _lock = threading.Lock()
@@ -301,7 +306,7 @@ class ZoneConnectionSingleton:
     zone: ZoneConnection | None = None
     zone_connections: Dict[str, ZoneConnection] | None = None
 
-    _send_queue: Queue[Tuple[int, bytes] | None] = Queue()
+    _send_queue: Queue[Tuple[int, bytes, ZoneConnection] | None] = Queue()
     _send_stop = threading.Event()
     _sender_thread: threading.Thread | None = None
 
@@ -314,7 +319,7 @@ class ZoneConnectionSingleton:
 
     @staticmethod
     def enqueue_send(protocol: int, data: bytes):
-        ZoneConnectionSingleton._send_queue.put((protocol, data))
+        ZoneConnectionSingleton._send_queue.put((protocol, data, ZoneConnectionSingleton().zone))
 
     @staticmethod
     def start_sender():
@@ -343,6 +348,13 @@ class ZoneConnectionSingleton:
     def move_zone(new_host: str):
         if new_host not in ZoneConnectionSingleton._config_hosts:
             raise RuntimeError(f"Invalid host: {new_host}")
+        old_zone: ZoneConnection = ZoneConnectionSingleton._instance.zone
+        update = region_net.RegionUpdate()
+        update.moved_server.CopyFrom(
+            region_net.MovedServer(new_server_id=HOST_ZONE_MAP[new_host])
+        )
+        old_zone.send_tcp(update.SerializeToString())
+
         ZoneConnectionSingleton._instance.zone = (
             ZoneConnectionSingleton._instance.zone_connections[new_host]
         )
@@ -384,8 +396,7 @@ def _sender_worker(send_queue: Queue, stop_event: threading.Event):
             continue
         if item is None:
             break
-        protocol, data = item
-        zone = ZoneConnectionSingleton().zone
+        protocol, data, zone = item
         try:
             if protocol == _UDP:
                 zone.fast_conn.sendto(data, (zone.host, zone.fast_port))
@@ -395,7 +406,7 @@ def _sender_worker(send_queue: Queue, stop_event: threading.Event):
             if protocol == _UDP:
                 try:
                     zone.reliable_conn.sendall(data)
-                except Exception:
+                except:
                     print(f"[WARN]: failed sending (both UDP and TCP fallback): {e}")
             else:
                 print(f"[WARN]: failed sending TCP: {e}")

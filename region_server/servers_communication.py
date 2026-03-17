@@ -6,6 +6,8 @@ import asyncio
 import protobuf.region_net_pb2 as region_net
 import os
 from config import REDIS_PASSWORD
+from nodes import get_global_client
+
 REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = 6379
 
@@ -34,6 +36,7 @@ BROADCAST_PREFIX = b'BRD'
 PROXY_CREATE_PREFIX = b'PRX'
 PROXY_REMOVE_PREFIX = b'PRM'
 NOTIFY_CLIENT_PREFIX = b'NFY'
+SERVER_PUBLIC_RECV = f'REGION:{os.getenv("SERVER_ID", "0")}'.encode() # sent here are packets specifically for THIS region server (not node specific)
 GLOBAL_CHANNEL = b'global'
 
 async def broadcast_on(node_idx: str, message: bytes):
@@ -44,6 +47,9 @@ async def create_proxy_on(node_idx: str, message: bytes):
 
 async def remove_proxy_on(node_idx: str, message: bytes):
     await get_redis().publish(node_idx, PROXY_REMOVE_PREFIX + message)
+
+async def notify_server(server_id: int | str, message: bytes):
+    await get_redis().publish(f'REGION:{server_id}', message)
 
 async def notify_client_with(node_idx: str, message: region_net.ServerResponse):
     message_bytes = message.SerializeToString()
@@ -62,7 +68,7 @@ def start_redis_listener() -> None:
     async def listener() -> None:
         from region_node import HORIZONAL_NODE_COUNT
         from nodes import nodes, update_global_client_state, remove_global_client
-        from region_server_extras import Client, NULL_NODE
+        from region_server_extras import Client, NULL_NODE, load_player_stats_from_redis
         ps = get_pubsub()
         while True:
             msg = await ps.get_message(ignore_subscribe_messages=True, timeout=None)
@@ -84,6 +90,18 @@ def start_redis_listener() -> None:
                     elif event.HasField("enemy"):
                         for node in nodes.values():
                             await node.receive_proxy_remove(event.enemy.player_id, "Enemy")
+                continue
+            elif channel.startswith(b"REGION:"):
+                # TODO: make this allow for more types of server notifications
+                cli_session = int(data.removeprefix(b'cli:'))
+                cli = await get_global_client(cli_session)
+                if not cli:
+                    continue
+                stats = await load_player_stats_from_redis(cli.user_id)
+                cli.state.hp = stats["health"]
+                cli.state.weapons = stats["weapons"]
+                cli.state.ammo = stats["ammo"]
+                cli.state.potions = stats["potions"]
                 continue
 
             node_pos =  (

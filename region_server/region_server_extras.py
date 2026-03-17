@@ -23,7 +23,7 @@ from constants import (
 )
 
 from nodes import nodes, register_global_client, remove_global_client, get_global_client
-from servers_communication import get_redis
+from servers_communication import get_redis, notify_server
 from region_node import RegionNode
 from proxy import broadcast_proxy_remove
 from grid_utils import AABB
@@ -290,7 +290,7 @@ class Client:
                 await conn.send(encrypted)
 
 
-    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: str,
+    def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int,
                  user_id: int, node: "RegionNode", stats: dict, client_public_key) -> None:
         self.session_id = session_id
         self.user_id = user_id
@@ -550,6 +550,24 @@ class Client:
                 await r.set(node_key, str(self.node.index))
 
             await self.node.handle_movement(self, update.location_block)
+        elif payload_type == "moved_server":
+            new_server_id = update.moved_server.new_server_id
+
+            try:
+                r = get_redis()
+                prefix = f"client:{self.user_id}:"
+                await r.set(prefix + "health", self.state.hp)
+                await r.set(prefix + "money", self.state.money)
+                # await r.set(prefix + "spawn_x", self.state.x)
+                # await r.set(prefix + "spawn_y", self.state.y)
+                await r.set(prefix + "weapons", ",".join(str(w) for w in self.state.weapons))
+                await r.set(prefix + "ammo", ",".join(str(a) for a in self.state.ammo))
+                await r.set(prefix + "potions", ",".join(str(p) for p in self.state.potions))
+                print(f"[redis-sync] Saved live stats for user {self.user_id} before server move to {new_server_id}")
+            except Exception as e:
+                print(f"[redis-sync] Failed to save stats for user {self.user_id} before server move: {e}")
+
+            await notify_server(new_server_id, f'cli:{self.session_id}'.encode())
         elif payload_type == "potion_use":
             if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
                 await self.hit(-update.potion_use.HowMuch, self.user_id)

@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple, cast, Set
 from constants import TICK_INTERVAL_SEC, THIS_SERVER_ID
 from region_node import RegionNode, HORIZONAL_NODE_COUNT
 from nodes import nodes
-from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL
+from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL, SERVER_PUBLIC_RECV
 
 
 async def create_initial_nodes() -> None:
@@ -22,7 +22,7 @@ async def create_initial_nodes() -> None:
         )
         await ps.subscribe(node_idx_raw)
         print(f"initiliazed node at pos {x, y}")
-
+    await ps.subscribe(SERVER_PUBLIC_RECV)
     await ps.subscribe(GLOBAL_CHANNEL)
 
 

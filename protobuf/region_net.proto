@@ -11,10 +11,15 @@ message RegionUpdate {
     Item item_pickup = 5;
     ShopBuy shop_buy = 6;
     ReloadAct reload_act = 7;
+    MovedServer moved_server = 8;
   }
-  optional uint64 seq_num = 8;
-  optional int32 sender_id = 9;
+  optional uint64 seq_num = 9;
+  optional int32 sender_id = 10;
 }
+
+message MovedServer {
+  int32 new_server_id = 1;
+};
 
 message ItemDrop {
   int32 inventory_index = 1;
