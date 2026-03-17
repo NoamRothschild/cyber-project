@@ -37,12 +37,12 @@ class Bullets:
 
     bullet_types = {
         "AK 47 bullets": (
-            pygame.image.load("arsenal-images/bullets/AK 47 bullets.png").convert_alpha(),
+            pygame.image.load(resource_path("arsenal-images/bullets/AK 47 bullets.png")).convert_alpha(),
             (-15, 15),  # relative offset from the player
             20,  # ttl
             25,  # speed
             40,  # damage
-            0.1 #scale
+            0.1  # scale
         ),
         "Assault rifle bullets": (
             pygame.image.load(resource_path("arsenal-images/bullets/AK 47 bullets.png")).convert_alpha(),
