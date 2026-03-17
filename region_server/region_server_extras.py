@@ -65,7 +65,7 @@ class PlayerState:
 
 TEMPLATE_USER_STATE = {
     "ammo_collection": {
-        "Ak 47": 100,
+        "AK 47 bullets": 100,
         "arrows": 100,
         "sword hit": 100,
         "Assault rifle bullets": 100,
