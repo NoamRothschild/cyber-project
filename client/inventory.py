@@ -4,7 +4,7 @@ from mapset import *
 from arsenal import *
 import time
 from zone_connection import *
-from colectibes import Colectible_sprite
+from colectibes import Colectible_sprite, Mony
 import os
 import sys
 
