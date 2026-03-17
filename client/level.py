@@ -76,12 +76,12 @@ def preload_all_bushes():
     for n in range(1, 15):
         for color in colors:
             path = f"Pixel Art Bush Pack/Bush {n}/Bush {n}_{color}.png"
-            img = pygame.image.load(resource_path(path)).convert_alpha()
-            # אם אתה עושה scale של 0.2, עדיף לעשות אותו כאן פעם אחת
-            img = pygame.transform.scale(img, (90,90))
-            img = pygame.image.load(path).convert_alpha()
-            img = pygame.transform.scale(img, (90, 90))
-            ALL_BUSH_IMAGES.append(img)
+            try:
+                img = pygame.image.load(resource_path(path)).convert_alpha()
+                img = pygame.transform.scale(img, (90, 90))
+                ALL_BUSH_IMAGES.append(img)
+            except Exception as e:
+                print(f"Error loading bush {path}: {e}")
 
 def get_bushes():
     return random.choice(ALL_BUSH_IMAGES)
@@ -95,14 +95,10 @@ class Level:
         self.colectible_sprite = pygame.sprite.Group()
         self.harmfull_sprites = pygame.sprite.Group()
 
-        self.image = [pygame.image.load('rock.png').convert(),
-                      pygame.image.load('tree.png').convert(),
-                      pygame.image.load('water.png').convert()]
-        self.chat=Chat(session_id)
         self.image = [pygame.image.load(resource_path('rock.png')).convert(),
                       pygame.image.load(resource_path('tree.png')).convert(),
                       pygame.image.load(resource_path('water.png')).convert()]
-        self.chat=Chat()
+        self.chat = Chat(session_id)
         self.entities = Entities()
         self.zone_map = fetch_zone_map()
         self.current_zone_index: int | None = None
@@ -119,10 +115,10 @@ class Level:
         self.player.auto_move.handle_event(event)   # ← AutoMove key handler
         if event.type == pygame.K_z:
             self.chat.add_external_message("ai alon")
+
     def draw_map(self):  # crating a very basic map with small borders(need to be changed
-        self.map_image = Image.open(resource_path("map.png"))
         # Ensure the map is in RGB so each pixel is an (r, g, b) tuple.
-        self.map_image = Image.open("map.png").convert("RGB")
+        self.map_image = Image.open(resource_path("map.png")).convert("RGB")
 
         pixels = self.map_image.load()
         width, height = self.map_image.size
