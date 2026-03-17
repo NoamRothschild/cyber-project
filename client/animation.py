@@ -1,4 +1,17 @@
 import pygame
+import os
+import sys
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 
 class Animation:
@@ -16,7 +29,8 @@ class Animation:
         spacing: int = 0,
         speed_ms: int = 120
     ):
-        self.sheet = pygame.image.load(sheet_path).convert()
+        # --- THE FIX IS HERE: Wrapped sheet_path with resource_path ---
+        self.sheet = pygame.image.load(resource_path(sheet_path)).convert()
         self.no_loop = {"dead"}
 
         if colorkey == "AUTO":
