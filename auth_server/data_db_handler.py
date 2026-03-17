@@ -80,6 +80,7 @@ def create_new_player(player_id):
     """Called ONLY when a player registers a new account."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO INVENTORY (Player_id) VALUES (?)", (player_id,))
         cursor.execute("""
             INSERT OR IGNORE INTO INVENTORY (
                 Player_id,

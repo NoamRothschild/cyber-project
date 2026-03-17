@@ -21,29 +21,51 @@ from mapset import (
 )
 from nodes import fetch_zone_map, pos_to_zone_index
 import random
-import os
 from chat import *
+import os
+import sys
+
 
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
 BUSH_FRIQWENTY=30
 
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
+
 map_for_d = {}
 def preload_all_trees():
-    folder_path = "Pixel Trees"
+    # 1. Wrap the folder path so it looks in the hidden .exe folder!
+    folder_path = resource_path("Pixel Trees")
+
     if not os.path.exists(folder_path):
+        print(f"Critical Error: Could not find tree folder at {folder_path}")
         return
 
+    # 2. Look inside the resolved _MEIPASS folder
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".png"):
+            # 3. Join the filename directly to the absolute folder path
             path = os.path.join(folder_path, filename)
             try:
+                # 4. Load the image using the full absolute path
                 img = pygame.image.load(path).convert_alpha()
+                # 5. Make sure SIZE is defined or imported properly in your real code!
                 img = pygame.transform.scale(img, (SIZE, SIZE))
                 ALL_TREE_IMAGES.append(img)
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error loading tree {filename}: {e}")
 
 def get_trees():
     if ALL_TREE_IMAGES:
@@ -54,6 +76,9 @@ def preload_all_bushes():
     for n in range(1, 15):
         for color in colors:
             path = f"Pixel Art Bush Pack/Bush {n}/Bush {n}_{color}.png"
+            img = pygame.image.load(resource_path(path)).convert_alpha()
+            # אם אתה עושה scale של 0.2, עדיף לעשות אותו כאן פעם אחת
+            img = pygame.transform.scale(img, (90,90))
             img = pygame.image.load(path).convert_alpha()
             img = pygame.transform.scale(img, (90, 90))
             ALL_BUSH_IMAGES.append(img)
@@ -74,6 +99,10 @@ class Level:
                       pygame.image.load('tree.png').convert(),
                       pygame.image.load('water.png').convert()]
         self.chat=Chat(session_id)
+        self.image = [pygame.image.load(resource_path('rock.png')).convert(),
+                      pygame.image.load(resource_path('tree.png')).convert(),
+                      pygame.image.load(resource_path('water.png')).convert()]
+        self.chat=Chat()
         self.entities = Entities()
         self.zone_map = fetch_zone_map()
         self.current_zone_index: int | None = None
@@ -91,6 +120,7 @@ class Level:
         if event.type == pygame.K_z:
             self.chat.add_external_message("ai alon")
     def draw_map(self):  # crating a very basic map with small borders(need to be changed
+        self.map_image = Image.open(resource_path("map.png"))
         # Ensure the map is in RGB so each pixel is an (r, g, b) tuple.
         self.map_image = Image.open("map.png").convert("RGB")
 

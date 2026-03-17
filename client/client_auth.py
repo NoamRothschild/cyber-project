@@ -22,11 +22,15 @@ def _get_client_key_pair():
         )
         _get_client_key_pair._cached = (private_key, private_key.public_key())
     return _get_client_key_pair._cached
+IP = '127.0.0.1'
+PORT = 9999
+BYTES_TO_DECODE = 1024
 
 
 def connect(username, password, command):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
+        client.connect((IP, PORT))
         client.connect((AUTH_HOST, AUTH_PORT))
 
         client_private_key, client_public_key = _get_client_key_pair()
@@ -37,15 +41,20 @@ def connect(username, password, command):
             answer.mode = auth_net.Mode.REGISTER
         elif command == "LOG":
             answer.mode = auth_net.Mode.LOGIN
+
         answer.username = username
         answer.password = password
         answer.client_public_key = auth_crypto.public_key_to_bytes(client_public_key)
 
+        client.sendall(answer.SerializeToString())
+        raw_response = client.recv(BYTES_TO_DECODE)
         plaintext = answer.SerializeToString()
         client.sendall(auth_crypto.encrypt_and_prefix(plaintext, server_public_key))
 
         decrypted = auth_crypto.receive_and_decrypt(client.recv, client_private_key)
         response = auth_net.SendAnswer()
+        response.ParseFromString(raw_response)
+
         response.ParseFromString(decrypted)
         return response
 
@@ -54,6 +63,7 @@ def connect(username, password, command):
     except socket.timeout:
         return "TIMEOUT"
     except socket.error as e:
+        # Catches other network errors like BrokenPipe
         return f"NET_ERROR: {e}"
     except FileNotFoundError as err:
         return f"CONFIG_ERROR: {err}"

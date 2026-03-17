@@ -12,6 +12,8 @@ from bullets import *
 from shop import ShopUI
 from potion import Potion
 from animation import Animation
+import os
+import sys
 from AutoPlay import AutoMove as AutoMoveController
 import random
 
@@ -20,6 +22,17 @@ HEALTH_BAR_SCALE = 400
 HEALTH_BAR_POS = [WIDTH - HEALTH_BAR_SCALE - 10, 10]
 Starting_POS = (370 * SIZE, 163 * SIZE)
 
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class Player(pygame.sprite.Sprite):
     player_skins_and_animatiom = \
@@ -65,6 +78,50 @@ class Player(pygame.sprite.Sprite):
                 speed_ms=180
             )
         }
+
+
+    player_skins_and_animatiom = {
+        "blue golden knight": Animation(
+            resource_path("Player_Skins/blue golden knight.png"),
+            frame_w=32, frame_h=32,
+            rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180
+        ),
+        "fiona": Animation(
+            resource_path("Player_Skins/fiona.png"),
+            frame_w=32, frame_h=32,
+            rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180
+        ),
+        "golden knight": Animation(
+            resource_path("Player_Skins/golden knight.png"),
+            frame_w=32, frame_h=32,
+            rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180
+        ),
+        "red knight": Animation(
+            resource_path("Player_Skins/red knight.png"),
+            frame_w=32, frame_h=32,
+            rows={"idle": 0, "run": 3, "injured": 9, "dead": 10},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180
+        ),
+        "king": Animation(
+            resource_path("Player_Skins/king.png"),
+            frame_w=32, frame_h=32,
+            rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180
+        )
+    }
 
     def __init__(self, groups, other_groups):
         super().__init__(groups)  # the groups for now is only visable sprite
@@ -244,7 +301,7 @@ class Player(pygame.sprite.Sprite):
                                     angle_for_server,
                                     len(weapon.spawn_points),
                                 )
-                                
+
                                 self.magazine[weapon.gun_type] -= 1
                 except:
                     print("error")

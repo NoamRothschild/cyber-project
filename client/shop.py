@@ -5,6 +5,9 @@ import pygame
 from arsenal import Arsenal
 from bullets import Bullets
 from zone_connection import ZoneConnectionSingleton
+import potion
+from arsenal import Arsenal
+from bullets import Bullets
 from potion import Potion
 
 class ShopUI:
