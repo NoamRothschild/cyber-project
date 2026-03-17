@@ -310,9 +310,7 @@ class RangedEnemy:
 
         if self.state == "PATROL":
             if now_ms >= self.next_patrol_switch_ms:
-                self.patrol_index = (self.patrol_index + 1) % 4
                 self.next_patrol_switch_ms = now_ms + self.patrol_switch_ms
-            self.set_patrol_dir()
             return None
 
         if self.state == "CHASE":

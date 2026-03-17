@@ -1,6 +1,5 @@
 import pygame
 import time
-from health import HealthBar
 from mapset import *
 from functools import cache
 from random import randint
@@ -41,6 +40,7 @@ class Potion(pygame.sprite.Sprite):
             }
 
     def __init__(self, potion_type, item_id=None):
+        from health import HealthBar
         super().__init__()
         # Ensure the assets are loaded before we try to use them!
         Potion.load_assets()
