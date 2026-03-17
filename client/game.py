@@ -127,7 +127,11 @@ if __name__ == "__main__":
         game.run()
     except Exception as e:
         print(f"[FATAL]: {e}")
-        game.zone().stop()
+        if 'game' in locals():
+            try:
+                game.zone().stop()
+            except:
+                pass
         pygame.quit()
         print(f"[TRACEBACK]: {traceback.format_exc()}")
         sys.exit(1)
