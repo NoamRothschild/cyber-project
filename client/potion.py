@@ -83,7 +83,7 @@ class Potion(pygame.sprite.Sprite):
     def purpose(self, player):
         """doing the potion purpose"""
         if self.what == "health_bar":
-            player.health.add_life(self.how_much)
+            player.health.add_life(self.how_much, is_send=True)
 
             Green_hit.start()
             if self.is_potion_is == False:
