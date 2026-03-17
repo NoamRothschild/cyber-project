@@ -89,10 +89,12 @@ class Game:
             print(f"Game Loop Error: {e}")
         finally:
             print("Closing Game...")
-            ZoneConnectionSingleton.stop_sender()
-            self.zone().stop()
+            ZoneConnectionSingleton.stop_all()
             pygame.quit()
-            sys.exit()
+            import os, time
+            time.sleep(1)
+            os._exit(0)
+
 
 if __name__ == "__main__":
     login_screen = EnterScreen()

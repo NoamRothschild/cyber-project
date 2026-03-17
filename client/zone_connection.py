@@ -345,6 +345,27 @@ class ZoneConnectionSingleton:
             ZoneConnectionSingleton._sender_thread = None
 
     @staticmethod
+    def stop_all():
+        inst = ZoneConnectionSingleton._instance
+        if inst is not None and inst.zone_connections:
+            for z in inst.zone_connections.values():
+                # 1) send a 1-byte garbage marker (unencrypted)
+                try:
+                    z.reliable_conn.sendall(b"\x69")
+                except OSError:
+                    pass
+
+                # 2) immediately close the TCP socket
+                try:
+                    z.reliable_conn.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+                try:
+                    z.reliable_conn.close()
+                except OSError:
+                    pass
+
+    @staticmethod
     def move_zone(new_host: str):
         if new_host not in ZoneConnectionSingleton._config_hosts:
             raise RuntimeError(f"Invalid host: {new_host}")

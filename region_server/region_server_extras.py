@@ -195,7 +195,7 @@ class Client:
             if node is None:
                 node = NULL_NODE
 
-            self = Client(reader, writer, session_id, user_id, node, player_stats, client_public_key)
+            self = Client(reader, writer, session_id, user_id, node, player_stats, node != NULL_NODE, client_public_key)
             client_created = True
             await register_global_client(session_id, self)
             if node != NULL_NODE:
@@ -239,6 +239,8 @@ class Client:
                 except Exception as e:
                     print(f"Error unregistering client {user_id} from node: {e}")
                 try:
+                    if not self.on_this_server:
+                        return
                     payload = json.dumps({
                         "user_id": self.user_id,
                         "health": self.state.hp,
@@ -291,7 +293,7 @@ class Client:
 
 
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int,
-                 user_id: int, node: "RegionNode", stats: dict, client_public_key) -> None:
+                 user_id: int, node: "RegionNode", stats: dict, on_this_server: bool, client_public_key) -> None:
         self.session_id = session_id
         self.user_id = user_id
         self.node = node
@@ -314,6 +316,7 @@ class Client:
         self.state.potions = stats["potions"]
         self.user_state = TEMPLATE_USER_STATE.copy() # TODO: copy from redis
         self.old_view = [] # List[GridField]
+        self.on_this_server = on_this_server
 
     async def hit(self, count, hitter_id: int):
         self.state.hp -= count
@@ -535,11 +538,13 @@ class Client:
                 if self.node != NULL_NODE:
                     await self.node.unregister_client(self)
                     self.node = NULL_NODE
+                self.on_this_server = False
                 return
 
             if self.node != node:
                 if self.node != NULL_NODE:
                     await self.node.unregister_client(self)
+                self.on_this_server = True
 
                 self.node = node
                 await self.node.register_client(
@@ -552,6 +557,9 @@ class Client:
             await self.node.handle_movement(self, update.location_block)
         elif payload_type == "moved_server":
             new_server_id = update.moved_server.new_server_id
+            self.on_this_server = THIS_SERVER_ID == new_server_id
+            if self.on_this_server:
+                return
 
             try:
                 r = get_redis()
