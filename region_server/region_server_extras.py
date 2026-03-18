@@ -30,7 +30,9 @@ from grid_utils import AABB
 
 REDIS_PORT = 6379
 _REGION_SERVER_DIR = Path(__file__).resolve().parent
-
+HEALING=15
+HEALING_TIMES=10
+IN_HOW_MUCH_TIME_HEAL=10
 
 def _get_server_private_key():
     server_id = THIS_SERVER_ID
@@ -317,6 +319,8 @@ class Client:
         self.user_state = TEMPLATE_USER_STATE.copy() # TODO: copy from redis
         self.old_view = [] # List[GridField]
         self.on_this_server = on_this_server
+        self.hp_potion_activ=False
+        self.health_count=0
 
     async def hit(self, count, hitter_id: int):
         self.state.hp -= count
@@ -413,6 +417,14 @@ class Client:
         resp.other_data.HP = new_hp
         resp.other_data.player_id = other_user_id
         await self.write_udp(resp)
+    async def tick(self, cycle: int) -> None:
+        if self.hp_potion_activ==True:
+            if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
+                self.health_count+=1
+                await self.hit(-HEALING, self.user_id)
+                if self.health_count>=HEALING_TIMES:
+                    self.hp_potion_activ=False
+                    self.health_count=0
 
     async def entity_despawned(self, entity_user_id: int) -> None:
         """Notify this player that an entity (enemy) left their viewport."""
@@ -578,7 +590,7 @@ class Client:
             await notify_server(new_server_id, f'cli:{self.session_id}'.encode())
         elif payload_type == "potion_use":
             if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
-                await self.hit(-update.potion_use.HowMuch, self.user_id)
+                self.hp_potion_activ=True
         elif payload_type == "item_pickup":
             # Client requests to DROP an item from their inventory into the world.
             # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)
@@ -600,6 +612,7 @@ class Client:
                     "healing": 1,
                     "speed": 2,
                     "super_speed": 3,
+                    "gold": 4,
                 }
                 potion_id = potion_id_map.get(name)
                 if potion_id is None:

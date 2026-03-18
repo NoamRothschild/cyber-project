@@ -258,7 +258,7 @@ class ZoneConnection:
         )
         self.send_tcp(update.SerializeToString())
 
-    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+    def try_send_potion_use(self, potion_kind: str, how_much: int=0 ) -> None:
         print("hi avram")
         update = region_net.RegionUpdate()
         update.potion_use.CopyFrom(

@@ -576,6 +576,7 @@ class RegionNode:
                         "healing": 1,
                         "speed": 2,
                         "super_speed": 3,
+                        "gold":3,
                     }
                     potion_id = potion_id_map.get(item.name)
                     if potion_id is None:

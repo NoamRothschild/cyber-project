@@ -3,7 +3,7 @@ import time
 from mapset import *
 from functools import cache
 from random import randint
-
+from zone_connection import ZoneConnectionSingleton
 
 class Potion(pygame.sprite.Sprite):
     # Start with None. We will load the images safely AFTER the window is created.
@@ -83,10 +83,9 @@ class Potion(pygame.sprite.Sprite):
     def purpose(self, player):
         """doing the potion purpose"""
         if self.what == "health_bar":
-            player.health.add_life(self.how_much, is_send=True)
-
             Green_hit.start()
             if self.is_potion_is == False:
+                ZoneConnectionSingleton().zone.try_send_potion_use("health")
                 self.is_potion_is = True
                 self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
