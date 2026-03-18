@@ -17,7 +17,7 @@ class Potion(pygame.sprite.Sprite):
                 "healing": (
                     pygame.image.load("Potion/super_health.png").convert_alpha(),
                     "health_bar",
-                    15,
+                    6,
                     15,
                 ),
                 "speed": (
@@ -85,12 +85,13 @@ class Potion(pygame.sprite.Sprite):
         if self.what == "health_bar":
             Green_hit.start()
             if self.is_potion_is == False:
-                ZoneConnectionSingleton().zone.try_send_potion_use("health")
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"healing")
                 self.is_potion_is = True
                 self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
         elif self.what == "gold":
             if self.is_potion_is == False:
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"gold")
                 self.is_potion_is = True
                 self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
@@ -104,6 +105,10 @@ class Potion(pygame.sprite.Sprite):
             print("aaa bbb kdkds")
             print(player.inventory.money - self.lg * self.how_much)
         elif self.what == "speed":
+            if self.potion_type == "speed":
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"speed")
+            if self.potion_type == "super_speed":
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"super_speed")
             player.speed += self.how_much
             self.old_speed = player.speed
             self.is_potion_is = True

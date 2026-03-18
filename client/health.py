@@ -1,6 +1,5 @@
 import pygame
 
-from zone_connection import ZoneConnectionSingleton
 from mapset import *
 
 class HealthBar(pygame.sprite.Sprite):

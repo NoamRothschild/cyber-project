@@ -153,9 +153,18 @@ class ShopUI:
 
         game = zone.game
         game.last_shop_result = None
+        if kind == "weapon":
+            w=Arsenal(name)
+            id=w.id
+        elif kind == "ammo":
+           id=0
 
+        elif kind == "potion":
+            p=Potion(name)
+            id=p.id
+        zone.try_to_buy(kind, name, id, 1)
         # can I buy pleas :c (Me asking the server)
-        zone.try_to_buy(kind, name, 1)
+
         # The server replay on game var named: game.last_shop_ans
 
         # waiting to server replay
@@ -175,7 +184,7 @@ class ShopUI:
             player.inventory.money -= price
 
             if kind == "weapon":
-                player.inventory.add_item_toThe_Inventory(Arsenal(name), "weapon")
+                player.inventory.add_item_toThe_Inventory(w, "weapon")
 
             elif kind == "ammo":
                 if name not in player.ammo_collection:
@@ -188,7 +197,7 @@ class ShopUI:
                 player.ammo_collection[name] += amount
 
             elif kind == "potion":
-                player.inventory.add_item_toThe_Inventory(Potion(name), "potion")
+                player.inventory.add_item_toThe_Inventory(p, "potion")
 
         else:
             print("buy failed")

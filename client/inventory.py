@@ -19,7 +19,8 @@ WEAPON_MAP = {
 POTION_MAP = {
     1: "healing",
     2: "speed",
-    3: "super_speed"
+    3: "super_speed",
+    4: "gold"
 }
 
 

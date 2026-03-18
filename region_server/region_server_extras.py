@@ -589,8 +589,27 @@ class Client:
 
             await notify_server(new_server_id, f'cli:{self.session_id}'.encode())
         elif payload_type == "potion_use":
-            if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
+            dropped = False
+            type=update.potion_use.potion_type
+            potion_id_map = {
+                    "healing": 1,
+                    "speed": 2,
+                    "super_speed": 3,
+                    "gold": 4,
+                }
+            potion_id = potion_id_map.get(str(type))
+            if potion_id is None:
+                print(f"[WARN] item_drop: unknown potion  from player {self.user_id}")
+            else:
+                for i, slot in enumerate(self.state.potions):
+                    if slot == potion_id:
+                        self.state.potions[i] = 0
+                        dropped = True
+                        break
+
+            if str(type) == "healing" and dropped:
                 self.hp_potion_activ=True
+                print ("got tothe right point")
         elif payload_type == "item_pickup":
             # Client requests to DROP an item from their inventory into the world.
             # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)
@@ -668,6 +687,29 @@ class Client:
             resp.sender_id = self.user_id
 
             kind, name = update.shop_buy.item_type, update.shop_buy.item_name
+
+            if(id==None):
+                print("alon you facked up")
+            elif kind == "potion":
+                potion_id_map = {
+                    "healing": 1,
+                    "speed": 2,
+                    "super_speed": 3,
+                    "gold": 4,
+                }
+                potion_id = potion_id_map.get(name)
+                for i, slot in enumerate(self.state.potions):
+                    if slot == 0:
+                        self.state.potions[i] = potion_id
+
+                        break
+            elif kind=="weapon":
+                weapon_id = SERVER_WEAPON_MAP.get(name)
+                for i, slot in enumerate(self.state.weapons):
+                    if slot == 0:
+                        self.state.weapons[i] = weapon_id
+                        self.state.ammo[i] = 0
+                        break
             amount = update.shop_buy.amount
             price = Client.priceOfTheSHOPING(kind, name)
 
