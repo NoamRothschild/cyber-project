@@ -31,8 +31,10 @@ from grid_utils import AABB
 REDIS_PORT = 6379
 _REGION_SERVER_DIR = Path(__file__).resolve().parent
 HEALING=15
-HEALING_TIMES=10
-IN_HOW_MUCH_TIME_HEAL=10
+HEALING_TIMES=15
+GOLD_TIME=10
+IN_HOW_MUCH_TIME_HEAL=30
+
 
 def _get_server_private_key():
     server_id = THIS_SERVER_ID
@@ -60,7 +62,7 @@ class PlayerState:
     cell_x: int
     cell_y: int
     hp: int = 400
-    money: int = 0
+    money: int = 200
     weapons: list[int] = field(default_factory=lambda: [0] * 10)
     ammo: list[int] = field(default_factory=lambda: [30] * 10)
     potions: list[int] = field(default_factory=lambda: [0] * 10)
@@ -80,7 +82,7 @@ TEMPLATE_USER_STATE = {
         "Pistol": 5,
         "sword": 1000
     },
-    "cash": 300
+    "cash": 200
 }
 
 
@@ -212,6 +214,7 @@ class Client:
                 pos_x=player_stats["spawn_x"],
                 pos_y=player_stats["spawn_y"]
             )
+            self.state.money = player_stats["money"]
             response.weapons.extend(player_stats["weapons"])
             response.potions.extend(player_stats["potions"])
             response.ammo.extend(player_stats["ammo"])
@@ -321,6 +324,10 @@ class Client:
         self.on_this_server = on_this_server
         self.hp_potion_activ=False
         self.health_count=0
+        self.gold_count = 0
+        self.gold_active = False
+
+
 
     async def hit(self, count, hitter_id: int):
         self.state.hp -= count
@@ -425,6 +432,12 @@ class Client:
                 if self.health_count>=HEALING_TIMES:
                     self.hp_potion_activ=False
                     self.health_count=0
+        if self.gold_active == True:
+            if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
+                self.gold_count+=1
+                if self.gold_count>=GOLD_TIME:
+                    self.gold_count= 0
+                    self.gold_active=False
 
     async def entity_despawned(self, entity_user_id: int) -> None:
         """Notify this player that an entity (enemy) left their viewport."""
@@ -609,7 +622,8 @@ class Client:
 
             if str(type) == "healing" and dropped:
                 self.hp_potion_activ=True
-                print ("got tothe right point")
+            elif str(type) == "gold" and dropped:
+                self.gold_active=True
         elif payload_type == "item_pickup":
             # Client requests to DROP an item from their inventory into the world.
             # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)
@@ -714,14 +728,14 @@ class Client:
             price = Client.priceOfTheSHOPING(kind, name)
 
             total = price * amount
-
-            if self.user_state["cash"] >= total:
-                self.user_state["cash"] -= total
+            print(self.user_state["cash"])
+            if self.state.money >= total:
+                self.state.money -= total
                 resp.other_data.shop_ans = True
-                print(f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.user_state['cash']}")
+                print(f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.state.money}")
             else:
                 resp.other_data.shop_ans = False
-                print(f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.user_state['cash']}")
+                print(f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.state.money}")
             await self.write(resp.SerializeToString())
         elif payload_type == "reload_act":
             try:

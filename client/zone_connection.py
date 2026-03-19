@@ -138,7 +138,8 @@ class ZoneConnection:
                     player.inventory.add_item_toThe_Inventory(potion_obj, "potion")
                 else:
                     print(f"[WARNING] Server sent unknown potion ID: {potion_id}")
-
+        player.inventory.money=login_resp.money
+        print(login_resp.money)
         print(
             f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}"
         )

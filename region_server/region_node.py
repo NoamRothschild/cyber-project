@@ -567,7 +567,10 @@ class RegionNode:
                 picked_up = False
 
                 if item.kind == "money":
-                    client.state.money += 50
+                    if client.gold_active:
+                        client.state.money += 100
+                    else:
+                        client.state.money += 50
                     picked_up = True
                     print(f"[MONEY] player {client.user_id} picked up 50; now has {client.state.money}")
                 elif item.kind == "potion":
