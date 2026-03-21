@@ -1,6 +1,7 @@
 from functools import cache
 import sqlite3
 import os
+from random import randint
 
 # This finds the folder where THIS script (data_db_handler.py) lives
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -76,8 +77,15 @@ STARTING_WEAPONS = [1, 2, 3, 4, 5, 0, 0, 0, 0, 0]
 STARTING_AMMO    = [15, 3, 1000, 30, 10, 0, 0, 0, 0, 0]
 STARTING_POTIONS = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+def create_random_spawn_location() -> tuple[int, int]:
+    x = randint(7 * 4600, 10 * 4600)
+    y = randint(8 * 2200, 12 * 2200)
+    return x, y
+
+
 def create_new_player(player_id):
     """Called ONLY when a player registers a new account."""
+    spawn_x, spawn_y = create_random_spawn_location()
     with get_db_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -88,11 +96,13 @@ def create_new_player(player_id):
                 ammo1, ammo2, ammo3, ammo4, ammo5,
                 ammo6, ammo7, ammo8, ammo9, ammo10,
                 potion1, potion2, potion3, potion4, potion5,
-                potion6, potion7, potion8, potion9, potion10
+                potion6, potion7, potion8, potion9, potion10,
+                spawn_x, spawn_y
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                          ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (player_id, *STARTING_WEAPONS, *STARTING_AMMO, *STARTING_POTIONS))
+                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                         ?, ?)
+        """, (player_id, *STARTING_WEAPONS, *STARTING_AMMO, *STARTING_POTIONS, spawn_x, spawn_y))
         conn.commit()
 
 def load_player(player_id):
