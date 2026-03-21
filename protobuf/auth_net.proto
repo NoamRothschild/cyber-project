@@ -24,6 +24,8 @@ enum Status {
  SUCCESS = 0;
  FAILURE = 1;
  TAKEN = 2;
+ LOCKED = 3;
+ ALREADY_LOGGED_IN = 4;
 }
 
 
