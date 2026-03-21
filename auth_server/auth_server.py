@@ -10,6 +10,7 @@ import protobuf.auth_net_pb2 as auth_net
 import redis
 import auth_crypto
 import data_db_handler as db
+import rate_limiter
 
 DB_NAME = 'Auth.db'
 PORT = 9999
@@ -229,6 +230,11 @@ def run_server():
      create_table()
      while True:
          (client_socket, client_address) = server_socket.accept()
+         if not rate_limiter.should_continue(client_address):
+             client_socket.close()
+             print("[INFO] ignoring possible DOS attempt from a user")
+             continue
+
          try:
              try:
                  plaintext = auth_crypto.receive_and_decrypt(client_socket.recv, server_private_key)

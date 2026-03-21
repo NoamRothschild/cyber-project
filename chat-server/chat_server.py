@@ -6,6 +6,7 @@ from typing import Set
 import protobuf.chat_net_pb2 as chat_net
 from redis.asyncio import Redis
 import auth_crypto
+import rate_limiter
 import os
 from config import REDIS_PASSWORD
 REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
@@ -51,6 +52,11 @@ async def close_writer(writer: asyncio.StreamWriter):
 class Client:
     @staticmethod
     async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        if not rate_limiter.should_continue(writer):
+            await close_writer(writer)
+            print("[INFO] ignoring possible DOS attempt from a user")
+            return
+
         print("new connection established")
         server_private_key = _get_server_private_key()
 

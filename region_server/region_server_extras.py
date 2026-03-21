@@ -27,6 +27,7 @@ from servers_communication import get_redis, notify_server
 from region_node import RegionNode
 from proxy import broadcast_proxy_remove
 from grid_utils import AABB
+import rate_limiter
 
 REDIS_PORT = 6379
 _REGION_SERVER_DIR = Path(__file__).resolve().parent
@@ -140,6 +141,11 @@ class Client:
     async def client_handler_setup(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
+        if not rate_limiter.should_continue(writer):
+            writer.close()
+            print("[INFO] ignoring possible DOS attempt from a user")
+            await writer.wait_closed()
+            return
         print("new connection established")
 
         sock = writer.get_extra_info("socket")
