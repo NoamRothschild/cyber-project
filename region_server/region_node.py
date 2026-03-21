@@ -432,6 +432,7 @@ class RegionNode:
     async def add_potion_user(self,client: Client):
         if not client.user_id in self.potion_clients:
             self.potion_clients[client.user_id] = client
+
     async def sub_potion_user(self,client: Client):
         if client.user_id in self.potion_clients:
             self.potion_clients.pop(client.user_id,None)
@@ -472,6 +473,7 @@ class RegionNode:
 
     async def unregister_client(self, client: Client):
         """Full disconnect: remove from node and purge proxies on all servers."""
+        await self.sub_potion_user(client)
         client._proxied_directions = set()
         self.detach_client(client)
         await broadcast_disconnect(client.user_id, client.session_id)

@@ -583,16 +583,17 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
-            if(not await self.is_movment(update.location_block.x, update.location_block.y)):
+            if not await self.is_movment(update.location_block.x, update.location_block.y):
                 hi = region_net.ServerResponse()
                 hi.move_self.CopyFrom(
                     region_net.LocationBlock(
                         x=self.state.x,y=self.state.y
                         )
                     )
-                print (f"failed tomove to {update.location_block.x, update.location_block.y} stayed in {self.state.x,self.state.y}")
+                print (f"failed to move to {update.location_block.x, update.location_block.y} stayed in {self.state.x,self.state.y}")
                 await self.write(hi.SerializeToString())
                 return
+
             node_pos = RegionNode.which_node(
                 update.location_block.x, update.location_block.y
             )
@@ -613,6 +614,8 @@ class Client:
                 await self.node.register_client(
                     self, (update.location_block.x, update.location_block.y)
                 )
+                if any([self.charecter_speed > 4, self.hp_potion_activ, self.gold_active]):
+                    await self.node.add_potion_user(self)
                 r = get_redis()
                 node_key = f"client:{self.user_id}:node"
                 await r.set(node_key, str(self.node.index))
