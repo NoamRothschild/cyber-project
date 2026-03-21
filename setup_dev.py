@@ -177,18 +177,55 @@ def load_config_from_jsonc(root: Path) -> Mapping[str, Any]:
 
 def write_config_py(target_dir: Path, config: Mapping[str, Any]) -> None:
     """
-    Create or overwrite `config.py` inside `target_dir` with simple
-    KEY = VALUE assignments derived from the provided mapping.
+    Creates a dynamic config.py that reads from config.json at runtime,
+    and copies the JSON file so the script can find it.
     """
     config_py_path = target_dir / CONFIG_PY_NAME
-    lines: list[str] = []
-    for key, value in config.items():
-        # Use repr for a valid Python literal (quotes for strings, bare for numbers, etc.).
-        lines.append(f"{key} = {repr(value)}")
+    json_target_path = target_dir / "config.json"
 
-    content = "\n".join(lines) + "\n"
-    config_py_path.write_text(content, encoding="utf-8")
-    success("[WRITE]", f"{_rel(config_py_path)}")
+    # 1. מעתיק את הנתונים לקובץ config.json נקי בתוך התיקייה
+    with open(json_target_path, 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=4)
+
+    # 2. כותב את הקוד הדינמי לתוך config.py
+    dynamic_code = """import json
+import os
+import sys
+
+def get_base_dir():
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)
+    else:
+        return os.path.dirname(os.path.abspath(__file__))
+
+CONFIG_FILE_PATH = os.path.join(get_base_dir(), 'config.json')
+
+try:
+    with open(CONFIG_FILE_PATH, 'r', encoding='utf-8') as f:
+        config_data = json.load(f)
+except FileNotFoundError:
+    print(f"[FATAL ERROR] Could not find config.json at {CONFIG_FILE_PATH}")
+    print("Please make sure 'config.json' is in the same folder as the game.exe")
+    sys.exit(1)
+except json.JSONDecodeError:
+    print("[FATAL ERROR] 'config.json' is corrupted or formatted incorrectly!")
+    sys.exit(1)
+
+ZONE_HOSTS = config_data.get("ZONE_HOSTS", ["127.0.0.1"])
+REDIS_HOST = config_data.get("REDIS_HOST", "127.0.0.1")
+REDIS_PASSWORD = config_data.get("REDIS_PASSWORD", "")
+ZONE_TCP_PORT = config_data.get("ZONE_TCP_PORT", 8085)
+ZONE_UDP_PORT = config_data.get("ZONE_UDP_PORT", 8086)
+AUTH_HOST = config_data.get("AUTH_HOST", "127.0.0.1")
+AUTH_PORT = config_data.get("AUTH_PORT", 9999)
+CHAT_HOST = config_data.get("CHAT_HOST", "127.0.0.1")
+CHAT_PORT = config_data.get("CHAT_PORT", 8888)
+ZONE_HOST_MAP = config_data.get("ZONE_HOST_MAP", {"0": "127.0.0.1"})
+"""
+
+    config_py_path.write_text(dynamic_code, encoding="utf-8")
+    success("[WRITE]", f"{_rel(config_py_path)} (Dynamic Version)")
+    success("[WRITE]", f"{_rel(json_target_path)}")
 
 
 def copy_auth_crypto(root: Path, target_dir: Path) -> None:
