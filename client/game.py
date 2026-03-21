@@ -75,13 +75,11 @@ class Game:
                 hb = self.level.player.hitbox
                 self.zone().try_send_update_pos((hb.x, hb.y))
 
-                # Show current region node near the FPS bar (0-based indices)
-                node_x = int(hb.x // NODE_WIDTH)
-                node_y = int(hb.y // NODE_HEIGHT)
-                node_text = f"({node_x}, {node_y})"
-                node_surface = self.font.render(node_text, True, "White")
-                node_pos = (fps_screen_pos[0], fps_screen_pos[1] + fps_surface.get_height() + 5)
-                self.screen.blit(node_surface, node_pos)
+                # World position under FPS
+                y_hud = fps_screen_pos[1] + fps_surface.get_height() + 5
+                pos_text = f"Pos: ({int(hb.x // 200)}, {int(hb.y // 200)})"
+                pos_surface = self.font.render(pos_text, True, "White")
+                self.screen.blit(pos_surface, (fps_screen_pos[0], y_hud))
 
                 pygame.display.update()
                 self.clock.tick(FPS)

@@ -1,7 +1,7 @@
 from functools import cache
 import sqlite3
 import os
-from random import randint
+from random import choice, randint
 
 # This finds the folder where THIS script (data_db_handler.py) lives
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -77,10 +77,17 @@ STARTING_WEAPONS = [1, 2, 3, 4, 5, 0, 0, 0, 0, 0]
 STARTING_AMMO    = [15, 3, 1000, 30, 10, 0, 0, 0, 0, 0]
 STARTING_POTIONS = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+_SPAWN_BASES: list[tuple[int, int]] = [
+    (36789, 25030),
+    (35465, 24326),
+    (34585, 24492),
+    (33751, 24686),
+]
+
+
 def create_random_spawn_location() -> tuple[int, int]:
-    x = randint(7 * 4600, 10 * 4600)
-    y = randint(8 * 2200, 12 * 2200)
-    return x, y
+    bx, by = choice(_SPAWN_BASES)
+    return bx + randint(-100, 100), by + randint(-100, 100)
 
 
 def create_new_player(player_id):

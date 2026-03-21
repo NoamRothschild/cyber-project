@@ -8,5 +8,6 @@
   "AUTH_HOST": "127.0.0.1",
   "AUTH_PORT": 9999,
   "CHAT_HOST": "127.0.0.1",
-  "CHAT_PORT": 8888
+  "CHAT_PORT": 8888,
+  "SERVER_LAYOUT": "single-server"
 }
