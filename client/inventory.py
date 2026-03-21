@@ -3,8 +3,19 @@ from mapset import WIDTH, HEIGHT
 from mapset import *
 from arsenal import *
 import time
-from colectibes import Colectible_sprite, Mony
 from zone_connection import *
+from colectibes import Colectible_sprite, Mony
+import os
+import sys
+
+# ==========================================
+# --- THE TRANSLATOR---
+# This dictionary will map the database numbers to Pygame strings.
+# ==========================================
+# Our SQLite database only stores integers (1, 2, 3) to save space.
+# But Pygame needs the exact string name ("Ak 47") to load the image and stats.
+# When the server sends the Handshake packet with our saved loadout,
+# the client uses these maps to translate the DB numbers back into actual items.
 
 # maps database magic numbers to weapon names
 WEAPON_MAP = {
@@ -23,12 +34,21 @@ POTION_MAP = {
     4: "gold"
 }
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class Inventory(pygame.sprite.Sprite):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load('inventory.png').convert()
+        self.image = pygame.image.load(resource_path('inventory.png')).convert()
         self.image.set_colorkey(PINK)  # image background
         self.rect = self.image.get_rect()
         self.rect.y = HEIGHT - (self.rect.height)

@@ -114,16 +114,14 @@ class EnterScreen:
                     self.status_message = f"Error: {response}"
                     self.status_color = ERROR_RED
 
-                # 3. If not string, it's a Protobuf object
+                    # 3. If not string, it's a Protobuf object
                 else:
                     if response.status == auth_net.Status.SUCCESS:
                         if command == "LOG":
                             print(f"Login Success! Session: {response.session_id}")
                             self.is_running = False
                             pygame.display.quit()  # Close the login window
-                            return (
-                                response.session_id
-                            )  # <--- RETURN THE SESSION ID (int)
+                            return response.session_id
                         else:
                             # Registration Success: Stay on screen
                             self.status_message = "Registered! Please Login."
@@ -132,9 +130,21 @@ class EnterScreen:
                     elif response.status == auth_net.Status.FAILURE:
                         self.status_message = "Invalid Credentials."
                         self.status_color = ERROR_RED
+
                     elif response.status == auth_net.Status.TAKEN:
                         self.status_message = "Username Taken."
                         self.status_color = ERROR_RED
+
+                    # --- NEW: Catch the Cyber Defenses ---
+                    elif response.status == auth_net.Status.ALREADY_LOGGED_IN:
+                        self.status_message = "Account already in use!"
+                        self.status_color = ERROR_RED
+
+                    elif response.status == auth_net.Status.LOCKED:
+                        self.status_message = "Account locked. Try again later."
+                        self.status_color = ERROR_RED
+                    # -------------------------------------
+
                     else:
                         self.status_message = "Unknown Server Response."
                         self.status_color = ERROR_RED

@@ -1,5 +1,4 @@
 {
-  // after changing run setup_dev.py to update
   "ZONE_HOSTS": ["127.0.0.1"],
   "REDIS_HOST": "127.0.0.1",
   "REDIS_PASSWORD": "36f52b82c90c161f0",
@@ -9,5 +8,8 @@
   "AUTH_PORT": 9999,
   "CHAT_HOST": "127.0.0.1",
   "CHAT_PORT": 8888,
-  "SERVER_LAYOUT": "single-server"
+  "SERVER_LAYOUT": "single-server",
+  "ZONE_HOST_MAP": {
+    "0": "127.0.0.1"
+  }
 }

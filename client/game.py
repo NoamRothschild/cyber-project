@@ -14,6 +14,20 @@ import traceback
 from typing import List, cast
 from enter_screen import EnterScreen
 
+import os
+import sys
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
+
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
@@ -25,6 +39,10 @@ class Game:
         pygame.init()
         self.last_shop_ans = None
         self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
+
+        self.image = pygame.image.load(resource_path("grass.png"))  # Placeholder background
+        self.image = pygame.transform.scale(self.image, (WIDTH, HEIGHT))
+
         pygame.display.set_caption('Game')
         self.clock = pygame.time.Clock()
         self.font = pygame.font.SysFont(FONT, 30, bold=True)
@@ -43,7 +61,7 @@ class Game:
                 continue # we already connected there a second ago
             print(f'trying {zone.host}')
             zone.open_connections(self.session_id)
-        
+
         ZoneConnectionSingleton.start_sender()
         self.zone().start_event_handler()
         self.is_running = True
@@ -112,7 +130,11 @@ if __name__ == "__main__":
         game.run()
     except Exception as e:
         print(f"[FATAL]: {e}")
-        game.zone().stop()
+        if 'game' in locals():
+            try:
+                game.zone().stop()
+            except:
+                pass
         pygame.quit()
         print(f"[TRACEBACK]: {traceback.format_exc()}")
         sys.exit(1)

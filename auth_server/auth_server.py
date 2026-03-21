@@ -22,6 +22,10 @@ _AUTH_SERVER_DIR = Path(__file__).resolve().parent
 REDIS_PORT = 6379
 CACHE_TIME = 86400 # in seconds
 
+# --- קבועים חדשים למניעת פריצה ---
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_TIME = 600  # 10 דקות בשניות
+
 def _redis_host():
     import os
     from config import REDIS_PASSWORD as _p
@@ -182,16 +186,43 @@ def handle_register(username, password):
 
 
 def handle_login(username, password):
-    try :
+
+    # מפתח ייחודי ב-Redis עבור ניסיונות ההתחברות של המשתמש
+    attempts_key = f"login_attempts:{username}"
+
+    # 1. בדיקה אם המשתמש חסום כרגע
+    current_attempts = r.get(attempts_key)
+    if current_attempts and int(current_attempts) >= MAX_LOGIN_ATTEMPTS:
+        print(f"[SECURITY] User {username} is currently locked out.")
+        return "LOGIN_LOCKED"
+
+    try:
         with get_db_connection() as connection:
             cursor = connection.cursor()
             hashed_pw = get_hashed_password(username, password)
-            cursor.execute("SELECT user_ID FROM USERS WHERE username = ? and password = ?", (username,hashed_pw))
+            cursor.execute("SELECT user_ID FROM USERS WHERE username = ? and password = ?", (username, hashed_pw))
 
             result = cursor.fetchone()
             if result:
                 user_id_from_db = result[0]
+
+                # --- NEW: Session Concurrency Check ---
+                active_user_key = f"active_user:{user_id_from_db}"
+                existing_session = r.get(active_user_key)
+
+                if existing_session:
+                    print(f"[SECURITY] Denied login for {username} (ID: {user_id_from_db}): Already connected.")
+                    return "ALREADY_LOGGED_IN"
+                # --------------------------------------
+
+                # כניסה מוצלחת! מוחקים את מונה הניסיונות
+                r.delete(attempts_key)
+
                 session_id = int(uuid.uuid4()) & (2 ** 63 - 1)
+
+                # --- NEW: Lock the account for this session ---
+                r.setex(active_user_key, CACHE_TIME, session_id)
+                # ----------------------------------------------
 
                 cursor.execute("DELETE FROM SESSIONS WHERE user_id = ?", (user_id_from_db,))
                 cursor.execute("INSERT INTO SESSIONS (session_id, user_id) VALUES (?, ?)",
@@ -210,7 +241,14 @@ def handle_login(username, password):
                 connection.commit()
                 return f"LOGIN_SUCCESS:{session_id}"
             else:
-                print("You are not logged in. you need to register first.")
+                # סיסמה שגויה - מעלים את המונה ב-Redis
+                # INCR יוצר את המפתח אם הוא לא קיים ומחזיר את הערך החדש
+                new_attempts = r.incr(attempts_key)
+                if new_attempts == 1:
+                    # אם זה הניסיון הכושל הראשון, קובעים זמן תפוגה למונה
+                    r.expire(attempts_key, LOCKOUT_TIME)
+
+                print(f"[SECURITY] Failed login for {username}. Attempt {new_attempts}/{MAX_LOGIN_ATTEMPTS}")
                 return "LOGIN_FAILED"
     except sqlite3.Error as e:
         print(f"Error registering user: {e}")
@@ -278,6 +316,19 @@ def run_server():
                     answer.session_id = int(result.split(":")[1])
                     print(f"User {data.username} logged in.")
                     client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+
+                elif result == "ALREADY_LOGGED_IN":
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.ALREADY_LOGGED_IN
+                    print(f"Login rejected: {data.username} is already active.")
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+
+                elif result == "LOGIN_LOCKED":
+                    answer = auth_net.SendAnswer()
+                    answer.status = auth_net.Status.LOCKED
+                    print(f"User {data.username} rejected due to lockout.")
+                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+
                 elif result == "LOGIN_FAILED":
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.FAILURE

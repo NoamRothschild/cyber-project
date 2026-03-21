@@ -3,6 +3,20 @@ from random import randint
 from mapset import *
 from arsenal import Arsenal
 from potion import Potion
+import os
+import sys
+
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 
 blue = (23, 130, 184)
 
@@ -53,9 +67,11 @@ class Colectible_sprite(pygame.sprite.Sprite):
 class Mony(pygame.sprite.Sprite):
     def __init__(self, id: int = 0):
         pygame.display.get_surface()
-        image = pygame.image.load("gold.png").convert_alpha()
+        # --- THE FIX: Wrapped gold.png with resource_path ---
+        image = pygame.image.load(resource_path("gold.png")).convert_alpha()
+
         if id == 0:
-            self.id = randint(0, 2**31 - 1)
+            self.id = randint(0, 2 ** 31 - 1)
         else:
             self.id = id
         self.image = pygame.transform.scale(image, (20, 20))

@@ -95,6 +95,7 @@ def create_new_player(player_id):
     spawn_x, spawn_y = create_random_spawn_location()
     with get_db_connection() as conn:
         cursor = conn.cursor()
+        cursor.execute("INSERT OR IGNORE INTO INVENTORY (Player_id) VALUES (?)", (player_id,))
         cursor.execute("""
             INSERT OR IGNORE INTO INVENTORY (
                 Player_id,

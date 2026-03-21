@@ -2,9 +2,20 @@ from typing import Any
 import pygame
 import math
 from functools import cache
+import os
+import sys
 from mapset import SCREEN_SCALE_X, SCREEN_SCALE_Y
 from random import randint
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 # from weapon_anim import WeaponAnim (Assuming you have this file safely elsewhere)
 
@@ -81,11 +92,13 @@ class Arsenal:
             return gun[2]  # index 2 -> bullet type
         return default_fmt.format(gun_type)
 
+
     @staticmethod
     @cache
     def get_weapon_img(gun_type: str) -> pygame.Surface:
         path = Arsenal.Arsenal_gunType[gun_type][0]
-        return pygame.image.load(path).convert_alpha()
+        # Added resource_path wrapper below:
+        return pygame.image.load(resource_path(path)).convert_alpha()
 
     @staticmethod
     def _cut_weapon_frames(sheet: pygame.Surface, frames: int) -> list[Any]:
@@ -329,7 +342,7 @@ class Arsenal:
 
             x -= 10
             img_bullet = pygame.image.load(
-                "arsenal-images/bullets/" + f"{self.bullet}.png").convert_alpha()
+                resource_path(f"arsenal-images/bullets/{self.bullet}.png")).convert_alpha()
 
             img_bullet = pygame.transform.rotate(img_bullet, 90 * 3)
 
