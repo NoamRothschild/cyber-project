@@ -427,14 +427,20 @@ class Client:
         resp.other_data.player_id = other_user_id
         await self.write_udp(resp)
     async def tick(self, cycle: int) -> None:
+        if self.charecter_speed == 4 and self.hp_potion_activ == False and self.gold_active == False:
+            print("should sttop potion")
+            await self.node.sub_potion_user(self)
+            return
         if self.hp_potion_activ==True:
+            print("hppppp")
             if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
                 self.health_count+=1
                 await self.hit(-HEALING, self.user_id)
                 if self.health_count>=HEALING_TIMES:
                     self.hp_potion_activ=False
                     self.health_count=0
-        if self.charecter_speed>>4:
+        if self.charecter_speed>4:
+            print("pppaaappp")
             if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
                 self.speed_count+=1
                 if self.speed_count>=SPEED_TIMES:
@@ -442,6 +448,7 @@ class Client:
                     self.charecter_speed=4
                     print("stoped speed")
         if self.gold_active == True:
+            print("golddddd")
             if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
                 self.gold_count+=1
                 if self.gold_count>=GOLD_TIME:
@@ -655,6 +662,7 @@ class Client:
                 elif str(type)=="speed":
                     self.charecter_speed=14
                     print("speed")
+                await self.node.add_potion_user(self)
         elif payload_type == "item_pickup":
             # Client requests to DROP an item from their inventory into the world.
             # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)

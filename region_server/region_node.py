@@ -56,6 +56,7 @@ class RegionNode:
         ]  # a set of proxies from each direction
 
         self.clients: Dict[int, Client] = {}  # user_id -> Client
+        self.potion_clients: Dict[int, Client] = {}
         self._had_viewers = False
         node_index = RegionNode.node_pos_to_idx(*self.node_pos)
         self.enemy_handler = EnemyHandler(self, node_index, self.x_range, self.y_range)
@@ -427,6 +428,13 @@ class RegionNode:
         self.clients[client.user_id] = client
         self.grid_add(client, cell_x, cell_y)
         await self.propagate_entity(client)
+
+    async def add_potion_user(self,client: Client):
+        if not client.user_id in self.potion_clients:
+            self.potion_clients[client.user_id] = client
+    async def sub_potion_user(self,client: Client):
+        if client.user_id in self.potion_clients:
+            self.potion_clients.pop(client.user_id,None)
 
     async def register_item(
         self, Name: str, Kind: str, player_x: int, player_y: int, id: int
