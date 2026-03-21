@@ -19,7 +19,8 @@ WEAPON_MAP = {
 POTION_MAP = {
     1: "healing",
     2: "speed",
-    3: "super_speed"
+    3: "super_speed",
+    4: "gold"
 }
 
 
@@ -168,10 +169,16 @@ class Inventory(pygame.sprite.Sprite):
                 if keys[key_constant] and i - 1 < len(self.potion_inventory) and self.potion_inventory[
                     i - 1].is_potion_is == False:
                     print("hii")
-                    self.potion_inventory[i - 1].purpose(player)
-                    self.potion_inventory[i - 1].creat_bar((i - 1),self.rect.bottomleft)
+                    if self.is_in_the_same_kind(self.potion_inventory[i - 1].what):
+                        self.potion_inventory[i - 1].purpose(player)
+                        self.potion_inventory[i - 1].creat_bar((i - 1),self.rect.bottomleft)
 
         for i in range(10):
             if i < len(self.potion_inventory) and not self.is_potion_empty():
                 if self.potion_inventory[i].should_it_stop(player):
                     del self.potion_inventory[i]
+    def is_in_the_same_kind(self,kind):
+        for potion in self.potion_inventory:
+            if potion.what == kind and potion.is_potion_is == True:
+                return False
+        return True

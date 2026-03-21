@@ -41,6 +41,8 @@ def start_global_tick_loop() -> None:
             start_time = loop.time()
             try:
                 for node in nodes.values():
+                    for client in list(node.potion_clients.values()):
+                        await client.tick(cycle)
                     await node.enemy_handler.tick(cycle)
                     await node.projectile_handler.tick(cycle)
                     await node.enemy_handler.ensure_population()
@@ -65,9 +67,9 @@ def start_global_tick_loop() -> None:
 
             if sleep_time > 0:
                 await asyncio.sleep(sleep_time)
-                print(f"[INFO] tick {cycle} took {elapsed*1000:.3f}ms")
+                #print(f"[INFO] tick {cycle} took {elapsed*1000:.3f}ms")
             else:
-                print(f"[WARN] tick {cycle} OVERRAN by {-sleep_time*1000:.1f}ms (elapsed={elapsed:.3f}s)")
+                #print(f"[WARN] tick {cycle} OVERRAN by {-sleep_time*1000:.1f}ms (elapsed={elapsed:.3f}s)")
                 await asyncio.sleep(0)  # yield to event loop to prevent I/O starvation
 
     asyncio.create_task(_ticker())

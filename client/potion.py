@@ -3,7 +3,7 @@ import time
 from mapset import *
 from functools import cache
 from random import randint
-
+from zone_connection import ZoneConnectionSingleton
 
 class Potion(pygame.sprite.Sprite):
     # Start with None. We will load the images safely AFTER the window is created.
@@ -17,19 +17,19 @@ class Potion(pygame.sprite.Sprite):
                 "healing": (
                     pygame.image.load("Potion/super_health.png").convert_alpha(),
                     "health_bar",
-                    15,
+                    6,
                     15,
                 ),
                 "speed": (
                     pygame.image.load("Potion/speed.png").convert_alpha(),
                     "speed",
                     10,
-                    1,
+                    10,
                 ),
                 "super_speed": (
                     pygame.image.load("Potion/super_speed.png").convert_alpha(),
                     "speed",
-                    40,
+                    20,
                     10,
                 ),
                 "gold": (pygame.image.load("Potion/gold.png").convert_alpha(),
@@ -83,15 +83,15 @@ class Potion(pygame.sprite.Sprite):
     def purpose(self, player):
         """doing the potion purpose"""
         if self.what == "health_bar":
-            player.health.add_life(self.how_much, is_send=True)
-
             Green_hit.start()
             if self.is_potion_is == False:
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"healing")
                 self.is_potion_is = True
                 self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
         elif self.what == "gold":
             if self.is_potion_is == False:
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"gold")
                 self.is_potion_is = True
                 self.last_heal = time.time()
                 self.delete_last_action_time = self.last_heal
@@ -105,6 +105,10 @@ class Potion(pygame.sprite.Sprite):
             print("aaa bbb kdkds")
             print(player.inventory.money - self.lg * self.how_much)
         elif self.what == "speed":
+            if self.potion_type == "speed":
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"speed")
+            if self.potion_type == "super_speed":
+                ZoneConnectionSingleton().zone.try_send_potion_use(self.id,"super_speed")
             player.speed += self.how_much
             self.old_speed = player.speed
             self.is_potion_is = True

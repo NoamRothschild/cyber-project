@@ -28,13 +28,10 @@ message ItemDrop {
 }
 
 message PotionUse {
-  PotionType potion_type = 1;
+  string potion_type = 1;
   int32 HowMuch=2;
+  int32 id=3;
 
-  enum PotionType {
-    health = 0;
-    damage = 1;
-  }
 }
 
 message ReloadAct {
@@ -46,6 +43,7 @@ message ShopBuy {
   string item_type = 1;  // ammo weapon potion
   string item_name = 2;  // Ak 47 bullets.... Pistol... speed potion......
   int32 amount = 3;
+  int32 id = 4;
 }
 
 

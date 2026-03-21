@@ -1,6 +1,5 @@
 import pygame
 
-from zone_connection import ZoneConnectionSingleton
 from mapset import *
 
 class HealthBar(pygame.sprite.Sprite):
@@ -40,11 +39,9 @@ class HealthBar(pygame.sprite.Sprite):
         self.minus_rect.width += num
         self.minus_rect.x = self.plus_rect.x + self.plus_rect.width
 
-    def add_life(self, num, is_send = False):
+    def add_life(self, num):
         if num > self.minus_rect.width:
             num = abs(0 - self.minus_rect.width)
-        if is_send:
-            ZoneConnectionSingleton().zone.try_send_potion_use("health", num)
         self.plus_rect.width += num
         self.minus_rect.width -= num
         self.minus_rect.x = self.plus_rect.x + self.plus_rect.width

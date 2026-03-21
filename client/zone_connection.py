@@ -9,7 +9,6 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 import protobuf.region_net_pb2 as region_net
 import auth_crypto
-from potion import Potion
 from config import ZONE_HOST_MAP
 from arsenal import Arsenal
 
@@ -60,6 +59,8 @@ class ZoneConnection:
 
     def open_connections(self, session_id: int) -> int:
         """opens the TCP and UDP conn's and returns the user id. can throw"""
+        from potion import Potion
+
         self.reliable_conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         if hasattr(socket, "TCP_KEEPIDLE"):
             self.reliable_conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 15)
@@ -115,6 +116,7 @@ class ZoneConnection:
         # Sync ammo slots from Handshake into Arsenal objects
         for i, weapon_id in enumerate(login_resp.weapons):
             if weapon_id != 0:
+                print("w id: " + str(weapon_id)+str(i))
                 if weapon_id in WEAPON_MAP:
                     weapon_name = WEAPON_MAP[weapon_id]
 
@@ -129,13 +131,15 @@ class ZoneConnection:
 
         for potion_id in login_resp.potions:
             if potion_id != 0:
+                print("potion id: "+str(potion_id))
                 if potion_id in POTION_MAP:
                     potion_name = POTION_MAP[potion_id]
                     potion_obj = Potion(potion_name)
                     player.inventory.add_item_toThe_Inventory(potion_obj, "potion")
                 else:
                     print(f"[WARNING] Server sent unknown potion ID: {potion_id}")
-
+        player.inventory.money=login_resp.money
+        print(login_resp.money)
         print(
             f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}"
         )
@@ -237,13 +241,14 @@ class ZoneConnection:
         )
         self.send_tcp(update.SerializeToString())
 
-    def try_to_buy(self, item_type: str, item_name: str, amount: int) -> None:
+    def try_to_buy(self, item_type: str, item_name: str,id: int, amount: int) -> None:
         update = region_net.RegionUpdate()
         update.shop_buy.CopyFrom(
             region_net.ShopBuy(
                 item_type=item_type,
                 item_name=item_name,
-                amount=amount
+                amount=amount,
+                id=id
             )
         )
         self.send_tcp(update.SerializeToString())
@@ -258,11 +263,11 @@ class ZoneConnection:
         )
         self.send_tcp(update.SerializeToString())
 
-    def try_send_potion_use(self, potion_kind: str, how_much: int ) -> None:
+    def try_send_potion_use(self,id:int, potion_kind: str, how_much: int=0 ) -> None:
         print("hi avram")
         update = region_net.RegionUpdate()
         update.potion_use.CopyFrom(
-            region_net.PotionUse(potion_type=potion_kind, HowMuch=how_much)
+            region_net.PotionUse(potion_type=potion_kind, HowMuch=how_much,id=id)
         )
         self.send_tcp(update.SerializeToString())
 

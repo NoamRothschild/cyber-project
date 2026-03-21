@@ -31,7 +31,11 @@ import rate_limiter
 
 REDIS_PORT = 6379
 _REGION_SERVER_DIR = Path(__file__).resolve().parent
-
+HEALING=15
+HEALING_TIMES=15
+GOLD_TIME=10
+IN_HOW_MUCH_TIME_HEAL=30
+SPEED_TIMES=10
 
 def _get_server_private_key():
     server_id = THIS_SERVER_ID
@@ -59,7 +63,7 @@ class PlayerState:
     cell_x: int
     cell_y: int
     hp: int = 400
-    money: int = 0
+    money: int = 200
     weapons: list[int] = field(default_factory=lambda: [0] * 10)
     ammo: list[int] = field(default_factory=lambda: [30] * 10)
     potions: list[int] = field(default_factory=lambda: [0] * 10)
@@ -79,7 +83,7 @@ TEMPLATE_USER_STATE = {
         "Pistol": 5,
         "sword": 1000
     },
-    "cash": 300
+    "cash": 200
 }
 
 
@@ -216,6 +220,8 @@ class Client:
                 pos_x=player_stats["spawn_x"],
                 pos_y=player_stats["spawn_y"]
             )
+            self.state.money = player_stats["money"]
+            print(f"self.state.money {self.state.money}")
             response.weapons.extend(player_stats["weapons"])
             response.potions.extend(player_stats["potions"])
             response.ammo.extend(player_stats["ammo"])
@@ -323,6 +329,13 @@ class Client:
         self.user_state = TEMPLATE_USER_STATE.copy() # TODO: copy from redis
         self.old_view = [] # List[GridField]
         self.on_this_server = on_this_server
+        self.hp_potion_activ=False
+        self.health_count=0
+        self.gold_count = 0
+        self.gold_active = False
+        self.charecter_speed=4
+        self.speed_count = 0
+
 
     async def hit(self, count, hitter_id: int):
         self.state.hp -= count
@@ -419,6 +432,34 @@ class Client:
         resp.other_data.HP = new_hp
         resp.other_data.player_id = other_user_id
         await self.write_udp(resp)
+    async def tick(self, cycle: int) -> None:
+        if self.charecter_speed == 4 and self.hp_potion_activ == False and self.gold_active == False:
+            print("should sttop potion")
+            await self.node.sub_potion_user(self)
+            return
+        if self.hp_potion_activ==True:
+            print("hppppp")
+            if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
+                self.health_count+=1
+                await self.hit(-HEALING, self.user_id)
+                if self.health_count>=HEALING_TIMES:
+                    self.hp_potion_activ=False
+                    self.health_count=0
+        if self.charecter_speed>4:
+            print("pppaaappp")
+            if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
+                self.speed_count+=1
+                if self.speed_count>=SPEED_TIMES:
+                    self.speed_count=0
+                    self.charecter_speed=4
+                    print("stoped speed")
+        if self.gold_active == True:
+            print("golddddd")
+            if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
+                self.gold_count+=1
+                if self.gold_count>=GOLD_TIME:
+                    self.gold_count= 0
+                    self.gold_active=False
 
     async def entity_despawned(self, entity_user_id: int) -> None:
         """Notify this player that an entity (enemy) left their viewport."""
@@ -516,11 +557,17 @@ class Client:
             "potion": {
                 "healing": 140,
                 "speed": 70,
-                "super_speed": 140
+                "super_speed": 140,
+                "gold": 400
             }
         }
         return prices.get(kind, {}).get(name, 0)
-
+    async def is_movment(self,nx,ny):
+        diff_x = abs(nx - self.state.x)
+        diff_y = abs(ny - self.state.y)
+        if diff_x <= self.charecter_speed*5 and diff_y <= self.charecter_speed*5:
+            return True
+        return False
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
@@ -536,6 +583,16 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
+            if(not await self.is_movment(update.location_block.x, update.location_block.y)):
+                hi = region_net.ServerResponse()
+                hi.move_self.CopyFrom(
+                    region_net.LocationBlock(
+                        x=self.state.x,y=self.state.y
+                        )
+                    )
+                print (f"failed tomove to {update.location_block.x, update.location_block.y} stayed in {self.state.x,self.state.y}")
+                await self.write(hi.SerializeToString())
+                return
             node_pos = RegionNode.which_node(
                 update.location_block.x, update.location_block.y
             )
@@ -583,8 +640,35 @@ class Client:
 
             await notify_server(new_server_id, f'cli:{self.session_id}'.encode())
         elif payload_type == "potion_use":
-            if update.potion_use.potion_type == region_net.PotionUse.PotionType.health:
-                await self.hit(-update.potion_use.HowMuch, self.user_id)
+            dropped = False
+            type=update.potion_use.potion_type
+            potion_id_map = {
+                    "healing": 1,
+                    "speed": 2,
+                    "super_speed": 3,
+                    "gold": 4,
+                }
+            potion_id = potion_id_map.get(str(type))
+            if potion_id is None:
+                print(f"[WARN] item_drop: unknown potion  from player {self.user_id}")
+            else:
+                for i, slot in enumerate(self.state.potions):
+                    if slot == potion_id:
+                        self.state.potions[i] = 0
+                        dropped = True
+                        break
+            if dropped:
+                if str(type) == "healing":
+                    self.hp_potion_activ=True
+                elif str(type) == "gold":
+                    self.gold_active=True
+                elif str(type) == "super_speed":
+                    self.charecter_speed=24
+                    print("supe speed")
+                elif str(type)=="speed":
+                    self.charecter_speed=14
+                    print("speed")
+                await self.node.add_potion_user(self)
         elif payload_type == "item_pickup":
             # Client requests to DROP an item from their inventory into the world.
             # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)
@@ -606,6 +690,7 @@ class Client:
                     "healing": 1,
                     "speed": 2,
                     "super_speed": 3,
+                    "gold": 4,
                 }
                 potion_id = potion_id_map.get(name)
                 if potion_id is None:
@@ -661,18 +746,41 @@ class Client:
             resp.sender_id = self.user_id
 
             kind, name = update.shop_buy.item_type, update.shop_buy.item_name
+
+            if(id==None):
+                print("alon you facked up")
+            elif kind == "potion":
+                potion_id_map = {
+                    "healing": 1,
+                    "speed": 2,
+                    "super_speed": 3,
+                    "gold": 4,
+                }
+                potion_id = potion_id_map.get(name)
+                for i, slot in enumerate(self.state.potions):
+                    if slot == 0:
+                        self.state.potions[i] = potion_id
+
+                        break
+            elif kind=="weapon":
+                weapon_id = SERVER_WEAPON_MAP.get(name)
+                for i, slot in enumerate(self.state.weapons):
+                    if slot == 0:
+                        self.state.weapons[i] = weapon_id
+                        self.state.ammo[i] = 0
+                        break
             amount = update.shop_buy.amount
             price = Client.priceOfTheSHOPING(kind, name)
 
             total = price * amount
-
-            if self.user_state["cash"] >= total:
-                self.user_state["cash"] -= total
+            print(self.user_state["cash"])
+            if self.state.money >= total:
+                self.state.money -= total
                 resp.other_data.shop_ans = True
-                print(f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.user_state['cash']}")
+                print(f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.state.money}")
             else:
                 resp.other_data.shop_ans = False
-                print(f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.user_state['cash']}")
+                print(f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.state.money}")
             await self.write(resp.SerializeToString())
         elif payload_type == "reload_act":
             try:
