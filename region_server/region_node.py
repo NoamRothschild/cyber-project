@@ -251,11 +251,37 @@ class RegionNode:
     # ---- grid helpers ----
 
     def grid_add(
-        self, obj: Any, cell_x: int, cell_y: int, seen: set[int] = set()
+        self,
+        obj: Any,
+        cell_x: int,
+        cell_y: int,
+        seen: set[int] | None = None,
+        ever_seen: set[int] | None = None,
     ) -> GridField:
-        field = GridField(obj, seen)
+        field = GridField(obj, seen, ever_seen)
         self.grid[cell_y * RegionNode._grid_w + cell_x].add(field)
         return field
+
+    def find_grid_field_for_enemy(self, enemy: EnemyModel) -> GridField | None:
+        cx, cy = enemy.cell_x, enemy.cell_y
+        w, h = RegionNode._grid_w, RegionNode._grid_h
+        if not (0 <= cx < w and 0 <= cy < h):
+            return None
+        bucket = self.grid[cy * w + cx]
+        if not bucket:
+            return None
+        target = GridField(enemy)
+        for field in bucket:
+            if field == target:
+                return field
+        return None
+
+    @staticmethod
+    def mark_enemy_seen_by_client(grid_field: GridField, user_id: int) -> None:
+        """Record current and lifetime visibility for an enemy grid entry."""
+        grid_field.seen.add(user_id)
+        if isinstance(grid_field.obj, EnemyModel):
+            grid_field.ever_seen.add(user_id)
 
     def grid_remove(self, obj: Any, cell_x: int, cell_y: int) -> None:
         self.grid[cell_y * RegionNode._grid_w + cell_x].discard(GridField(obj))
@@ -264,16 +290,18 @@ class RegionNode:
         self, obj: Any, old_cx: int, old_cy: int, new_cx: int, new_cy: int
     ) -> None:
         if (old_cx, old_cy) != (new_cx, new_cy):
-            old_seen = set()
+            old_seen: set[int] = set()
+            old_ever_seen: set[int] = set()
             cell = self.grid[old_cy * RegionNode._grid_w + old_cx]
             if cell:
                 target = GridField(obj)
                 for field in tuple(cell):  # snapshot in case set is modified during iteration
                     if field == target:
                         old_seen = field.seen
+                        old_ever_seen = field.ever_seen
                         break
             self.grid_remove(obj, old_cx, old_cy)
-            self.grid_add(obj, new_cx, new_cy, old_seen)
+            self.grid_add(obj, new_cx, new_cy, old_seen, old_ever_seen)
 
     def nearby(
         self, cell_x: int, cell_y: int, radius: int
@@ -683,7 +711,7 @@ class RegionNode:
                     continue
                 if not Client.can_see_static(new_pos, (obj.x, obj.y)):
                     continue
-                grid_field.seen.add(client.user_id)
+                RegionNode.mark_enemy_seen_by_client(grid_field, client.user_id)
                 await client.saw_enemy((obj.x, obj.y), obj.enemy_id)
             elif isinstance(obj, ItemState):
                 grid_field.seen.add(client.user_id)

@@ -128,7 +128,7 @@ class ProjectileHandler:
         to_remove: list[Projectile] = []
         to_transfer: list[tuple[Projectile, tuple[int, int]]] = []
         node = self._node
-        dead_enemies: list[tuple[int, int, int, set, set]] = []  # (enemy_id, x, y, proxied_directions, seen)
+        dead_enemies: list[tuple[int, int, int, set, set, set]] = []  # id, x, y, proxied, seen, ever_seen
         enemies_to_broadcast_hp: list[EnemyModel] = []
         pending_client_hits: dict[int, tuple[Client, int, int]] = {}  # user_id -> (client, total_dmg, last_hitter)
 
@@ -229,7 +229,16 @@ class ProjectileHandler:
 
                             if died:
                                 proxied = getattr(enemy, "_proxied_directions", set())
-                                dead_enemies.append((enemy.enemy_id, enemy.x, enemy.y, proxied, grid_field.seen))
+                                dead_enemies.append(
+                                    (
+                                        enemy.enemy_id,
+                                        enemy.x,
+                                        enemy.y,
+                                        proxied,
+                                        grid_field.seen,
+                                        grid_field.ever_seen,
+                                    )
+                                )
                                 enemy._proxied_directions = set()
                                 self.enemy_handler.dead_ids.add(enemy.enemy_id)
                                 # override the hp broadcast to max_hp so the client resets the enemy
@@ -239,11 +248,16 @@ class ProjectileHandler:
             await client.hit(total_damage, hitter_id)
 
         r = get_redis()
-        for enemy_id, ex, ey, proxied_directions, seen in dead_enemies:
+        for enemy_id, ex, ey, proxied_directions, seen, ever_seen in dead_enemies:
+            notified_local: set[int] = set()
             for cli in node.clients_in_view((ex, ey)):
                 await cli.entity_died(enemy_id)
+                notified_local.add(cli.user_id)
                 seen.discard(cli.user_id)
-            for cli_id in seen: # each client that should get the despawn we don't own
+            # Anyone who ever saw this enemy on the grid (not only current ``seen``).
+            for cli_id in ever_seen:
+                if cli_id in notified_local:
+                    continue
                 node_idx = int(await r.get(f"client:{cli_id}:node"))
                 node_pos = RegionNode.node_idx_to_pos(node_idx)
                 if clients_node := nodes.get(node_pos):

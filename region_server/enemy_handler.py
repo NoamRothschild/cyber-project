@@ -183,9 +183,15 @@ class EnemyHandler:
             snapshot_hp = int(enemy.hp)
             # clear dead flag now that the enemy is fully reset
             self.dead_ids.discard(enemy_id)
+            gf = self.node.find_grid_field_for_enemy(enemy)
+            if gf is not None:
+                gf.ever_seen.clear()
 
+        field = self.node.find_grid_field_for_enemy(enemy)
         for cli in self.node.clients_in_view((enemy.x, enemy.y)):
             await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
+            if field is not None:
+                type(self.node).mark_enemy_seen_by_client(field, cli.user_id)
 
     async def broadcast_enemy_spawn(self, enemy: EnemyModel) -> None:
         """Broadcast enemy location (spawn/respawn)."""
@@ -197,8 +203,11 @@ class EnemyHandler:
                 y=int(enemy.y))
         )
 
+        field = self.node.find_grid_field_for_enemy(enemy)
         for cli in self.node.clients_in_view((enemy.x, enemy.y)):
             await cli.write(update.SerializeToString())
+            if field is not None:
+                type(self.node).mark_enemy_seen_by_client(field, cli.user_id)
 
         await self.broadcast_enemy_hp(enemy)
 
@@ -211,8 +220,11 @@ class EnemyHandler:
                 HP=int(enemy.hp),
                 player_id=enemy.enemy_id)
         )
+        field = self.node.find_grid_field_for_enemy(enemy)
         for cli in self.node.clients_in_view((enemy.x, enemy.y)):
             await cli.write(update.SerializeToString())
+            if field is not None:
+                type(self.node).mark_enemy_seen_by_client(field, cli.user_id)
 
     async def tick(self, cycle: int) -> None:
         has_viewers = self.node.has_nearby_viewers()
@@ -299,8 +311,11 @@ class EnemyHandler:
         if has_viewers:
             for enemy in pending_moves:
                 await self.node.propagate_entity(enemy)
+                field = self.node.find_grid_field_for_enemy(enemy)
                 for cli in self.node.clients_in_view((enemy.x, enemy.y)):
                     await cli.saw_enemy((enemy.x, enemy.y), enemy.enemy_id)
+                    if field is not None:
+                        type(self.node).mark_enemy_seen_by_client(field, cli.user_id)
 
     async def _cleanup_enemy_proxies(self) -> None:
         """Remove all outgoing enemy proxies when no viewers remain,

@@ -41,9 +41,15 @@ class ProxyObject:
 
 
 class GridField:
-    def __init__(self, obj: Any, seen: set[int] = set()) -> None:
+    def __init__(
+        self,
+        obj: Any,
+        seen: set[int] | None = None,
+        ever_seen: set[int] | None = None,
+    ) -> None:
         self.obj = obj
-        self.seen = seen
+        self.seen = set() if seen is None else seen
+        self.ever_seen = set() if ever_seen is None else ever_seen
 
     def add_seen(self, user_id: int) -> None:
         self.seen.add(user_id)
