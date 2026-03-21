@@ -109,6 +109,7 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
     weapons_raw = await r.get(prefix + "weapons")
     ammo_raw = await r.get(prefix + "ammo")
     potions_raw = await r.get(prefix + "potions")
+    active_potions_raw = await r.get(prefix + "active_potions")
 
     if health is None or money is None or spawn_x is None or spawn_y is None:
         return {
@@ -118,7 +119,8 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
             "ammo": [30] * 10,
             "potions": [0] * 10,
             "spawn_x": 74010,
-            "spawn_y": 32605
+            "spawn_y": 32605,
+            "active_potions": {}
         }
 
     def parse_list(raw: bytes) -> list[int]:
@@ -132,6 +134,7 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
         "weapons": parse_list(weapons_raw),
         "ammo": parse_list(ammo_raw),
         "potions": parse_list(potions_raw),
+        "active_potions": json.loads(active_potions_raw),
         "spawn_x": int(spawn_x),
         "spawn_y": int(spawn_y),
     }
@@ -335,6 +338,7 @@ class Client:
         self.gold_active = False
         self.charecter_speed=4
         self.speed_count = 0
+        self.speed_potion_activ = False
 
 
     async def hit(self, count, hitter_id: int):
@@ -568,6 +572,32 @@ class Client:
         if diff_x <= self.charecter_speed*5 and diff_y <= self.charecter_speed*5:
             return True
         return False
+
+    async def active_potions(self):
+        p = {}
+        if self.charecter_speed > 4:
+            p["speed"] = {"time": self.speed_count, "speed": self.charecter_speed}
+        if self.hp_potion_activ:
+            p["hp"] = {"time": self.health_count}
+        if self.gold_active:
+            p["gold"] = {"time": self.gold_count}
+        return p
+
+    async def set_active_potions(self, active_potions: Dict[str, Dict[str, int]]) -> None:
+        for potion_name, metadata in active_potions.items():
+            potion_time = metadata["time"]
+            match potion_name:
+                case "hp":
+                    self.hp_potion_activ = True
+                    self.health_count = potion_time
+                case "speed":
+                    self.speed_potion_activ = True
+                    self.charecter_speed = metadata["speed"]
+                    self.speed_count = potion_time
+                case "gold":
+                    self.gold_active = True
+                    self.gold_count = potion_time
+
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
@@ -637,6 +667,8 @@ class Client:
                 await r.set(prefix + "weapons", ",".join(str(w) for w in self.state.weapons))
                 await r.set(prefix + "ammo", ",".join(str(a) for a in self.state.ammo))
                 await r.set(prefix + "potions", ",".join(str(p) for p in self.state.potions))
+                active_potions = self.active_potions()
+                await r.set(prefix + "active_potions", json.dumps(active_potions))
                 print(f"[redis-sync] Saved live stats for user {self.user_id} before server move to {new_server_id}")
             except Exception as e:
                 print(f"[redis-sync] Failed to save stats for user {self.user_id} before server move: {e}")

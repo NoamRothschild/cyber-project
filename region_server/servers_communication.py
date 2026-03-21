@@ -102,6 +102,7 @@ def start_redis_listener() -> None:
                 cli.state.weapons = stats["weapons"]
                 cli.state.ammo = stats["ammo"]
                 cli.state.potions = stats["potions"]
+                await cli.set_active_potions(stats["active_potions"])
                 continue
 
             node_pos =  (
