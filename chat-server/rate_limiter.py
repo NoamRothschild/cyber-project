@@ -26,14 +26,14 @@ async def received_conn(ip: str) -> bool:
     now = time.time()
     async with lock:
         # remove old connection attempt entries if expired
-        while len(attempts) > 0:
+        while len(attempts[ip]) > 0:
             head: QUEUE_ENTRY = attempts[ip][0]
             if now - head <= DELETE_AFTER:
                 break
             attempts[ip].popleft()
 
         attempts[ip].append(now)
-        if len(attempts) >= DOS_THRESHOLD:
+        if len(attempts[ip]) >= DOS_THRESHOLD:
             return False
     return True
 

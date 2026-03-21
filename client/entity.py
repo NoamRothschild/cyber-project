@@ -1,25 +1,8 @@
 import threading
 from typing import Any, Dict, Tuple
+import sys, os
 
 import pygame
-from health import HealthBar
-from mapset import PINK
-import os
-import sys
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
-
-# TODO: display entitys hp bar above them
-SCALE_FROM_LIFE = 5
-
-
 from health import HealthBar
 from animation import Animation
 
@@ -32,9 +15,19 @@ BASE_HP_ENEMY = 50
 # Bar is always this many units wide so player and enemy bars look the same length
 BAR_SCALE = BASE_HP_PLAYER // SCALE_FROM_LIFE
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 # Match the player's default skin: "fiona"
 FIONA_SKIN = {
-    "sheet_path": "Player_Skins/fiona.png",
+    "sheet_path": resource_path("Player_Skins/fiona.png"),
     "frame_w": 32,
     "frame_h": 32,
     "rows": {"idle": 0, "run": 3, "injured": 5, "dead": 6},
@@ -44,7 +37,7 @@ FIONA_SKIN = {
 }
 
 BLUE_GOLDEN_KNIGHT = {
-    "sheet_path": "Player_Skins/blue golden knight.png",
+    "sheet_path": resource_path("Player_Skins/blue golden knight.png"),
     "frame_w": 32,
     "frame_h": 32,
     "rows": {"idle": 0, "run": 4, "injured": 8, "dead": 9},
@@ -57,10 +50,6 @@ BLUE_GOLDEN_KNIGHT = {
 class Entity(pygame.sprite.Sprite):
     def __init__(self, groups: Any, pos: Tuple[int, int], type: str = "PLAYER") -> None:
         super().__init__(groups)
-
-        self.image = pygame.image.load(resource_path('player.png')).convert_alpha()
-
-        self.image.set_colorkey(PINK)
 
         # Set all attributes used by update()/draw first so we're safe if __init__ fails later
         self._lerp_active = False
@@ -92,8 +81,6 @@ class Entity(pygame.sprite.Sprite):
 
         self.hitbox = pygame.Rect(pos[0], pos[1], 30, 30)
         self.rect.center = self.hitbox.center
-        self.hp = 400  # TODO: fetch from config
-        self.hp_b = HealthBar((self.hitbox.x, self.hitbox.y - 10), self.hp // SCALE_FROM_LIFE, groups[0])
 
         self.hp_b = HealthBar(
             (self.hitbox.x, self.hitbox.y - 10), BAR_SCALE, groups[0]
@@ -107,11 +94,6 @@ class Entity(pygame.sprite.Sprite):
     def move(self, new_pos: None | Tuple[int, int]):
         if new_pos is None:
             return
-        self.hitbox.x = new_pos[0]
-        self.hitbox.y = new_pos[1]
-        self.rect.center = self.hitbox.center
-        self.hp_b.move([new_pos[0], new_pos[1] - 10])
-
         if new_pos == self.last_pos:
             return
 
@@ -159,10 +141,6 @@ class Entity(pygame.sprite.Sprite):
     def set_hp(self, hp: int | None = None):
         if hp is None:
             return
-        if hp > self.hp:
-            self.hp_b.add_life(hp // SCALE_FROM_LIFE - self.hp_b.get_life())
-        elif hp < self.hp:
-            self.hp_b.sub_life(self.hp_b.get_life() - hp // SCALE_FROM_LIFE)
         hp = max(0, min(hp, self.max_hp))
         self.hp = hp
         if self.hp_b is not None:
@@ -211,12 +189,12 @@ class Entity(pygame.sprite.Sprite):
                         self.facing_right = False
             else:
                 x = (
-                    self._lerp_start_pos.x
-                    + (self._lerp_target_pos.x - self._lerp_start_pos.x) * t
+                        self._lerp_start_pos.x
+                        + (self._lerp_target_pos.x - self._lerp_start_pos.x) * t
                 )
                 y = (
-                    self._lerp_start_pos.y
-                    + (self._lerp_target_pos.y - self._lerp_start_pos.y) * t
+                        self._lerp_start_pos.y
+                        + (self._lerp_target_pos.y - self._lerp_start_pos.y) * t
                 )
                 self.hitbox.x = int(x)
                 self.hitbox.y = int(y)
@@ -253,19 +231,18 @@ class Entity(pygame.sprite.Sprite):
         self.image.set_alpha(0 if self._hidden else 255)
 
 
-
 class Entities:
     def __init__(self) -> None:
         self.entities: Dict[int, Entity] = dict()
         self.lock = threading.Lock()
 
     def add_or_update(
-        self,
-        groups: Any,
-        id: int,
-        pos: None | Tuple[int, int] = None,
-        hp: None | int = None,
-        type: str = "PLAYER",
+            self,
+            groups: Any,
+            id: int,
+            pos: None | Tuple[int, int] = None,
+            hp: None | int = None,
+            type: str = "PLAYER",
     ):
         with self.lock:
             if e := self.entities.get(id):

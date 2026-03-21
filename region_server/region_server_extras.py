@@ -134,7 +134,7 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
         "weapons": parse_list(weapons_raw),
         "ammo": parse_list(ammo_raw),
         "potions": parse_list(potions_raw),
-        "active_potions": json.loads(active_potions_raw),
+        "active_potions": json.loads(active_potions_raw or "{}"),
         "spawn_x": int(spawn_x),
         "spawn_y": int(spawn_y),
     }
@@ -148,7 +148,7 @@ class Client:
     async def client_handler_setup(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ) -> None:
-        if not rate_limiter.should_continue(writer):
+        if not await rate_limiter.should_continue(writer):
             writer.close()
             print("[INFO] ignoring possible DOS attempt from a user")
             await writer.wait_closed()
@@ -438,7 +438,6 @@ class Client:
         await self.write_udp(resp)
     async def tick(self, cycle: int) -> None:
         if self.charecter_speed == 4 and self.hp_potion_activ == False and self.gold_active == False:
-            print("should sttop potion")
             await self.node.sub_potion_user(self)
             return
         if self.hp_potion_activ==True:

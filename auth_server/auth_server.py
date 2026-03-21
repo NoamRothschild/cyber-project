@@ -117,6 +117,13 @@ def handle_auth_update(conn: sqlite3.Connection, raw_data: str) -> None:
         print("[auth-update] missing user_id, ignoring")
         return
 
+    # Region server publishes here when the client disconnects — always drop the
+    # login lock so they can log in again (otherwise active_user:* lasts CACHE_TIME).
+    try:
+        r.delete(f"active_user:{user_id}")
+    except redis.RedisError as re:
+        print(f"[auth-update] failed to clear active_user:{user_id}: {re}")
+
     set_clauses = []
     params = []
 
@@ -220,10 +227,6 @@ def handle_login(username, password):
 
                 session_id = int(uuid.uuid4()) & (2 ** 63 - 1)
 
-                # --- NEW: Lock the account for this session ---
-                r.setex(active_user_key, CACHE_TIME, session_id)
-                # ----------------------------------------------
-
                 cursor.execute("DELETE FROM SESSIONS WHERE user_id = ?", (user_id_from_db,))
                 cursor.execute("INSERT INTO SESSIONS (session_id, user_id) VALUES (?, ?)",
                                (session_id, user_id_from_db))
@@ -234,11 +237,14 @@ def handle_login(username, password):
                 # cache the fresh player stats in Redis
                 cache_player_stats_in_redis(user_id_from_db)
 
-                # set data to redis db for 24h
+                connection.commit()
+
+                # Session + lock in Redis only after DB commit succeeds (avoids "already in use"
+                # when login failed mid-way but active_user was already set).
                 # Key = session id, Value = user id
                 r.setex(f"session:{session_id}", CACHE_TIME, user_id_from_db)
                 r.setex(f"session:{session_id}:username", CACHE_TIME, username)
-                connection.commit()
+                r.setex(active_user_key, CACHE_TIME, session_id)
                 return f"LOGIN_SUCCESS:{session_id}"
             else:
                 # סיסמה שגויה - מעלים את המונה ב-Redis

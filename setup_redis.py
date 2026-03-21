@@ -49,9 +49,9 @@ REGION_SERVERS_PROD_OPTIMIZED_LAYOUT = {
           333, 334, 335, 336, 337, 338, 339],
 }
 
+REGION_SERVERS = REGION_SERVERS_LOCAL  # TODO: change this to PROD when in school
 if __name__ == "__main__":
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
-    REGION_SERVERS = REGION_SERVERS_LOCAL # TODO: change this to PROD when in school
 
     r.delete('server_ids')
     r.sadd('server_ids', *(REGION_SERVERS.keys()))

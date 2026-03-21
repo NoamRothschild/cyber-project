@@ -221,6 +221,7 @@ AUTH_PORT = config_data.get("AUTH_PORT", 9999)
 CHAT_HOST = config_data.get("CHAT_HOST", "127.0.0.1")
 CHAT_PORT = config_data.get("CHAT_PORT", 8888)
 ZONE_HOST_MAP = config_data.get("ZONE_HOST_MAP", {"0": "127.0.0.1"})
+SERVER_LAYOUT = config_data.get("SERVER_LAYOUT", "single-server")
 """
 
     config_py_path.write_text(dynamic_code, encoding="utf-8")

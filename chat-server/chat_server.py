@@ -52,7 +52,7 @@ async def close_writer(writer: asyncio.StreamWriter):
 class Client:
     @staticmethod
     async def client_handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        if not rate_limiter.should_continue(writer):
+        if not await rate_limiter.should_continue(writer):
             await close_writer(writer)
             print("[INFO] ignoring possible DOS attempt from a user")
             return
