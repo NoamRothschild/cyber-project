@@ -34,7 +34,7 @@ HEALING=15
 HEALING_TIMES=15
 GOLD_TIME=10
 IN_HOW_MUCH_TIME_HEAL=30
-
+SPEED_TIMES=10
 
 def _get_server_private_key():
     server_id = THIS_SERVER_ID
@@ -215,6 +215,7 @@ class Client:
                 pos_y=player_stats["spawn_y"]
             )
             self.state.money = player_stats["money"]
+            print(f"self.state.money {self.state.money}")
             response.weapons.extend(player_stats["weapons"])
             response.potions.extend(player_stats["potions"])
             response.ammo.extend(player_stats["ammo"])
@@ -326,7 +327,8 @@ class Client:
         self.health_count=0
         self.gold_count = 0
         self.gold_active = False
-
+        self.charecter_speed=4
+        self.speed_count = 0
 
 
     async def hit(self, count, hitter_id: int):
@@ -432,6 +434,13 @@ class Client:
                 if self.health_count>=HEALING_TIMES:
                     self.hp_potion_activ=False
                     self.health_count=0
+        if self.charecter_speed>>4:
+            if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
+                self.speed_count+=1
+                if self.speed_count>=SPEED_TIMES:
+                    self.speed_count=0
+                    self.charecter_speed=4
+                    print("stoped speed")
         if self.gold_active == True:
             if cycle % IN_HOW_MUCH_TIME_HEAL == 0:
                 self.gold_count+=1
@@ -535,11 +544,17 @@ class Client:
             "potion": {
                 "healing": 140,
                 "speed": 70,
-                "super_speed": 140
+                "super_speed": 140,
+                "gold": 400
             }
         }
         return prices.get(kind, {}).get(name, 0)
-
+    async def is_movment(self,nx,ny):
+        diff_x = abs(nx - self.state.x)
+        diff_y = abs(ny - self.state.y)
+        if diff_x <= self.charecter_speed*5 and diff_y <= self.charecter_speed*5:
+            return True
+        return False
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
@@ -555,6 +570,16 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
+            if(not await self.is_movment(update.location_block.x, update.location_block.y)):
+                hi = region_net.ServerResponse()
+                hi.move_self.CopyFrom(
+                    region_net.LocationBlock(
+                        x=self.state.x,y=self.state.y
+                        )
+                    )
+                print (f"failed tomove to {update.location_block.x, update.location_block.y} stayed in {self.state.x,self.state.y}")
+                await self.write(hi.SerializeToString())
+                return
             node_pos = RegionNode.which_node(
                 update.location_block.x, update.location_block.y
             )
@@ -619,11 +644,17 @@ class Client:
                         self.state.potions[i] = 0
                         dropped = True
                         break
-
-            if str(type) == "healing" and dropped:
-                self.hp_potion_activ=True
-            elif str(type) == "gold" and dropped:
-                self.gold_active=True
+            if dropped:
+                if str(type) == "healing":
+                    self.hp_potion_activ=True
+                elif str(type) == "gold":
+                    self.gold_active=True
+                elif str(type) == "super_speed":
+                    self.charecter_speed=24
+                    print("supe speed")
+                elif str(type)=="speed":
+                    self.charecter_speed=14
+                    print("speed")
         elif payload_type == "item_pickup":
             # Client requests to DROP an item from their inventory into the world.
             # (delete_w / delete_p / delete_mony call ZoneConnection.try_send_item -> item_pickup)
