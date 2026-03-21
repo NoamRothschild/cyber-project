@@ -27,7 +27,7 @@ from chat import *
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
-BUSH_FRIQWENTY=30
+BUSH_FRIQWENTY=7
 
 map_for_d = {}
 def preload_all_trees():
@@ -144,7 +144,7 @@ class Level:
                     ground_count = 0
                 else:
                     ground_count += 1
-                    if random.randint(0,BUSH_FRIQWENTY) == 1 :
+                    if x%BUSH_FRIQWENTY==0 and y%BUSH_FRIQWENTY==0:
                         b=get_bushes()
                         s=Rock(world_pos,b, " ")
                 if s is not None:
@@ -252,8 +252,6 @@ class Camera(pygame.sprite.Group):
                     continue
                 sprite.draw(self.point.x, self.point.y)
 
-        # 4. ייעול ה-Grid (שימוש בטווחים שכבר חישבנו)
-        self._draw_optimized_grid(start_x, end_x, start_y, end_y)
         # Draw a centered red border box that mimics the original (unscaled)
         # WIDTH x HEIGHT viewport within the currently zoomed-out view.
         box_w = WIDTH / VIEW_SCALE_X
