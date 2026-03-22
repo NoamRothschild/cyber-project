@@ -3,6 +3,7 @@ import redis
 from region_server.config import REDIS_PASSWORD
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "127.0.0.1")
+#REDIS_HOST = "10.147.18.131"
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 
 # region server -> handled nodes
@@ -49,7 +50,7 @@ REGION_SERVERS_PROD_OPTIMIZED_LAYOUT = {
           333, 334, 335, 336, 337, 338, 339],
 }
 
-REGION_SERVERS = REGION_SERVERS_LOCAL  # TODO: change this to PROD when in school
+REGION_SERVERS = REGION_SERVERS_PROD_OPTIMIZED_LAYOUT
 if __name__ == "__main__":
     r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, decode_responses=True)
 

@@ -98,6 +98,13 @@ class ConnectionState:
     last_sent_seq: int = 0
 
 
+def _normalize_slot_list(values: list[int], length: int, fill: int) -> list[int]:
+    """Redis comma-lists can be shorter/longer than client slots; avoid index errors on server."""
+    if len(values) >= length:
+        return values[:length]
+    return values + [fill] * (length - len(values))
+
+
 async def load_player_stats_from_redis(user_id: int) -> dict:
     r = get_redis()
     prefix = f"client:{user_id}:"
@@ -128,12 +135,16 @@ async def load_player_stats_from_redis(user_id: int) -> dict:
             return []
         return [int(x) for x in raw.decode().split(",")]
 
+    weapons = _normalize_slot_list(parse_list(weapons_raw), 10, 0)
+    ammo = _normalize_slot_list(parse_list(ammo_raw), 10, 0)
+    potions = _normalize_slot_list(parse_list(potions_raw), 10, 0)
+
     return {
         "health": int(health),
         "money": int(money),
-        "weapons": parse_list(weapons_raw),
-        "ammo": parse_list(ammo_raw),
-        "potions": parse_list(potions_raw),
+        "weapons": weapons,
+        "ammo": ammo,
+        "potions": potions,
         "active_potions": json.loads(active_potions_raw or "{}"),
         "spawn_x": int(spawn_x),
         "spawn_y": int(spawn_y),
@@ -568,11 +579,11 @@ class Client:
     async def is_movment(self,nx,ny):
         diff_x = abs(nx - self.state.x)
         diff_y = abs(ny - self.state.y)
-        if diff_x <= self.charecter_speed*5 and diff_y <= self.charecter_speed*5:
+        if diff_x <= self.charecter_speed*50 and diff_y <= self.charecter_speed*50:
             return True
         return False
 
-    async def active_potions(self):
+    def active_potions(self) -> dict:
         p = {}
         if self.charecter_speed > 4:
             p["speed"] = {"time": self.speed_count, "speed": self.charecter_speed}
@@ -780,10 +791,10 @@ class Client:
             resp.sender_id = self.user_id
 
             kind, name = update.shop_buy.item_type, update.shop_buy.item_name
+            amount = max(1, int(update.shop_buy.amount))
 
-            if(id==None):
-                print("alon you facked up")
-            elif kind == "potion":
+            shop_action: tuple[str, int, int] | None = None
+            if kind == "potion":
                 potion_id_map = {
                     "healing": 1,
                     "speed": 2,
@@ -791,30 +802,50 @@ class Client:
                     "gold": 4,
                 }
                 potion_id = potion_id_map.get(name)
-                for i, slot in enumerate(self.state.potions):
-                    if slot == 0:
-                        self.state.potions[i] = potion_id
-
-                        break
-            elif kind=="weapon":
+                if potion_id is not None:
+                    for i, slot in enumerate(self.state.potions):
+                        if slot == 0:
+                            shop_action = ("potion", i, potion_id)
+                            break
+            elif kind == "weapon":
                 weapon_id = SERVER_WEAPON_MAP.get(name)
-                for i, slot in enumerate(self.state.weapons):
-                    if slot == 0:
-                        self.state.weapons[i] = weapon_id
-                        self.state.ammo[i] = 0
-                        break
-            amount = update.shop_buy.amount
-            price = Client.priceOfTheSHOPING(kind, name)
+                if weapon_id is not None:
+                    for i, slot in enumerate(self.state.weapons):
+                        if slot == 0:
+                            shop_action = ("weapon", i, weapon_id)
+                            break
 
+            price = Client.priceOfTheSHOPING(kind, name)
             total = price * amount
-            print(self.user_state["cash"])
-            if self.state.money >= total:
-                self.state.money -= total
-                resp.other_data.shop_ans = True
-                print(f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.state.money}")
-            else:
+
+            if shop_action is None:
                 resp.other_data.shop_ans = False
-                print(f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.state.money}")
+                print(
+                    f"[SHOP] player {self.user_id} buy failed (full inventory or unknown {kind}/{name})"
+                )
+            elif price <= 0:
+                resp.other_data.shop_ans = False
+                print(f"[SHOP] player {self.user_id} unknown or zero-price item: {kind}/{name}")
+            elif self.state.money < total:
+                resp.other_data.shop_ans = False
+                print(
+                    f"[SHOP] player {self.user_id} cannot afford {amount}x {kind}:{name} (total {total}). Cash: {self.state.money}"
+                )
+            else:
+                self.state.money -= total
+                if shop_action[0] == "potion":
+                    _, slot_i, pid = shop_action
+                    self.state.potions[slot_i] = pid
+                else:
+                    _, slot_i, wid = shop_action
+                    self.state.weapons[slot_i] = wid
+                    while len(self.state.ammo) <= slot_i:
+                        self.state.ammo.append(0)
+                    self.state.ammo[slot_i] = 0
+                resp.other_data.shop_ans = True
+                print(
+                    f"[SHOP] player {self.user_id} bought {amount}x {kind}:{name} for {total}. Cash now: {self.state.money}"
+                )
             await self.write(resp.SerializeToString())
         elif payload_type == "reload_act":
             try:

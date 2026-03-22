@@ -63,11 +63,20 @@ class RegionNode:
         self.projectile_handler = ProjectileHandler(self, self.enemy_handler)
         self.items: Dict[int, GridField] = {}  # id -> GridField(obj -> ItemState, seen)
 
+    @staticmethod
+    def clamp_cell(cell_x: int, cell_y: int) -> Tuple[int, int]:
+        """Grid indices are 0.._grid_w-1 / 0.._grid_h-1; clamp OOB from boundary pixels or bad state."""
+        w, h = RegionNode._grid_w, RegionNode._grid_h
+        return (
+            max(0, min(int(cell_x), w - 1)),
+            max(0, min(int(cell_y), h - 1)),
+        )
+
     def to_cell_pos(self, pos: Tuple[int, int]) -> Tuple[int, int]:
-        """Assumes RegionNode.contains(pos) == true"""
+        """Map world pixel to grid cell; clamp so east/south inclusive contains() does not yield index == w or h."""
         x = (pos[0] - self.x_range[0]) // RegionNode.CELL_SIZE
         y = (pos[1] - self.y_range[0]) // RegionNode.CELL_SIZE
-        return (x, y)
+        return self.clamp_cell(x, y)
 
     def contains(self, x: int, y: int) -> bool:
         """True if (x, y) is inside this node's bounds."""
@@ -258,6 +267,7 @@ class RegionNode:
         seen: set[int] | None = None,
         ever_seen: set[int] | None = None,
     ) -> GridField:
+        cell_x, cell_y = self.clamp_cell(cell_x, cell_y)
         field = GridField(obj, seen, ever_seen)
         self.grid[cell_y * RegionNode._grid_w + cell_x].add(field)
         return field
@@ -284,11 +294,14 @@ class RegionNode:
             grid_field.ever_seen.add(user_id)
 
     def grid_remove(self, obj: Any, cell_x: int, cell_y: int) -> None:
+        cell_x, cell_y = self.clamp_cell(cell_x, cell_y)
         self.grid[cell_y * RegionNode._grid_w + cell_x].discard(GridField(obj))
 
     def grid_move(
         self, obj: Any, old_cx: int, old_cy: int, new_cx: int, new_cy: int
     ) -> None:
+        old_cx, old_cy = self.clamp_cell(old_cx, old_cy)
+        new_cx, new_cy = self.clamp_cell(new_cx, new_cy)
         if (old_cx, old_cy) != (new_cx, new_cy):
             old_seen: set[int] = set()
             old_ever_seen: set[int] = set()

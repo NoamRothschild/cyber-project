@@ -156,8 +156,8 @@ switch ($Command) {
         docker build -f region_server/Dockerfile -t cyber-region-server .
 
         Ensure-Network
-        $tcpPort = 8085 + [int]$serverId
-        $udpPort = 8086 + [int]$serverId
+        $tcpPort = 8085
+        $udpPort = 8086
         # docker rm -f "region-server-$serverId" 2>$null
         Write-Host "Running region server (server_id=$serverId, REDIS_HOST=$redisHost)..."
         docker run -d `

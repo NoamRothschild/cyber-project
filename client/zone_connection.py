@@ -48,17 +48,17 @@ class ZoneConnection:
         self.reliable_port = reliable_port
         self.fast_port = fast_port
 
-        self.message_queue: Queue[region_net.ServerResponse] = Queue()
         self.last_recevied_seq = 0
         self.last_sent_seq = 0
         self._stop_event = threading.Event()
         self._listener_thread: threading.Thread | None = None
         self._event_handler_thread: threading.Thread | None = None
+        self._use_udp_for_updates = True
 
         self.game = game
 
     def open_connections(self, session_id: int) -> int:
-        """opens the TCP and UDP conn's and returns the user id. can throw"""
+        """Opens TCP (required). UDP is used for low-latency updates when the handshake succeeds; otherwise TCP only."""
         from potion import Potion
 
         self.reliable_conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
@@ -70,7 +70,10 @@ class ZoneConnection:
             self.reliable_conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3)
         self.reliable_conn.connect((self.host, self.reliable_port))
 
-        server_id = ZoneConnectionSingleton._config_hosts.index(self.host)
+        # Must match region server's server_id / region_keys_<id>.pem, not list order in ZONE_HOSTS.
+        server_id = HOST_ZONE_MAP.get(self.host)
+        if server_id is None:
+            server_id = ZoneConnectionSingleton._config_hosts.index(self.host)
         region_server_public_key = auth_crypto.load_public_key(
             _CLIENT_DIR / f"region_server_{server_id}_public.pem"
         )
@@ -85,9 +88,18 @@ class ZoneConnection:
         self.reliable_conn.sendall(
             auth_crypto.encrypt_and_prefix(handshake.SerializeToString(), region_server_public_key)
         )
-        login_resp_plain = auth_crypto.receive_and_decrypt(
-            self.reliable_conn.recv, client_private_key
-        )
+        try:
+            login_resp_plain = auth_crypto.receive_and_decrypt(
+                self.reliable_conn.recv, client_private_key
+            )
+        except ValueError as e:
+            raise RuntimeError(
+                f"zone TCP handshake failed for {self.host} (server_id={server_id}): {e}. "
+                f"The server closed without a valid reply — usually wrong keys "
+                f"(client needs region_server_{server_id}_public.pem to match that host's "
+                f"region_keys_{server_id}.pem), or nothing running on port {self.reliable_port}, "
+                f"or not the game region server."
+            ) from e
         login_resp = region_net.HandshakeStart()
         login_resp.ParseFromString(login_resp_plain)
         if login_resp.kind != login_resp.SERVER_OK:
@@ -144,11 +156,30 @@ class ZoneConnection:
             f"Sync Complete: Player loaded at X:{player.hitbox.x} Y:{player.hitbox.y}"
         )
 
+        uid = login_resp.user_id
+        if self.game.user_id is None:
+            self.game.user_id = uid
+        elif self.game.user_id != uid:
+            raise RuntimeError(
+                f"user_id mismatch between zone servers: {self.game.user_id} vs {uid} ({self.host})"
+            )
+
         self._listener_thread = threading.Thread(
             target=server_listener, args=(self,), daemon=True
         )
         self._listener_thread.start()
-        return login_resp.user_id
+        return uid
+
+    def _disable_udp_updates(self) -> None:
+        self._use_udp_for_updates = False
+        print(
+            "[WARN] UDP zone handshake failed (timeout/firewall/Docker UDP). "
+            "Using TCP for position updates; gameplay continues."
+        )
+        try:
+            self.fast_conn.close()
+        except OSError:
+            pass
 
     def open_fast_conn(self, session_id: int) -> None:
         handshake = region_net.HandshakeStart()
@@ -171,9 +202,8 @@ class ZoneConnection:
                     login_resp_packet = self.fast_conn.recv(65536)
                 except socket.timeout:
                     if attempt == max_retries - 1:
-                        raise RuntimeError(
-                            "failed connecting to udp zone: no response after retries (packet loss?)"
-                        )
+                        self._disable_udp_updates()
+                        return
                     continue
                 if not login_resp_packet:
                     continue
@@ -196,7 +226,11 @@ class ZoneConnection:
     def start_event_handler(self):
         self._event_handler_thread = threading.Thread(
             target=event_handler,
-            args=(self.game, self.message_queue, self._stop_event),
+            args=(
+                self.game,
+                ZoneConnectionSingleton().shared_reply_queue,
+                self._stop_event,
+            ),
             daemon=True,
         )
         self._event_handler_thread.start()
@@ -204,7 +238,7 @@ class ZoneConnection:
     def stop(self) -> None:
         """Signal listener and event_handler threads to exit, then join them."""
         self._stop_event.set()
-        self.message_queue.put(None)
+        ZoneConnectionSingleton().shared_reply_queue.put(None)
         if self._listener_thread is not None:
             self._listener_thread.join(timeout=2.0)
         if self._event_handler_thread is not None:
@@ -213,9 +247,11 @@ class ZoneConnection:
     def send_udp(self, update: region_net.RegionUpdate) -> None:
         update.seq_num = self.last_sent_seq
         raw = update.SerializeToString()
-        ZoneConnectionSingleton.enqueue_send(
-            _UDP, auth_crypto.encrypt_and_prefix(raw, self._region_server_public_key)
-        )
+        blob = auth_crypto.encrypt_and_prefix(raw, self._region_server_public_key)
+        if self._use_udp_for_updates:
+            ZoneConnectionSingleton.enqueue_send(_UDP, blob)
+        else:
+            ZoneConnectionSingleton.enqueue_send(_TCP, blob)
         self.last_sent_seq += 1
 
     def send_tcp(self, data: bytes) -> None:
@@ -410,6 +446,7 @@ class ZoneConnectionSingleton:
 
                 cls._instance.zone_connections = zone_connections
                 cls._instance.zone = zone_connections[cls._config_hosts[0]]
+                cls._instance.shared_reply_queue = Queue()
         return cls._instance
 
 
@@ -424,15 +461,15 @@ def _sender_worker(send_queue: Queue, stop_event: threading.Event):
             break
         protocol, data, zone = item
         try:
-            if protocol == _UDP:
+            if protocol == _UDP and zone._use_udp_for_updates:
                 zone.fast_conn.sendto(data, (zone.host, zone.fast_port))
             else:
                 zone.reliable_conn.sendall(data)
         except Exception as e:
-            if protocol == _UDP:
+            if protocol == _UDP and zone._use_udp_for_updates:
                 try:
                     zone.reliable_conn.sendall(data)
-                except:
+                except Exception:
                     print(f"[WARN]: failed sending (both UDP and TCP fallback): {e}")
             else:
                 print(f"[WARN]: failed sending TCP: {e}")
@@ -457,7 +494,11 @@ def server_listener(zone: ZoneConnection):
     Start this one in another thread
     Continuously polls server updates and pushes them into the queue
     """
-    sock_list = [zone.reliable_conn, zone.fast_conn]
+    sock_list = (
+        [zone.reliable_conn, zone.fast_conn]
+        if zone._use_udp_for_updates
+        else [zone.reliable_conn]
+    )
     select_timeout = 0.5
 
     while not zone._stop_event.is_set():
@@ -492,7 +533,7 @@ def server_listener(zone: ZoneConnection):
             if is_udp:
                 zone.last_recevied_seq = max(zone.last_recevied_seq, parsed.seq_num)
 
-            zone.message_queue.put(parsed)
+            ZoneConnectionSingleton().shared_reply_queue.put(parsed)
 
 
 def event_handler(
