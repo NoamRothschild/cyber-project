@@ -4,19 +4,8 @@ from mapset import *
 from functools import cache
 from random import randint
 from zone_connection import ZoneConnectionSingleton
-import os
-import sys
+from paths import resource_path
 
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 class Potion(pygame.sprite.Sprite):
     # Start with None. We will load the images safely AFTER the window is created.
@@ -27,24 +16,24 @@ class Potion(pygame.sprite.Sprite):
         if cls.potions is None:
             cls.potions = {
                 "healing": (
-                    pygame.image.load("Potion/super_health.png").convert_alpha(),
+                    pygame.image.load(resource_path("Potion/super_health.png")).convert_alpha(),
                     "health_bar",
                     6,
                     15,
                 ),
                 "speed": (
-                    pygame.image.load("Potion/speed.png").convert_alpha(),
+                    pygame.image.load(resource_path("Potion/speed.png")).convert_alpha(),
                     "speed",
                     10,
                     10,
                 ),
                 "super_speed": (
-                    pygame.image.load("Potion/super_speed.png").convert_alpha(),
+                    pygame.image.load(resource_path("Potion/super_speed.png")).convert_alpha(),
                     "speed",
                     20,
                     10,
                 ),
-                "gold": (pygame.image.load("Potion/gold.png").convert_alpha(),
+                "gold": (pygame.image.load(resource_path("Potion/gold.png")).convert_alpha(),
                          "gold",
                          2,
                          10)

@@ -1,18 +1,7 @@
 import pygame, math
+from paths import resource_path
 from game import *
 from mapset import VIEW_WIDTH, VIEW_HEIGHT, SCREEN_SCALE_X, SCREEN_SCALE_Y
-import os
-import sys
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 def draw_AND_update_Bullets(player):
     # Derive camera scroll exactly like Camera.custom_draw does (same view size):

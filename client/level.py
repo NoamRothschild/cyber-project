@@ -23,25 +23,14 @@ from nodes import fetch_zone_map, pos_to_zone_index
 import random
 from chat import *
 import os
-import sys
+
+from paths import resource_path
 
 
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
 BUSH_FRIQWENTY=7
-
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
-
 
 
 map_for_d = {}
@@ -53,7 +42,7 @@ def preload_all_trees():
         print(f"Critical Error: Could not find tree folder at {folder_path}")
         return
 
-    # 2. Look inside the resolved _MEIPASS folder
+    # 2. Load each PNG from the resolved asset folder
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".png"):
             # 3. Join the filename directly to the absolute folder path

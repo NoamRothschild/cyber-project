@@ -5,8 +5,7 @@ from arsenal import *
 import time
 from zone_connection import *
 from colectibes import Colectible_sprite, Mony
-import os
-import sys
+from paths import resource_path
 
 # ==========================================
 # --- THE TRANSLATOR---
@@ -33,16 +32,6 @@ POTION_MAP = {
     3: "super_speed",
     4: "gold"
 }
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 class Inventory(pygame.sprite.Sprite):
 

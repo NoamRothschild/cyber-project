@@ -3,19 +3,7 @@ from random import randint
 from mapset import *
 from arsenal import Arsenal
 from potion import Potion
-import os
-import sys
-
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
+from paths import resource_path
 
 
 blue = (23, 130, 184)

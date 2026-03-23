@@ -1,10 +1,10 @@
 import threading
 from typing import Any, Dict, Tuple
-import sys, os
 
 import pygame
 from health import HealthBar
 from animation import Animation
+from paths import resource_path
 
 SCALE_FROM_LIFE = 5
 MIN_SMOOTH_DST = 25  # pixels; below this we interpolate, above we snap
@@ -14,16 +14,6 @@ BASE_HP_PLAYER = 400
 BASE_HP_ENEMY = 50
 # Bar is always this many units wide so player and enemy bars look the same length
 BAR_SCALE = BASE_HP_PLAYER // SCALE_FROM_LIFE
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 # Match the player's default skin: "fiona"
 FIONA_SKIN = {

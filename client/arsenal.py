@@ -2,20 +2,10 @@ from typing import Any
 import pygame
 import math
 from functools import cache
-import os
-import sys
 from mapset import SCREEN_SCALE_X, SCREEN_SCALE_Y
 from random import randint
 
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
+from paths import resource_path
 
 # from weapon_anim import WeaponAnim (Assuming you have this file safely elsewhere)
 

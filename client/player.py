@@ -12,27 +12,16 @@ from bullets import *
 from shop import ShopUI
 from potion import Potion
 from animation import Animation
-import os
-import sys
 from AutoPlay import AutoMove as AutoMoveController
 import random
+
+from paths import resource_path
 
 PINK = (234, 54, 128)
 HEALTH_BAR_SCALE = 400
 HEALTH_BAR_POS = [WIDTH - HEALTH_BAR_SCALE - 10, 10]
 Starting_POS = (370 * SIZE, 163 * SIZE)
 
-
-
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
 
 class Player(pygame.sprite.Sprite):
     player_skins_and_animatiom = \
