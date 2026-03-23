@@ -668,7 +668,11 @@ class Client:
 
         payload_type = update.WhichOneof("payload")
         if payload_type == "location_block":
-            if not await self.is_movment(update.location_block.x, update.location_block.y):
+            on_null_node = self.node is None or self.node is NULL_NODE
+            if (
+                not on_null_node
+                and not await self.is_movment(update.location_block.x, update.location_block.y)
+            ):
                 hi = region_net.ServerResponse()
                 hi.move_self.CopyFrom(
                     region_net.LocationBlock(
