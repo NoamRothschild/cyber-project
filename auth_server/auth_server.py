@@ -14,7 +14,8 @@ import rate_limiter
 
 DB_NAME = 'Auth.db'
 PORT = 9999
-BIND_ADDRESS = __import__('os').environ.get('AUTH_BIND', '127.0.0.1')
+# Default 0.0.0.0 so Docker -p and LAN work; override with AUTH_BIND=127.0.0.1 for local-only.
+BIND_ADDRESS = __import__('os').environ.get('AUTH_BIND', '0.0.0.0')
 BYTES_TO_DECODE = 8192
 
 _AUTH_SERVER_DIR = Path(__file__).resolve().parent
@@ -26,13 +27,46 @@ CACHE_TIME = 86400 # in seconds
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_TIME = 600  # 10 דקות בשניות
 
-def _redis_host():
-    import os
-    from config import REDIS_PASSWORD as _p
-    return os.environ.get("REDIS_HOST", "127.0.0.1"), _p
+def _redis_conn_params():
+    """
+    Host and password for redis.Redis.
 
-_rhost, _rpass = _redis_host()
+    password=None means redis-py will not send AUTH — required when Redis has no
+    requirepass (e.g. default redis:latest on the host). If you use a password
+    in compose (--requirepass), set REDIS_PASSWORD to match or rely on config.json.
+
+    Env REDIS_PASSWORD may be set to empty (e.g. -e REDIS_PASSWORD=) to force no AUTH
+    even when config.json defines a password.
+    """
+    import os
+    from config import REDIS_HOST as _cfg_host
+    _cfg_pwd = os.environ.get("REDIS_PASSWORD", "36f52b82c90c161f0")
+
+    host = (os.environ.get("REDIS_HOST") or "").strip() or _cfg_host or "127.0.0.1"
+
+    if "REDIS_PASSWORD" in os.environ:
+        raw_pwd = os.environ["REDIS_PASSWORD"]
+    else:
+        raw_pwd = _cfg_pwd
+    if isinstance(raw_pwd, str):
+        raw_pwd = raw_pwd.strip()
+    password = raw_pwd if raw_pwd else None
+
+    return host, password
+
+
+_rhost, _rpass = _redis_conn_params()
 r = redis.Redis(host=_rhost, port=REDIS_PORT, password=_rpass, decode_responses=True)
+print(
+    f"[auth] Redis client init: host={_rhost!r} port={REDIS_PORT} "
+    f"password={'set len=' + str(len(_rpass)) if _rpass else 'none (no AUTH)'}",
+    flush=True,
+)
+try:
+    r.ping()
+    print("[auth] Redis PING ok at module load", flush=True)
+except redis.RedisError as ex:
+    print(f"[auth] Redis PING failed at module load: {ex!r}", flush=True)
 
 
 def get_db_connection():
@@ -153,7 +187,7 @@ def handle_auth_update(conn: sqlite3.Connection, raw_data: str) -> None:
 
 def auth_update_listener() -> None:
     conn = sqlite3.connect(db.DB_PATH)
-    _rhost, _rpass = _redis_host()
+    _rhost, _rpass = _redis_conn_params()
     sub = redis.Redis(host=_rhost, port=REDIS_PORT, password=_rpass, decode_responses=True)
     ps = sub.pubsub()
     ps.subscribe("auth-update")
@@ -169,26 +203,35 @@ def handle_register(username, password):
     Registers a new user.
     Returns: "REGISTER_SUCCESS" or "REGISTER_FAILED"
     """
+    print(
+        f"[auth][register] handle_register enter username={username!r} "
+        f"username_len={len(username)} password_len={len(password)}",
+        flush=True,
+    )
     try:
         with get_db_connection() as connection:
+            print("[auth][register] SQLite connection acquired", flush=True)
             cursor = connection.cursor()
 
             cursor.execute("SELECT 1 FROM USERS WHERE username = ?", (username,))
+            exists = cursor.fetchone()
+            print(f"[auth][register] username lookup done exists={bool(exists)}", flush=True)
 
-            if cursor.fetchone():
+            if exists:
+                print(f"[auth][register] returning REGISTER_TAKEN for {username!r}", flush=True)
                 return "REGISTER_TAKEN"
 
             hashed_pw = get_hashed_password(username, password)
+            print(f"[auth][register] password hashed hash_len={len(hashed_pw)}", flush=True)
             cursor.execute("INSERT INTO USERS (username, password) VALUES (?, ?)",
                            (username, hashed_pw))
 
             connection.commit()
-            print(f"User {username} registered successfully.")
+            print(f"[auth][register] INSERT committed; {username!r} registered successfully.", flush=True)
             return "REGISTER_SUCCESS"
 
-
     except sqlite3.Error as e:
-        print(f"Error registering user: {e}")
+        print(f"[auth][register] sqlite error -> REGISTER_FAILED: {e!r}", flush=True)
         return "REGISTER_FAILED"
 
 
@@ -264,54 +307,104 @@ def handle_login(username, password):
 
 def run_server():
      import os
-     bind_addr = os.environ.get("AUTH_BIND", "127.0.0.1")
+     bind_addr = os.environ.get("AUTH_BIND", "0.0.0.0")
      server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
      server_socket.bind((bind_addr, PORT))
      server_socket.listen()
-     print("Server is running and waiting to register users...")
+     print(
+         f"[auth] TCP listening on {bind_addr!r}:{PORT} (override with AUTH_BIND)",
+         flush=True,
+     )
 
      server_private_key = auth_crypto.load_private_key_from_dir(_AUTH_SERVER_DIR)
+     print("[auth] Loaded auth server RSA private key from disk", flush=True)
      create_table()
      while True:
          (client_socket, client_address) = server_socket.accept()
+         peer = f"{client_address[0]}:{client_address[1]}"
+         print(f"[auth] accept from {peer}", flush=True)
          if not rate_limiter.should_continue(client_address):
              client_socket.close()
-             print("[INFO] ignoring possible DOS attempt from a user")
+             print(f"[auth] rate_limiter blocked {peer}", flush=True)
              continue
 
          try:
              try:
+                 print(f"[auth] {peer} reading length-prefixed ciphertext (decrypt with server private key)...", flush=True)
                  plaintext = auth_crypto.receive_and_decrypt(client_socket.recv, server_private_key)
+                 print(
+                     f"[auth] {peer} decrypt OK plaintext_len={len(plaintext)}",
+                     flush=True,
+                 )
              except ValueError as e:
-                 print(f"[auth] Decrypt failed (key mismatch?): {e}")
+                 print(f"[auth] {peer} Decrypt/read failed (key mismatch or truncated?): {e!r}", flush=True)
                  continue
              data = auth_net.RequestLogin()
-             data.ParseFromString(plaintext)
+             try:
+                 data.ParseFromString(plaintext)
+             except Exception as ex:
+                 print(f"[auth] {peer} protobuf ParseFromString failed: {ex!r}", flush=True)
+                 continue
+
+             try:
+                 mode_name = auth_net.Mode.Name(data.mode)
+             except ValueError:
+                 mode_name = f"<unknown {data.mode!r}>"
+             print(
+                 f"[auth] {peer} RequestLogin mode={mode_name} username={data.username!r} "
+                 f"username_len={len(data.username)} password_len={len(data.password)} "
+                 f"client_public_key_len={len(data.client_public_key)}",
+                 flush=True,
+             )
 
              if not data.client_public_key:
+                 print(f"[auth] {peer} missing client_public_key; closing", flush=True)
                  client_socket.close()
                  continue
-             client_public_key = auth_crypto.public_key_from_bytes(data.client_public_key)
+             try:
+                 client_public_key = auth_crypto.public_key_from_bytes(data.client_public_key)
+                 print(f"[auth] {peer} parsed client RSA public key OK", flush=True)
+             except Exception as ex:
+                 print(f"[auth] {peer} public_key_from_bytes failed: {ex!r}", flush=True)
+                 continue
 
              command = data.mode
 
              if command == auth_net.Mode.REGISTER:
+                print(f"[auth] {peer} REGISTER route start", flush=True)
                 result = handle_register(data.username, data.password)
+                print(f"[auth] {peer} handle_register returned {result!r}", flush=True)
                 if result == "REGISTER_SUCCESS":
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.SUCCESS
-                    print(f"User {data.username} successfully registered/pushed!")
-                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+                    payload = answer.SerializeToString()
+                    out = auth_crypto.encrypt_and_prefix(payload, client_public_key)
+                    print(
+                        f"[auth] {peer} sending REGISTER SUCCESS encrypted reply total_send_len={len(out)} "
+                        f"inner_proto_len={len(payload)}",
+                        flush=True,
+                    )
+                    client_socket.sendall(out)
                 elif result == "REGISTER_TAKEN":
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.TAKEN
-                    print(f"User {data.username} tried to register but already exists.")
-                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+                    payload = answer.SerializeToString()
+                    out = auth_crypto.encrypt_and_prefix(payload, client_public_key)
+                    print(
+                        f"[auth] {peer} sending REGISTER TAKEN encrypted reply total_send_len={len(out)}",
+                        flush=True,
+                    )
+                    client_socket.sendall(out)
                 else:
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.FAILURE
-                    print("Database error occurred.")
-                    client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+                    payload = answer.SerializeToString()
+                    out = auth_crypto.encrypt_and_prefix(payload, client_public_key)
+                    print(
+                        f"[auth] {peer} sending REGISTER FAILURE encrypted reply total_send_len={len(out)}",
+                        flush=True,
+                    )
+                    client_socket.sendall(out)
 
              elif command == auth_net.Mode.LOGIN:
                 result = handle_login(data.username, data.password)
@@ -339,7 +432,13 @@ def run_server():
                     answer = auth_net.SendAnswer()
                     answer.status = auth_net.Status.FAILURE
                     client_socket.sendall(auth_crypto.encrypt_and_prefix(answer.SerializeToString(), client_public_key))
+             else:
+                 print(
+                     f"[auth] {peer} unknown mode={command!r} ({mode_name}); no reply sent",
+                     flush=True,
+                 )
          finally:
+            print(f"[auth] {peer} client_socket.close() in finally", flush=True)
             client_socket.close()
 
 
