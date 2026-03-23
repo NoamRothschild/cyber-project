@@ -98,11 +98,7 @@ def start_redis_listener() -> None:
                 if not cli:
                     continue
                 stats = await load_player_stats_from_redis(cli.user_id)
-                cli.state.hp = stats["health"]
-                cli.state.weapons = stats["weapons"]
-                cli.state.ammo = stats["ammo"]
-                cli.state.potions = stats["potions"]
-                await cli.set_active_potions(stats["active_potions"])
+                await cli.apply_zone_handoff_from_redis(stats)
                 continue
 
             node_pos =  (
@@ -168,6 +164,8 @@ def start_redis_listener() -> None:
                                 "ammo": [30] * 10,
                                 "potions": [0] * 10,
                             },
+                            client_public_key=None,
+                            on_this_server=False,
                         )
                         dummy.state.x = bs.x
                         dummy.state.y = bs.y

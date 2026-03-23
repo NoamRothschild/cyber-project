@@ -608,6 +608,51 @@ class Client:
                     self.gold_active = True
                     self.gold_count = potion_time
 
+    async def apply_zone_handoff_from_redis(self, stats: dict) -> None:
+        """
+        Called on the destination region server when the player hands off from another server.
+        Syncs inventory/HP/money and — critically — world position so is_movment and bullets match the client.
+        """
+        from nodes import nodes as region_nodes
+
+        self.state.hp = stats["health"]
+        self.state.money = stats["money"]
+        self.state.weapons = list(stats["weapons"])
+        self.state.ammo = list(stats["ammo"])
+        self.state.potions = list(stats["potions"])
+        await self.set_active_potions(stats.get("active_potions") or {})
+
+        x, y = int(stats["spawn_x"]), int(stats["spawn_y"])
+        self.state.x, self.state.y = x, y
+
+        node_pos = RegionNode.which_node(x, y)
+        target = region_nodes.get(node_pos)
+        if target is None:
+            self.on_this_server = False
+            if self.node is not NULL_NODE and self.user_id in self.node.clients:
+                self.node.detach_client(self)
+            self.node = NULL_NODE
+            return
+
+        self.on_this_server = True
+        self.collision.x = x
+        self.collision.y = y
+
+        if self.node is not NULL_NODE and self.user_id in self.node.clients:
+            self.node.detach_client(self)
+        if self.user_id in target.clients:
+            target.detach_client(self)
+
+        self.node = target
+        await target.register_client(self, (x, y))
+
+        r = get_redis()
+        await r.set(f"client:{self.user_id}:node", str(target.index))
+        print(
+            f"[zone-handoff] user {self.user_id} snapped to ({x},{y}) on node {target.view}; "
+            f"on_this_server=True"
+        )
+
     async def handle_region_update(self, data: bytes, source: int) -> None:
         update = region_net.RegionUpdate()
         update.ParseFromString(data)
@@ -672,8 +717,8 @@ class Client:
                 prefix = f"client:{self.user_id}:"
                 await r.set(prefix + "health", self.state.hp)
                 await r.set(prefix + "money", self.state.money)
-                # await r.set(prefix + "spawn_x", self.state.x)
-                # await r.set(prefix + "spawn_y", self.state.y)
+                await r.set(prefix + "spawn_x", str(self.state.x))
+                await r.set(prefix + "spawn_y", str(self.state.y))
                 await r.set(prefix + "weapons", ",".join(str(w) for w in self.state.weapons))
                 await r.set(prefix + "ammo", ",".join(str(a) for a in self.state.ammo))
                 await r.set(prefix + "potions", ",".join(str(p) for p in self.state.potions))
