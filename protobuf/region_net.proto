@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package game.chat;
+
+message RegionUpdate {
+  oneof payload {
+    LocationBlock location_block = 1;
+    BulletShot bullet_shot = 2;
+    PotionUse potion_use = 3;
+    ItemDrop item_drop = 4;
+    Item item_pickup = 5;
+    ShopBuy shop_buy = 6;
+    ReloadAct reload_act = 7;
+    MovedServer moved_server = 8;
+  }
+  optional uint64 seq_num = 9;
+  optional int32 sender_id = 10;
+}
+
+message MovedServer {
+  int32 new_server_id = 1;
+};
+
+message ItemDrop {
+  int32 inventory_index = 1;
+  string item_kind = 2;
+  int32 ammo = 3;
+}
+
+message PotionUse {
+  string potion_type = 1;
+  int32 HowMuch=2;
+  int32 id=3;
+
+}
+
+message ReloadAct {
+  string gun_type = 1;
+  int32 full_mag = 2;
+}
+
+message ShopBuy {
+  string item_type = 1;  // ammo weapon potion
+  string item_name = 2;  // Ak 47 bullets.... Pistol... speed potion......
+  int32 amount = 3;
+  int32 id = 4;
+}
+
+
+message LocationBlock {
+  int32 x = 1;
+  int32 y = 2;
+}
+
+message Item {
+  string Kind = 1;
+  string Name = 2;
+  int32  x = 3; // only set from server -> client
+  int32  y = 4; // only set from server -> client
+  int32  id = 5;
+  optional bool Picked_up = 6; // only set from server -> client
+  optional bool Not_exist = 7; // only set from server -> client
+}
+
+message BulletShot {
+  string gun_type = 1;
+  float angle = 2;
+  int32 count = 3;
+  optional int32 x = 4;     // only set from server -> client
+  optional int32 y = 5;     // only set from server -> client
+  optional int32 ttl =  6;  // only set from server -> client
+  optional int32 speed = 7; // only set from server -> client
+  repeated int32 seen_players = 8;
+}
+
+message HandshakeStart {
+  Kind kind = 1;
+  oneof payload {
+    int64 session_id = 2;
+  }
+  optional int32 user_id = 3; // only set from server -> client
+  optional int32 health = 4;
+  optional int32 money = 5;
+  optional int32 pos_x = 6;
+  optional int32 pos_y = 7;
+
+  repeated int32 weapons = 8;
+  repeated int32 potions = 9;
+  repeated int32 ammo = 10; // NEW: Added to track ammo per weapon slot
+  bytes client_public_key = 11; // client's RSA public key for server to encrypt messages
+
+  enum Kind {
+    LOGIN = 0;
+    SERVER_OK = 1;
+    AUTH_FAIL = 2;
+  }
+}
+
+message OtherPlayerData {
+  oneof payload {
+    LocationBlock new_location = 1;
+    int32 HP = 2;
+    OtherState state = 3;
+    Item New_Item = 4;
+    bool shop_ans = 5;
+    bool reload=6;
+  }
+  int32 player_id = 7;
+
+  enum OtherState {
+    WALKING = 0;
+    ATTACKING = 1;
+    DESPAWNED = 2;
+    DIED = 3;
+  }
+}
+
+message ServerResponse {
+  int32 sender_id = 1;
+  oneof payload {
+    LocationBlock move_self = 2; // force tp back - block invalid movements
+    OtherPlayerData other_data = 3;
+    OtherPlayerData enemy_data = 4;
+    int32 fps = 5;
+  }
+  repeated BulletShot bullet_shot = 6;
+  optional uint64 seq_num = 7;
+}
+
+message ClientProxy {
+  int64 session_id = 1;
+  int32 player_id = 2;
+  LocationBlock pos = 3;
+  int32 HP = 4;
+  OtherState state = 5;
+
+  enum OtherState {
+    WALKING = 0;
+    ATTACKING = 1;
+    DESPAWNED = 2;
+  }
+}
+
+message EnemyProxy {
+  int64 session_id = 1; // unused, for eaiser compatability
+  int32 player_id = 2;
+  LocationBlock pos = 3;
+  int32 HP = 4;
+}
+
+message ItemProxy {
+  int32 id = 1;
+  LocationBlock pos = 2;
+  string name = 3;
+  string kind = 4;
+  Action action = 5;
+
+  enum Action {
+    PLACE = 0;
+    REMOVE = 1;
+  }
+}
+
+message ProxyEvent {
+  oneof payload {
+    ClientProxy client = 1;
+    ItemProxy item = 2;
+    EnemyProxy enemy = 3;
+    // In the future: BulletShot bullet_shot = 2;
+  }
+}

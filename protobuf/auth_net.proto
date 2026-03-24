@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package game.auth;
+
+message RequestLogin {
+  Mode mode = 1;
+  string username = 2;
+  string password = 3;
+  bytes client_public_key = 4;  // client's RSA public key (PEM or SubjectPublicKeyInfo) for server to encrypt response
+}
+
+enum Mode {
+ LOGIN = 0;
+ REGISTER = 1;
+}
+
+message SendAnswer {
+ Mode mode = 2;
+ Status status = 1;
+ optional int64 session_id = 3;
+}
+
+enum Status {
+ SUCCESS = 0;
+ FAILURE = 1;
+ TAKEN = 2;
+ LOCKED = 3;
+ ALREADY_LOGGED_IN = 4;
+}
+
+

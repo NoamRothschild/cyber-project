@@ -1,5 +1,11 @@
 protobuf/*.py
 protobuf/*.pyi
+**/config.py
+**/auth_crypto.py
+**/protobuf
+*/config.json
+auth_server/*.db
+*.pem
 
 # ---- PYTHON DEFAULT GIT IGNORE ----
 

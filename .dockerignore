@@ -1,0 +1,25 @@
+# Git and IDE
+.git
+.gitignore
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__
+*.py[cod]
+.venv
+venv
+.env
+*.egg-info
+.pytest_cache
+.mypy_cache
+
+# Build artifacts
+*.speedscope
+*.svg
+
+# Client assets (large, not needed for servers)
+client/
