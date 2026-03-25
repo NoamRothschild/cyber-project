@@ -3,7 +3,7 @@ import asyncio
 from typing import Any, Dict, List, Optional, Tuple, cast, Set
 from constants import TICK_INTERVAL_SEC, THIS_SERVER_ID
 from region_node import RegionNode, HORIZONAL_NODE_COUNT
-from nodes import nodes
+from nodes import NODE_SLOT_COUNT, iter_local_nodes, local_region_nodes, nodes
 from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL, SERVER_PUBLIC_RECV
 
 
@@ -13,13 +13,16 @@ async def create_initial_nodes() -> None:
     my_nodes = await r.smembers(f"region:{THIS_SERVER_ID}")
     ps = get_pubsub()
 
+    local_region_nodes.clear()
     for node_idx_raw in cast(Set[bytes], my_nodes):
         node_idx = int(node_idx_raw)
         x = node_idx % HORIZONAL_NODE_COUNT
         y = node_idx // HORIZONAL_NODE_COUNT
-        nodes[(x, y)] = RegionNode(
+        rn = RegionNode(
             (x * RegionNode.NODE_WIDTH, y * RegionNode.NODE_HEIGHT)
         )
+        nodes[node_idx] = rn
+        local_region_nodes.append(rn)
         await ps.subscribe(node_idx_raw)
         print(f"initiliazed node at pos {x, y}")
     await ps.subscribe(SERVER_PUBLIC_RECV)
@@ -40,7 +43,7 @@ def start_global_tick_loop() -> None:
             cycle += 1
             start_time = loop.time()
             try:
-                for node in nodes.values():
+                for node in iter_local_nodes():
                     for client in list(node.potion_clients.values()):
                         await client.tick(cycle)
                     await node.enemy_handler.tick(cycle)
@@ -61,7 +64,7 @@ def start_global_tick_loop() -> None:
                 fps = int(ticked_since_last_sent / elapsed_sec) if elapsed_sec > 0 else 0
                 last_sent_wall = wall_now
                 ticked_since_last_sent = 0
-                for node in nodes.values():
+                for node in iter_local_nodes():
                     for cli in node.clients.values():
                         await cli.send_fps(fps)
 

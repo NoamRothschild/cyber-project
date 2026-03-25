@@ -67,7 +67,7 @@ def start_redis_listener() -> None:
 
     async def listener() -> None:
         from region_node import HORIZONAL_NODE_COUNT
-        from nodes import nodes, update_global_client_state, remove_global_client
+        from nodes import get_node_at, iter_local_nodes, update_global_client_state, remove_global_client
         from region_server_extras import Client, NULL_NODE, load_player_stats_from_redis
         ps = get_pubsub()
         while True:
@@ -85,10 +85,10 @@ def start_redis_listener() -> None:
                     event = region_net.ProxyEvent()
                     event.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
                     if event.HasField("client"):
-                        for node in nodes.values():
+                        for node in iter_local_nodes():
                             await node.receive_proxy_remove(event.client.player_id, "Client")
                     elif event.HasField("enemy"):
-                        for node in nodes.values():
+                        for node in iter_local_nodes():
                             await node.receive_proxy_remove(event.enemy.player_id, "Enemy")
                 continue
             elif channel.startswith(b"REGION:"):
@@ -110,7 +110,7 @@ def start_redis_listener() -> None:
                 # print(f"got proxy create event to {node_pos}")
                 event = region_net.ProxyEvent()
                 event.ParseFromString(data[len(PROXY_CREATE_PREFIX):])
-                if node := nodes.get(node_pos):
+                if node := get_node_at(node_pos):
                     await node.receive_proxy_event(event)
                     if event.HasField("client"):
                         await update_global_client_state(event.client.session_id, event.client)
@@ -118,12 +118,12 @@ def start_redis_listener() -> None:
             elif data.startswith(PROXY_REMOVE_PREFIX):
                 event = region_net.ProxyEvent()
                 event.ParseFromString(data[len(PROXY_REMOVE_PREFIX):])
-                if node := nodes.get(node_pos):
+                if node := get_node_at(node_pos):
                     if event.HasField("client"):
                         await node.receive_proxy_remove(event.client.player_id)
 
             elif data.startswith(NOTIFY_CLIENT_PREFIX):
-                node = nodes.get(node_pos)
+                node = get_node_at(node_pos)
                 if not node:
                     continue
                 update = region_net.ServerResponse()
@@ -144,7 +144,7 @@ def start_redis_listener() -> None:
             elif data.startswith(BROADCAST_PREFIX):
                 update = region_net.RegionUpdate()
                 update.ParseFromString(data[len(BROADCAST_PREFIX):])
-                if node := nodes.get(node_pos):
+                if node := get_node_at(node_pos):
                     payload_type = update.WhichOneof('payload')
                     print(f"got update of type {payload_type} to {node.node_pos}")
 

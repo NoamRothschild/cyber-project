@@ -22,7 +22,7 @@ from constants import (
     SERVER_MAX_AMMO,
 )
 
-from nodes import nodes, register_global_client, remove_global_client, get_global_client
+from nodes import get_node_at, register_global_client, remove_global_client, get_global_client
 from servers_communication import get_redis, notify_server
 from region_node import RegionNode
 from proxy import broadcast_proxy_remove
@@ -215,7 +215,7 @@ class Client:
             initial_pos = (player_stats["spawn_x"], player_stats["spawn_y"])
 
             node_pos = RegionNode.which_node(*initial_pos)
-            node = nodes.get(node_pos)
+            node = get_node_at(node_pos)
             if node is None:
                 node = NULL_NODE
 
@@ -377,8 +377,6 @@ class Client:
 
     async def _handle_death(self) -> None:
         """Broadcast DESPAWN to viewers, force TP to spawn, reset HP, move to spawn node."""
-        from nodes import nodes
-
         dead_pos = (self.state.x, self.state.y)
         node = self.node
 
@@ -391,7 +389,7 @@ class Client:
         await broadcast_proxy_remove(self.user_id, "Client", self.session_id)
 
         self.state.hp = 400
-        spawn_node = nodes.get(Client.SPAWN_NODE_POS)
+        spawn_node = get_node_at(Client.SPAWN_NODE_POS)
 
         if spawn_node is None:
             # Spawn is on another server: detach here so we don't leave a ghost client.
@@ -613,8 +611,6 @@ class Client:
         Called on the destination region server when the player hands off from another server.
         Syncs inventory/HP/money and — critically — world position so is_movment and bullets match the client.
         """
-        from nodes import nodes as region_nodes
-
         self.state.hp = stats["health"]
         self.state.money = stats["money"]
         self.state.weapons = list(stats["weapons"])
@@ -626,7 +622,7 @@ class Client:
         self.state.x, self.state.y = x, y
 
         node_pos = RegionNode.which_node(x, y)
-        target = region_nodes.get(node_pos)
+        target = get_node_at(node_pos)
         if target is None:
             self.on_this_server = False
             if self.node is not NULL_NODE and self.user_id in self.node.clients:
@@ -686,7 +682,7 @@ class Client:
             node_pos = RegionNode.which_node(
                 update.location_block.x, update.location_block.y
             )
-            node = nodes.get(node_pos)
+            node = get_node_at(node_pos)
             if node is None:
                 if self.node != NULL_NODE:
                     await self.node.unregister_client(self)

@@ -29,7 +29,7 @@ from proxy import (
     ProxyEnemy,
 )
 from grid_utils import AABB, GridField, ProxyField, Direction, ItemState
-from nodes import nodes
+from nodes import get_node_at, nodes
 from enemy_handler import EnemyHandler, EnemyModel
 
 VERTICAL_NODE_COUNT = 20
@@ -101,7 +101,8 @@ class RegionNode:
                 adj_y = self.node_pos[1] + dy
                 if not (0 <= adj_x < HORIZONAL_NODE_COUNT and 0 <= adj_y < VERTICAL_NODE_COUNT):
                     continue
-                adj_node = nodes.get((adj_x, adj_y))
+                adj_i = adj_y * HORIZONAL_NODE_COUNT + adj_x
+                adj_node = nodes[adj_i]
                 if adj_node is None:
                     return True
                 if adj_node.clients:
@@ -243,7 +244,7 @@ class RegionNode:
                     else:
                         node_idx = int(await r.get(f"client:{cli_id}:node"))
                         node_pos = RegionNode.node_idx_to_pos(node_idx)
-                        if clients_node := nodes.get(node_pos):
+                        if clients_node := get_node_at(node_pos):
                             cli = clients_node.clients.get(cli_id, None)
                             if cli is None:
                                 continue

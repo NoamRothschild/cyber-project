@@ -35,10 +35,10 @@ async def create_proxy(
     dst_node_pos: Tuple[int, int],
     event: region_net.ProxyEvent,
 ) -> None:
-    from nodes import nodes
+    from nodes import get_node_at
     from region_node import RegionNode
 
-    if dst_node := nodes.get(dst_node_pos):
+    if dst_node := get_node_at(dst_node_pos):
         await dst_node.receive_proxy_event(event)
     else:
         node_idx = str(RegionNode.node_pos_to_idx(*dst_node_pos))
@@ -52,10 +52,10 @@ async def remove_proxy(
     session_id: int,
     type: str = "Client",
 ) -> None:
-    from nodes import nodes
+    from nodes import get_node_at
     from region_node import RegionNode
 
-    if dst_node := nodes.get(dst_node_pos):
+    if dst_node := get_node_at(dst_node_pos):
         await dst_node.receive_proxy_remove(sender_id, type)
     else:
         if type == "Client":
@@ -74,9 +74,9 @@ async def broadcast_proxy_remove(
     sender_id: int, type: str = "Client", session_id: Optional[int] = None
 ) -> None:
     """Remove entity's proxy from every node (notify viewers). For Client type, also publish to global channel so other servers remove the proxy."""
-    from nodes import nodes
+    from nodes import iter_local_nodes
 
-    for node in nodes.values():
+    for node in iter_local_nodes():
         await node.receive_proxy_remove(sender_id, type)
     if type == "Client" and session_id is not None:
         await publish_proxy_remove_global(sender_id, session_id)
@@ -84,9 +84,9 @@ async def broadcast_proxy_remove(
 
 async def broadcast_disconnect(sender_id: int, session_id: int) -> None:
     """Remove a player's proxy from every node on every server."""
-    from nodes import nodes
+    from nodes import iter_local_nodes
     from servers_communication import publish_proxy_remove_global
 
-    for node in nodes.values():
+    for node in iter_local_nodes():
         await node.receive_proxy_remove(sender_id)
     await publish_proxy_remove_global(sender_id, session_id)
