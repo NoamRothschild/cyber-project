@@ -5,8 +5,8 @@ class Rock(pygame.sprite.Sprite):#rock obstacle sprites
         if groups is not None:
             super().__init__(groups)
         self.image = image
-        if True:
-            self.image = pygame.transform.scale(self.image,(SIZE,SIZE))
+        if self.image.get_size() != (SIZE, SIZE):
+            self.image = pygame.transform.scale(self.image, (SIZE, SIZE))
         self.image.set_colorkey(PINK)
         self.rect = self.image.get_rect(topleft=pos)
         if(name=="rock"):
