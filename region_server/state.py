@@ -5,6 +5,7 @@ from constants import TICK_INTERVAL_SEC, THIS_SERVER_ID
 from region_node import RegionNode, HORIZONAL_NODE_COUNT
 from nodes import NODE_SLOT_COUNT, iter_local_nodes, local_region_nodes, nodes
 from servers_communication import get_redis, get_pubsub, GLOBAL_CHANNEL, SERVER_PUBLIC_RECV
+import math
 
 
 async def create_initial_nodes() -> None:
@@ -61,7 +62,7 @@ def start_global_tick_loop() -> None:
             wall_now = loop.time()
             if wall_now - last_sent_wall >= FPS_SEND_INTERVAL_SEC:
                 elapsed_sec = wall_now - last_sent_wall
-                fps = int(ticked_since_last_sent / elapsed_sec) if elapsed_sec > 0 else 0
+                fps = math.ceil(ticked_since_last_sent / elapsed_sec) if elapsed_sec > 0 else 0
                 last_sent_wall = wall_now
                 ticked_since_last_sent = 0
                 for node in iter_local_nodes():
