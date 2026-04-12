@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import os
 from pathlib import Path
 from typing import Tuple, Set, Dict, Union
 import protobuf.region_net_pb2 as region_net
@@ -219,7 +220,8 @@ class Client:
             if node is None:
                 node = NULL_NODE
 
-            self = Client(reader, writer, session_id, user_id, node, player_stats, node != NULL_NODE, client_public_key)
+            session_key = os.urandom(32)
+            self = Client(reader, writer, session_id, user_id, node, player_stats, node != NULL_NODE, client_public_key, session_key)
             client_created = True
             await register_global_client(session_id, self)
             if node != NULL_NODE:
@@ -232,7 +234,8 @@ class Client:
                 health=player_stats["health"],
                 money=player_stats["money"],
                 pos_x=player_stats["spawn_x"],
-                pos_y=player_stats["spawn_y"]
+                pos_y=player_stats["spawn_y"],
+                session_key=session_key,
             )
             self.state.money = player_stats["money"]
             print(f"self.state.money {self.state.money}")
@@ -303,7 +306,7 @@ class Client:
         cli = await get_global_client(session_id)
         if cli is not None:
             resp = region_net.HandshakeStart(kind=region_net.HandshakeStart.SERVER_OK)
-            encrypted = auth_crypto.encrypt_and_prefix(resp.SerializeToString(), cli.client_public_key)
+            encrypted = auth_crypto.session_encrypt_prefixed(resp.SerializeToString(), cli.session_key)
             await conn.send(encrypted)
             cli.conn_state.udp_conn = conn
             try:
@@ -319,11 +322,13 @@ class Client:
 
 
     def __init__(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, session_id: int,
-                 user_id: int, node: "RegionNode", stats: dict, on_this_server: bool, client_public_key) -> None:
+                 user_id: int, node: "RegionNode", stats: dict, on_this_server: bool, client_public_key,
+                 session_key: bytes) -> None:
         self.session_id = session_id
         self.user_id = user_id
         self.node = node
         self.client_public_key = client_public_key
+        self.session_key = session_key
         self.state = PlayerState(*node.topleft, *node.to_cell_pos(node.topleft))
         self.conn_state = ConnectionState(
             reader,
@@ -927,12 +932,11 @@ class Client:
                 print("reload error:", e)
 
     async def handle_tcp(self) -> None:
-        server_private_key = _get_server_private_key()
         try:
             while True:
                 try:
-                    data = await auth_crypto.async_receive_and_decrypt(
-                        self.conn_state.reader, server_private_key
+                    data = await auth_crypto.async_session_receive_and_decrypt(
+                        self.conn_state.reader, self.session_key
                     )
                 except ValueError:
                     break
@@ -941,7 +945,6 @@ class Client:
             pass
 
     async def handle_udp(self, conn: aioudp.Connection) -> None:
-        server_private_key = _get_server_private_key()
         try:
             while not self.conn_state.stop_udp_conn.is_set():
                 message = await conn.recv()
@@ -949,7 +952,7 @@ class Client:
                     self.conn_state.udp_conn = None
                     break
                 try:
-                    data = auth_crypto.decrypt_length_prefixed(message, server_private_key)
+                    data = auth_crypto.session_decrypt_length_prefixed(message, self.session_key)
                 except ValueError:
                     continue
                 await self.handle_region_update(data, Client.FROM_UDP)
@@ -964,7 +967,7 @@ class Client:
 
         data.seq_num = self.conn_state.last_sent_seq
         raw = data.SerializeToString()
-        encrypted = auth_crypto.encrypt_and_prefix(raw, self.client_public_key)
+        encrypted = auth_crypto.session_encrypt_prefixed(raw, self.session_key)
         if conn := self.conn_state.udp_conn:
             try:
                 await conn.send(encrypted)
@@ -977,7 +980,7 @@ class Client:
     async def write(self, data: bytes, encrypt: bool = True) -> bool:
         """Write data to the TCP stream. Returns False if the connection is dead."""
         if encrypt:
-            data = auth_crypto.encrypt_and_prefix(data, self.client_public_key)
+            data = auth_crypto.session_encrypt_prefixed(data, self.session_key)
         try:
             async with self.conn_state.writer_lock:
                 self.conn_state.writer.write(data)
@@ -1004,13 +1007,13 @@ class Client:
                 continue
             data.seq_num = client.conn_state.last_sent_seq
             raw = data.SerializeToString()
-            encrypted = auth_crypto.encrypt_and_prefix(raw, client.client_public_key)
+            encrypted = auth_crypto.session_encrypt_prefixed(raw, client.session_key)
             try:
                 if conn := client.conn_state.udp_conn:
                     await conn.send(encrypted)
                     client.conn_state.last_sent_seq += 1
                 else:
-                    await client.write(encrypted)
+                    await client.write(encrypted, encrypt=False)
             except Exception as e:
                 print(
                     f"Client {client.user_id} was unable to receive data: {e}, ignoring..."

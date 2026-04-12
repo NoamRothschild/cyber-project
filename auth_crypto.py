@@ -185,3 +185,95 @@ def public_key_to_bytes(public_key) -> bytes:
 def public_key_from_bytes(data: bytes):
     """Deserialize RSA public key from proto bytes."""
     return serialization.load_pem_public_key(data, backend=default_backend())
+
+
+# ---------------------------------------------------------------------------
+# Session-key (AES-256-GCM only) — no RSA, used after the TCP handshake.
+# Wire format: [12 bytes nonce][AES-GCM ciphertext+tag]
+# ---------------------------------------------------------------------------
+
+def session_encrypt(plaintext: bytes, session_key: bytes) -> bytes:
+    """Encrypt with a shared AES-256-GCM session key. Returns nonce + ciphertext."""
+    nonce = os.urandom(_NONCE_SIZE)
+    return nonce + AESGCM(session_key).encrypt(nonce, plaintext, None)
+
+
+def session_decrypt(data: bytes, session_key: bytes) -> bytes:
+    """Decrypt nonce + ciphertext produced by session_encrypt."""
+    if len(data) < _NONCE_SIZE:
+        raise ValueError("session ciphertext too short")
+    nonce = data[:_NONCE_SIZE]
+    return AESGCM(session_key).decrypt(nonce, data[_NONCE_SIZE:], None)
+
+
+def session_encrypt_prefixed(
+    plaintext: bytes,
+    session_key: bytes,
+    *,
+    length_prefix_bytes: int = 4,
+) -> bytes:
+    """session_encrypt then prepend a big-endian length prefix."""
+    ciphertext = session_encrypt(plaintext, session_key)
+    return len(ciphertext).to_bytes(length_prefix_bytes, "big") + ciphertext
+
+
+def session_decrypt_length_prefixed(
+    packet: bytes,
+    session_key: bytes,
+    *,
+    length_prefix_bytes: int = 4,
+) -> bytes:
+    """Decrypt a length-prefixed session packet (e.g. one UDP datagram)."""
+    if len(packet) < length_prefix_bytes:
+        raise ValueError("packet too short for length prefix")
+    msg_len = int.from_bytes(packet[:length_prefix_bytes], "big")
+    if len(packet) != length_prefix_bytes + msg_len:
+        raise ValueError("packet length mismatch")
+    return session_decrypt(packet[length_prefix_bytes:], session_key)
+
+
+def session_receive_and_decrypt(
+    recv: Callable[[int], bytes],
+    session_key: bytes,
+    *,
+    length_prefix_bytes: int = 4,
+) -> bytes:
+    """Read a length-prefixed session-encrypted message from a blocking socket."""
+    length_prefix = b""
+    while len(length_prefix) < length_prefix_bytes:
+        chunk = recv(length_prefix_bytes - len(length_prefix))
+        if not chunk:
+            raise ValueError("stream ended before length prefix")
+        length_prefix += chunk
+    msg_len = int.from_bytes(length_prefix, "big")
+    raw = b""
+    while len(raw) < msg_len:
+        chunk = recv(min(msg_len - len(raw), 65536))
+        if not chunk:
+            raise ValueError("stream ended before full message")
+        raw += chunk
+    return session_decrypt(raw, session_key)
+
+
+async def async_session_receive_and_decrypt(
+    reader,
+    session_key: bytes,
+    *,
+    length_prefix_bytes: int = 4,
+) -> bytes:
+    """Async version: read a length-prefixed session-encrypted message from an asyncio StreamReader."""
+    import asyncio  # noqa: F401 – imported for type context only
+    length_prefix = b""
+    while len(length_prefix) < length_prefix_bytes:
+        chunk = await reader.read(length_prefix_bytes - len(length_prefix))
+        if not chunk:
+            raise ValueError("stream ended before length prefix")
+        length_prefix += chunk
+    msg_len = int.from_bytes(length_prefix, "big")
+    raw = b""
+    while len(raw) < msg_len:
+        chunk = await reader.read(min(msg_len - len(raw), 65536))
+        if not chunk:
+            raise ValueError("stream ended before full message")
+        raw += chunk
+    return session_decrypt(raw, session_key)

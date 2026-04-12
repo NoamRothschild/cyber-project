@@ -104,6 +104,7 @@ class ZoneConnection:
         login_resp.ParseFromString(login_resp_plain)
         if login_resp.kind != login_resp.SERVER_OK:
             raise RuntimeError("failed connecting to zone: invalid session id")
+        self.session_key: bytes = login_resp.session_key
         self.open_fast_conn(session_id)
 
         player = self.game.level.player
@@ -208,8 +209,8 @@ class ZoneConnection:
                 if not login_resp_packet:
                     continue
                 try:
-                    login_resp_plain = auth_crypto.decrypt_length_prefixed(
-                        login_resp_packet, self._client_private_key
+                    login_resp_plain = auth_crypto.session_decrypt_length_prefixed(
+                        login_resp_packet, self.session_key
                     )
                 except ValueError:
                     continue
@@ -247,7 +248,7 @@ class ZoneConnection:
     def send_udp(self, update: region_net.RegionUpdate) -> None:
         update.seq_num = self.last_sent_seq
         raw = update.SerializeToString()
-        blob = auth_crypto.encrypt_and_prefix(raw, self._region_server_public_key)
+        blob = auth_crypto.session_encrypt_prefixed(raw, self.session_key)
         if self._use_udp_for_updates:
             ZoneConnectionSingleton.enqueue_send(_UDP, blob)
         else:
@@ -256,7 +257,7 @@ class ZoneConnection:
 
     def send_tcp(self, data: bytes) -> None:
         ZoneConnectionSingleton.enqueue_send(
-            _TCP, auth_crypto.encrypt_and_prefix(data, self._region_server_public_key)
+            _TCP, auth_crypto.session_encrypt_prefixed(data, self.session_key)
         )
 
     def try_send_update_pos(self, pos: Tuple[int, int]) -> None:
@@ -512,12 +513,12 @@ def server_listener(zone: ZoneConnection):
                     server_raw, _ = zone.fast_conn.recvfrom(65536)
                     if not server_raw:
                         continue
-                    plaintext = auth_crypto.decrypt_length_prefixed(
-                        server_raw, zone._client_private_key
+                    plaintext = auth_crypto.session_decrypt_length_prefixed(
+                        server_raw, zone.session_key
                     )
                 else:
-                    plaintext = auth_crypto.receive_and_decrypt(
-                        zone.reliable_conn.recv, zone._client_private_key
+                    plaintext = auth_crypto.session_receive_and_decrypt(
+                        zone.reliable_conn.recv, zone.session_key
                     )
             except ValueError:
                 continue
