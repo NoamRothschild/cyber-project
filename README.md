@@ -4,7 +4,6 @@ created for our 11th year submission project.
 
 demo video can be found here: [drive.google.com/file/d/19a..](https://drive.google.com/file/d/19aagUMVI0Jh59KSMxzaeLqQWFu5hSSn6/view)
 
-
 _video highlights_:
 
 <table style="width: 100%;">
@@ -18,10 +17,47 @@ _video highlights_:
   </tr>
 </table>
 
+## Table of Contents
+* [What is this about?](#what-is-this-about)
+* [Running the servers](#running-the-servers)
+* [Distribution of backend architecture](#distribution-of-backend-architecture)
+* [Distribution of Nodes on the map](#distribution-of-nodes-on-the-map)
+    * [Propagation](#propagation)
+    * [Abstract Architecture of a Single Node](#abstract-architecture-of-a-single-node)
+* [Handling of Network Packets](#handling-of-network-packets)
+    * [Rate Limiting](#rate-limiting)
+* [Incredibly good sources for writing region servers](#incredibly-good-sources-used-when-writing-the-region-server)
+
 ## What is this about?
 
 We needed to write a MMO (Massively Multiplayer Online) game. We also had 5 school pcs to our name and were advised to make it a _distributed server architecture_.
 We focused mainly about optimizations and security, while making sure to end up with a cool game with features.
+
+---
+
+## Running the servers
+
+Docker must be installed. All pcs should share a LAN. If on windows, make sure developer mode is active in the windows settings (one script create sym links).
+
+If you are on linux, you would have to read run.ps1 and copy only what you need, since utilities for non-windows machines have not been created.
+
+First decide if using 1 or 5 region servers. 5 region servers require 5 physical computers. edit `setup_redis.py` and change `REGION_SERVERS = ` to whatever you need. one region server -> `REGION_SERVERS_LOCAL`, 5 region servers -> `REGION_SERVERS_PROD_OPTIMIZED_LAYOUT`.
+
+Then, on each pc run:
+```powershell
+.\run.ps1 init
+```
+make sure to distribute the needed PEM files generated (list seen in stdout) to whichever pc that runs that server.
+
+If you intend on running clients from a few pcs, you will have to copy those PEM files in the client to every pcs client folder, or make an exe using pygame that contains them all.
+
+Next run `.\run.ps1` and look in help for how to run each server.
+
+If running 1 region server, the id given should be 0. if running 5, ids should be 0..4 (inclusive).
+
+Then, once they all are up and running, modify the client's config.jsonc. `SERVER_LAYOUT` should be either `single-server` or `multi-server` acordingly.
+
+Common bug: if you get `DECRYPT ERROR` in the client's GUI after trying to log in / register, you screwd something up with the certificates. The client and server have mismatching certificates.
 
 ## Distribution of backend architecture:
 
