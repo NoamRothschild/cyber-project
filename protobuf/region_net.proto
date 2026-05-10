@@ -88,6 +88,7 @@ message HandshakeStart {
   repeated int32 potions = 9;
   repeated int32 ammo = 10; // NEW: Added to track ammo per weapon slot
   bytes client_public_key = 11; // client's RSA public key for server to encrypt messages
+  bytes session_key = 12;       // AES-256 session key (server→client only, sent in TCP handshake response)
 
   enum Kind {
     LOGIN = 0;

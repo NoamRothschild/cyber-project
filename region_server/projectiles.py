@@ -119,7 +119,7 @@ class ProjectileHandler:
         client.user_state["ammo_collection"][bullet_type] -= shot_count
 
     async def tick(self, cycle: int) -> None:
-        from nodes import nodes
+        from nodes import get_node_at
         from region_node import RegionNode
         from servers_communication import broadcast_on
         from region_server_extras import Client
@@ -260,7 +260,7 @@ class ProjectileHandler:
                     continue
                 node_idx = int(await r.get(f"client:{cli_id}:node"))
                 node_pos = RegionNode.node_idx_to_pos(node_idx)
-                if clients_node := nodes.get(node_pos):
+                if clients_node := get_node_at(node_pos):
                     cli = clients_node.clients.get(cli_id, None)
                     if cli is None:
                         continue
@@ -292,7 +292,7 @@ class ProjectileHandler:
                 await cli.saw_enemy_hp(enemy.enemy_id, enemy.hp)
 
         for proj, new_node_pos in to_transfer:
-            if new_node := nodes.get(new_node_pos):
+            if new_node := get_node_at(new_node_pos):
                 await new_node.projectile_handler.receive_transferred(proj)
             else:
                 node_idx = str(RegionNode.node_pos_to_idx(*new_node_pos))
@@ -467,7 +467,7 @@ class ProjectileHandler:
 
     async def broadcast_to_adjacent(self, projectiles: list[dict]) -> None:
         """Broadcast projectile creation data to players in adjacent nodes."""
-        from nodes import nodes
+        from nodes import get_node_at
         from region_node import RegionNode
         from servers_communication import broadcast_on
 
@@ -483,7 +483,7 @@ class ProjectileHandler:
                     self._node.node_pos[1] + bound_y,
                 )
 
-                if extra_node := nodes.get(node_pos):
+                if extra_node := get_node_at(node_pos):
                     for cli in extra_node.clients.values():
                         if cli.user_id in proj["seen_by"]:
                             continue

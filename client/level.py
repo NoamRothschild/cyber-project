@@ -8,6 +8,8 @@ from PIL import Image
 from mapset import (
     WIDTH,
     HEIGHT,
+    SIZE,
+    PINK,
     VIEW_WIDTH,
     VIEW_HEIGHT,
     VIEW_SCALE_X,
@@ -27,6 +29,14 @@ import os
 from paths import resource_path
 
 
+def _prepare_static_tile(surface: pygame.Surface) -> pygame.Surface:
+    """Scale to SIZE once and set colorkey; reuse the same surface on many sprites."""
+    if surface.get_size() != (SIZE, SIZE):
+        surface = pygame.transform.scale(surface, (SIZE, SIZE))
+    surface.set_colorkey(PINK)
+    return surface
+
+
 colors = ["GREEN", "YELLOWISH GREEN", "RED"]
 ALL_BUSH_IMAGES = []
 ALL_TREE_IMAGES=[]
@@ -35,23 +45,19 @@ BUSH_FRIQWENTY=7
 
 map_for_d = {}
 def preload_all_trees():
-    # 1. Wrap the folder path so it looks in the hidden .exe folder!
     folder_path = resource_path("Pixel Trees")
 
     if not os.path.exists(folder_path):
         print(f"Critical Error: Could not find tree folder at {folder_path}")
         return
 
-    # 2. Load each PNG from the resolved asset folder
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(".png"):
-            # 3. Join the filename directly to the absolute folder path
             path = os.path.join(folder_path, filename)
             try:
-                # 4. Load the image using the full absolute path
                 img = pygame.image.load(path).convert_alpha()
-                # 5. Make sure SIZE is defined or imported properly in your real code!
                 img = pygame.transform.scale(img, (SIZE, SIZE))
+                img.set_colorkey(PINK)
                 ALL_TREE_IMAGES.append(img)
             except Exception as e:
                 print(f"Error loading tree {filename}: {e}")
@@ -84,9 +90,11 @@ class Level:
         self.colectible_sprite = pygame.sprite.Group()
         self.harmfull_sprites = pygame.sprite.Group()
 
-        self.image = [pygame.image.load(resource_path('rock.png')).convert(),
-                      pygame.image.load(resource_path('tree.png')).convert(),
-                      pygame.image.load(resource_path('water.png')).convert()]
+        self._tile_shared = (
+            _prepare_static_tile(pygame.image.load(resource_path("rock.png")).convert()),
+            _prepare_static_tile(pygame.image.load(resource_path("tree.png")).convert()),
+            _prepare_static_tile(pygame.image.load(resource_path("water.png")).convert()),
+        )
         self.chat = Chat(session_id)
         self.entities = Entities()
         self.zone_map = fetch_zone_map()
@@ -141,11 +149,10 @@ class Level:
 
                 if r == 0 and g == 162 and b == 232:
                     ground_count = 0
-                    s=Rock(world_pos, self.image[2], 'water', [ self.obstacle_sprites])
+                    s=Rock(world_pos, self._tile_shared[2], "water", [self.obstacle_sprites])
                 elif r == 120 and g == 67 and b == 21:
                     ground_count = 0
-                    s=Rock(world_pos, self.image[0], "rock", [ self.obstacle_sprites])
-                    map_for_d[(x, y)] = self.image[0]
+                    s=Rock(world_pos, self._tile_shared[0], "rock", [self.obstacle_sprites])
                 elif r == 24 and g == 62 and b == 12:
                     if tree_count % 7 == 0:
                         t=get_trees()
@@ -154,7 +161,7 @@ class Level:
 
                     else:
                         s=Rock(world_pos,
-                             self.image[1], "tree", [self.obstacle_sprites])
+                             self._tile_shared[1], "tree", [self.obstacle_sprites])
                     tree_count += 1
                     ground_count = 0
                 else:

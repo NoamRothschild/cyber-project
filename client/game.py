@@ -17,17 +17,7 @@ from enter_screen import EnterScreen
 import os
 import sys
 
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for PyInstaller """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-
-    return os.path.join(base_path, relative_path)
-
-
+from paths import resource_path
 
 GREEN = (55, 126, 71)
 fps_screen_pos = (10, 10)
@@ -51,14 +41,10 @@ class Game:
         self.server_fps: int | None = None  # updated by zone event handler from server
         self.level = Level(self.session_id)
         self.is_running = False
+        self.user_id: int | None = None
 
     def run(self):
-        self.user_id = self.zone().open_connections(self.session_id)
-        print(f'trying {self.zone().host}')
-
         for zone in cast(Dict[str, ZoneConnection], ZoneConnectionSingleton().zone_connections).values():
-            if self.zone() == zone:
-                continue # we already connected there a second ago
             print(f'trying {zone.host}')
             zone.open_connections(self.session_id)
 
@@ -88,13 +74,19 @@ class Game:
                 fps_surface = self.font.render(fps_text, True, "White")
                 self.screen.blit(fps_surface, fps_screen_pos)
 
+                y_next = fps_screen_pos[1] + fps_surface.get_height() + 4
+                srv_surface = self.font.render(
+                    self.zone().host, True, "White"
+                )
+                self.screen.blit(srv_surface, (fps_screen_pos[0], y_next))
+
                 self.level.run()
                 self.screen.blit(fps_surface, fps_screen_pos)
+                self.screen.blit(srv_surface, (fps_screen_pos[0], y_next))
                 hb = self.level.player.hitbox
                 self.zone().try_send_update_pos((hb.x, hb.y))
 
-                # World position under FPS
-                y_hud = fps_screen_pos[1] + fps_surface.get_height() + 5
+                y_hud = y_next + srv_surface.get_height() + 5
                 pos_text = f"Pos: ({int(hb.x // 200)}, {int(hb.y // 200)})"
                 pos_surface = self.font.render(pos_text, True, "White")
                 self.screen.blit(pos_surface, (fps_screen_pos[0], y_hud))

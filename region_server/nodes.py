@@ -1,15 +1,41 @@
 from __future__ import annotations
-from typing import Dict, Tuple, TYPE_CHECKING
+
 import asyncio
+from typing import Iterator, Optional, Tuple, TYPE_CHECKING
+
+import protobuf.region_net_pb2 as region_net
 
 if TYPE_CHECKING:
     from region_node import RegionNode
     from region_server_extras import Client
-    import protobuf.region_net_pb2 as region_net
 
-nodes: Dict[Tuple[int, int], RegionNode] = {}
+# Must match region_node.HORIZONAL_NODE_COUNT and VERTICAL_NODE_COUNT
+HORIZONAL_NODE_COUNT = 17
+VERTICAL_NODE_COUNT = 20
+NODE_SLOT_COUNT = HORIZONAL_NODE_COUNT * VERTICAL_NODE_COUNT
 
-connected_clients: Dict[int, Client] = {}
+
+def node_index(pos_x: int, pos_y: int) -> int:
+    return pos_y * HORIZONAL_NODE_COUNT + pos_x
+
+
+nodes: list[Optional["RegionNode"]] = [None] * NODE_SLOT_COUNT
+local_region_nodes: list["RegionNode"] = []
+
+
+def get_node_at(node_pos: Tuple[int, int]) -> Optional["RegionNode"]:
+    x, y = node_pos
+    if not (0 <= x < HORIZONAL_NODE_COUNT and 0 <= y < VERTICAL_NODE_COUNT):
+        return None
+    return nodes[node_index(x, y)]
+
+
+def iter_local_nodes() -> Iterator["RegionNode"]:
+    """Iterate nodes owned by this server process (same order as registration)."""
+    return iter(local_region_nodes)
+
+
+connected_clients: dict[int, "Client"] = {}
 connected_clients_lock = asyncio.Lock()
 
 

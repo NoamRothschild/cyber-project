@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import signal
+import sys
 import aioudp
 import aioudp.server
 from config import ZONE_TCP_PORT, ZONE_UDP_PORT
@@ -23,9 +24,21 @@ def _safe_error_received(self, exc: Exception) -> None:
 aioudp.server._ServerProtocol.error_received = _safe_error_received
 
 
+async def _docker_friendly_stdio_flush_loop(interval_s: float = 0.25) -> None:
+    """Flush stdout/stderr on a timer so container logs update without huge buffers (non-TTY)."""
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except (BrokenPipeError, ValueError, OSError):
+            pass
+
+
 async def main() -> None:
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
+    asyncio.create_task(_docker_friendly_stdio_flush_loop())
 
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
