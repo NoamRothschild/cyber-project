@@ -24,92 +24,100 @@ Starting_POS = (370 * SIZE, 163 * SIZE)
 
 
 class Player(pygame.sprite.Sprite):
-    player_skins_and_animatiom = \
-        {
-            "blue golden knight": Animation(
-                "Player_Skins/blue golden knight.png",
-                frame_w=32, frame_h=32,
-                rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
-                frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
-                scale=3,
-                speed_ms=180
-            ),
-            "fiona": Animation(
-                "Player_Skins/fiona.png",
-                frame_w=32, frame_h=32,
-                rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
-                frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
-                scale=3,
-                speed_ms=180
-            ),
-            "golden knight": Animation(
-                "Player_Skins/golden knight.png",
-                frame_w=32, frame_h=32,
-                rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
-                frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
-                scale=3,
-                speed_ms=180
-            ),
-            "red knight": Animation(
-                "Player_Skins/red knight.png",
-                frame_w=32, frame_h=32,
-                rows={"idle": 0, "run": 3, "injured": 9, "dead": 10},
-                frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
-                scale=3,
-                speed_ms=180
-            ),
-            "king": Animation(
-                "Player_Skins/king.png",
-                frame_w=32, frame_h=32,
-                rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
-                frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
-                scale=3,
-                speed_ms=180
-            )
-        }
-
+    player_skins_and_animatiom = {
+        "blue golden knight": Animation(
+            "Player_Skins/blue golden knight.png",
+            frame_w=32,
+            frame_h=32,
+            rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180,
+        ),
+        "fiona": Animation(
+            "Player_Skins/fiona.png",
+            frame_w=32,
+            frame_h=32,
+            rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180,
+        ),
+        "golden knight": Animation(
+            "Player_Skins/golden knight.png",
+            frame_w=32,
+            frame_h=32,
+            rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180,
+        ),
+        "red knight": Animation(
+            "Player_Skins/red knight.png",
+            frame_w=32,
+            frame_h=32,
+            rows={"idle": 0, "run": 3, "injured": 9, "dead": 10},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180,
+        ),
+        "king": Animation(
+            "Player_Skins/king.png",
+            frame_w=32,
+            frame_h=32,
+            rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
+            frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
+            scale=3,
+            speed_ms=180,
+        ),
+    }
 
     player_skins_and_animatiom = {
         "blue golden knight": Animation(
             resource_path("Player_Skins/blue golden knight.png"),
-            frame_w=32, frame_h=32,
+            frame_w=32,
+            frame_h=32,
             rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
             frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
             scale=3,
-            speed_ms=180
+            speed_ms=180,
         ),
         "fiona": Animation(
             resource_path("Player_Skins/fiona.png"),
-            frame_w=32, frame_h=32,
+            frame_w=32,
+            frame_h=32,
             rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
             frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
             scale=3,
-            speed_ms=180
+            speed_ms=180,
         ),
         "golden knight": Animation(
             resource_path("Player_Skins/golden knight.png"),
-            frame_w=32, frame_h=32,
+            frame_w=32,
+            frame_h=32,
             rows={"idle": 0, "run": 4, "injured": 8, "dead": 9},
             frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
             scale=3,
-            speed_ms=180
+            speed_ms=180,
         ),
         "red knight": Animation(
             resource_path("Player_Skins/red knight.png"),
-            frame_w=32, frame_h=32,
+            frame_w=32,
+            frame_h=32,
             rows={"idle": 0, "run": 3, "injured": 9, "dead": 10},
             frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
             scale=3,
-            speed_ms=180
+            speed_ms=180,
         ),
         "king": Animation(
             resource_path("Player_Skins/king.png"),
-            frame_w=32, frame_h=32,
+            frame_w=32,
+            frame_h=32,
             rows={"idle": 0, "run": 3, "injured": 5, "dead": 6},
             frames_per_row={"idle": 4, "run": 4, "injured": 4, "dead": 4},
             scale=3,
-            speed_ms=180
-        )
+            speed_ms=180,
+        ),
     }
 
     def __init__(self, groups, other_groups):
@@ -117,7 +125,7 @@ class Player(pygame.sprite.Sprite):
 
         self.display_surface = pygame.display.get_surface()
 
-        skins=["blue golden knight", "fiona", "golden knight","red knight","king"]
+        skins = ["blue golden knight", "fiona", "golden knight", "red knight", "king"]
         self.skin = random.choice(skins)
 
         self.animation = Player.player_skins_and_animatiom[self.skin]
@@ -134,7 +142,9 @@ class Player(pygame.sprite.Sprite):
         self.speed = 4
         self.direction = pygame.math.Vector2()
         self.groups = groups
-        self.obstacle_sprites, self.harmful_sprites, self.colect_sprite = other_groups  # rocks and such
+        self.obstacle_sprites, self.harmful_sprites, self.colect_sprite = (
+            other_groups  # rocks and such
+        )
 
         self.inventory = Inventory()
 
@@ -151,7 +161,7 @@ class Player(pygame.sprite.Sprite):
             "AK 47 bullets": 104,
             "arrows": 103,
             "Assault rifle bullets": 102,
-            "Pistol bullets": 101
+            "Pistol bullets": 101,
         }
 
         self.magazine = {
@@ -159,7 +169,7 @@ class Player(pygame.sprite.Sprite):
             "bow": 5,
             "Assault rifle": 5,
             "Pistol": 5,
-            "sword": 1000
+            "sword": 1000,
         }
 
         self.health = HealthBar(HEALTH_BAR_POS, HEALTH_BAR_SCALE)
@@ -172,6 +182,12 @@ class Player(pygame.sprite.Sprite):
         self.respawn_delay = 2000
 
         self.auto_move = AutoMoveController(self)
+        # start auto-move if launched from the cli (bot player)
+        from sys import argv
+
+        argv = argv[1:]
+        if len(argv) != 0:
+            self.auto_move.toggle()
 
     def current_Weapon(self):
         return self.inventory.wep_inventory[self.inventory.current_weapon]
@@ -223,7 +239,9 @@ class Player(pygame.sprite.Sprite):
                     if now - self.last_r_press >= w.fire_cooldown:
                         self.last_r_press = now
 
-                        ZoneConnectionSingleton().zone.try_to_reload(w.gun_type,Arsenal.Arsenal_gunType[w.gun_type][6])
+                        ZoneConnectionSingleton().zone.try_to_reload(
+                            w.gun_type, Arsenal.Arsenal_gunType[w.gun_type][6]
+                        )
 
                         if w.bullet != "null":
                             if w.bullet != "sword hit":
@@ -306,21 +324,22 @@ class Player(pygame.sprite.Sprite):
 
     def check_coalition(self, direction):
 
-        collision_sprites = pygame.sprite.spritecollide(self, self.obstacle_sprites, False)
+        collision_sprites = pygame.sprite.spritecollide(
+            self, self.obstacle_sprites, False
+        )
 
         for sprite in collision_sprites:
 
             if sprite.hitbox.colliderect(self.hitbox):
                 self.check_harm_done(sprite)
-                if direction == 'horizontal':
+                if direction == "horizontal":
 
                     if self.direction.x > 0:
                         self.hitbox.right = sprite.hitbox.left
                     elif self.direction.x < 0:
                         self.hitbox.left = sprite.hitbox.right
 
-
-                elif direction == 'vertical':
+                elif direction == "vertical":
                     if self.direction.y > 0:  # נע למטה
                         self.hitbox.bottom = sprite.hitbox.top
                     elif self.direction.y < 0:  # נע למעלה
@@ -330,7 +349,7 @@ class Player(pygame.sprite.Sprite):
         if sprite in self.harmful_sprites:
             self.health.sub_life(30)
             Red_hit.start()
-            self.injured_until = pygame.time.get_ticks() + 600 #0.6s of red skin :c
+            self.injured_until = pygame.time.get_ticks() + 600  # 0.6s of red skin :c
 
     def check_if_collect(self):
         for sprite in self.colect_sprite:
@@ -341,12 +360,16 @@ class Player(pygame.sprite.Sprite):
                 if sprite.kind == "weapon":
                     # --- NEW: Grab the current ammo and send it! ---
                     current_ammo = sprite.obj.mag
-                    ZoneConnectionSingleton().zone.try_send_item_pickup(sprite.obj.get_name(), "weapon", current_ammo)
+                    ZoneConnectionSingleton().zone.try_send_item_pickup(
+                        sprite.obj.get_name(), "weapon", current_ammo
+                    )
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "weapon")
 
                 elif sprite.kind == "potion":
                     # Potions don't need ammo, so we can just leave it at the default 0
-                    ZoneConnectionSingleton().zone.try_send_item_pickup(sprite.obj.get_name(), "potion")
+                    ZoneConnectionSingleton().zone.try_send_item_pickup(
+                        sprite.obj.get_name(), "potion"
+                    )
                     self.inventory.add_item_toThe_Inventory(sprite.obj, "potion")
 
                 sprite.kill()
@@ -369,7 +392,7 @@ class Player(pygame.sprite.Sprite):
             if now - self.death_time > self.death_animation_time + self.respawn_delay:
                 self.is_dead = False
 
-                #self.inventory.drop_all_items([self.colect_sprite, self.groups[0]], self.rect)
+                # self.inventory.drop_all_items([self.colect_sprite, self.groups[0]], self.rect)
                 self.health.add_life(HEALTH_BAR_SCALE)
 
                 self.rect.topleft = Starting_POS
@@ -414,7 +437,7 @@ class Player(pygame.sprite.Sprite):
                     self.current_Weapon().draw_mag_stat(self)
 
         self.move()
-        self.inventory.open([self.colect_sprite,self.groups[0]],self)
+        self.inventory.open([self.colect_sprite, self.groups[0]], self)
         self.health.draw()
 
         self.shop_ui.draw(self.display_surface, self)
