@@ -1,4 +1,4 @@
-# Run script for cyber-project services
+# Run script for services
 # Usage: .\run.ps1 redis | auth <redis_host> | chat <redis_host> | region <server_id> <redis_host>
 #
 # Run from project root.
@@ -32,8 +32,7 @@ if (-not $Command) {
     exit 0
 }
 $ProjectRoot = $PSScriptRoot
-$ProjectName = (Get-Item $ProjectRoot).Name
-$NetworkName = "${ProjectName}_default"
+$NetworkName = "cyber-project_default"
 
 function Get-LanIPs {
     try {
