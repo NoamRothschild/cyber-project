@@ -4,36 +4,40 @@ const net = Io.net;
 const linux = std.os.linux;
 const IoUring = linux.IoUring;
 const createListeningSock = @import("socket.zig").createListeningSock;
+const createUDPListeningSock = @import("socket.zig").createUDPListeningSock;
 const init_ring = @import("socket.zig").init_ring;
 const Channel = @import("channel.zig");
 
 const max_connected_clients = 1024;
 
 pub const Server = struct {
-    server: net.Server,
+    tcp_server: net.Server,
+    udp_server: net.Socket,
     ring: IoUring,
     channels: [max_connected_clients]Channel = undefined,
     free_channels: std.bit_set.ArrayBitSet(usize, max_connected_clients) = .full,
     /// passed into io_uring_copy_cqes
     cqes: [max_connected_clients]linux.io_uring_cqe = undefined,
     gpa: std.mem.Allocator,
-    fd_cnt: [1024]usize = std.mem.zeroes([1024]usize),
 
     pub fn init(alloc: std.mem.Allocator, io: Io, port: u16) !Server {
         return Server{
             .gpa = alloc,
-            .server = try createListeningSock(io, port, .ipv4, 1024),
+            .tcp_server = try createListeningSock(io, port, .ipv4, 1024),
+            .udp_server = try createUDPListeningSock(io, port, .ipv4),
             .ring = try init_ring(max_connected_clients),
         };
     }
 
     pub fn deinit(self: *Server, io: Io) void {
-        self.server.deinit(io);
+        self.tcp_server.deinit(io);
+        self.udp_server.close(io);
         self.ring.deinit();
     }
 
     pub fn run(self: *Server) !void {
         try self.submitAccept();
+        try self.submitUdpRecv();
 
         while (true) {
             const cqes_read = try self.ring.copy_cqes(self.cqes[0..], 1);
@@ -47,20 +51,17 @@ pub const Server = struct {
                         const cli_channel = try self.takeChannel();
                         cli_channel.sock_fd = @bitCast(cqe.res);
                         cli_channel.type = .read;
+                        cli_channel.sock_type = .tcp;
                         try self.submitRecv(cli_channel);
                     },
                     .read => {
-                        if (cqe.res <= 0) { // client disconnected
-                            // std.debug.print("client disconnected\n", .{});
+                        if (channel.sock_type == .tcp and cqe.res <= 0) { // client disconnected
+                            std.debug.print("client disconnected\n", .{});
                             _ = linux.close(channel.sock_fd);
                             self.returnChannel(&channel);
 
-                            const free_slot_count = self.free_channels.count() + 1;
-                            _ = free_slot_count;
-
-                            std.debug.print("\n", .{});
-                            return; // FIXME: TEMPORARY
-                            // std.debug.print("there are {d} more free slots.\n", .{free_slot_count});
+                            const free_slot_count = self.free_channels.count();
+                            std.debug.print("there are {d} more free slots.\n", .{free_slot_count});
                         } else {
                             var buf = channel.buf.buffer[0..@as(usize, @bitCast(@as(isize, cqe.res)))];
                             while (buf.len > 4) {
@@ -70,15 +71,15 @@ pub const Server = struct {
                                 const msg = buf[4 .. len + 4];
 
                                 _ = &msg;
-                                // std.debug.print("got message of length {d}: {s}", .{ len, msg });
-                                self.fd_cnt[@as(usize, @bitCast(@as(isize, channel.sock_fd)))] += 1;
+                                std.debug.print("got message of length {d}: {s}", .{ len, msg });
                                 buf = buf[4 + len ..];
                             }
 
-                            if (buf.len != 0)
+                            // UDP datagrams preserve message boundaries, so leftovers are meaningful only for TCP streams.
+                            if (channel.sock_type == .tcp and buf.len != 0)
                                 @memmove(channel._buf[0..buf.len], buf[0..]);
 
-                            channel.buf.buffer = channel._buf[buf.len..];
+                            channel.buf.buffer = if (channel.sock_type == .tcp) channel._buf[buf.len..] else channel._buf[0..];
                             try self.submitRecv(channel);
                         }
                     },
@@ -93,6 +94,7 @@ pub const Server = struct {
             self.free_channels.unset(idx);
             const channel = &self.channels[idx];
             channel.buf.buffer = channel._buf[0..];
+            channel.sock_type = .tcp;
             return @constCast(channel);
         } else {
             return error.AllChannelsFull;
@@ -112,15 +114,26 @@ pub const Server = struct {
     pub fn submitAccept(self: *Server) !void {
         const channel: *Channel = try self.takeChannel();
         channel.type = .accept;
+        channel.sock_type = .tcp;
 
-        _ = try self.ring.accept_multishot(@as(u64, @intFromPtr(channel)), self.server.socket.handle, null, null, 0);
+        _ = try self.ring.accept_multishot(@as(u64, @intFromPtr(channel)), self.tcp_server.socket.handle, null, null, 0);
+
         // std.debug.assert((try self.ring.submit()) >= 1);
+        _ = try self.ring.submit();
+    }
+
+    pub fn submitUdpRecv(self: *Server) !void {
+        const channel: *Channel = try self.takeChannel();
+        channel.type = .read;
+        channel.sock_type = .udp;
+        channel.sock_fd = self.udp_server.handle;
+        channel.buf.buffer = channel._buf[0..];
+        _ = try self.ring.recv(@as(u64, @intFromPtr(channel)), channel.sock_fd, channel.buf, 0);
         _ = try self.ring.submit();
     }
 
     pub fn submitRecv(self: *Server, channel: *Channel) !void {
         channel.type = .read;
-
         _ = try self.ring.recv(@as(u64, @intFromPtr(channel)), channel.sock_fd, channel.buf, 0);
         // std.debug.assert((try self.ring.submit()) >= 1);
         _ = try self.ring.submit();
