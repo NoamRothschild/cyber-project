@@ -2,8 +2,8 @@ const std = @import("std");
 const Io = std.Io;
 
 pub const ConnectionType = enum { tcp, udp };
-pub const max_payload_len: usize = 512;
 pub const outbound_queue_capacity: usize = 64;
+const max_payload_len = @import("net/protocol.zig").max_payload_len;
 
 pub const OutboundView = struct {
     conn: ConnectionType,
@@ -59,6 +59,7 @@ pub const Client = struct {
 
         switch (conn_t) {
             .tcp => {
+                std.debug.print("user {d} joined\n", .{self.client_id});
                 self.udp_extension_joined = false;
                 try self.enqueueOutbound(.tcp, payload[0..payload_len]);
             },
@@ -79,10 +80,8 @@ pub const Client = struct {
     }
 
     pub fn enqueueOutbound(self: *Self, conn_t: ConnectionType, payload: []const u8) !void {
-        switch (conn_t) {
-            .tcp => {},
-            .udp => if (!self.udp_extension_joined) return error.UdpNotJoined,
-        }
+        if (conn_t == .udp and !self.udp_extension_joined)
+            return error.UdpNotJoined;
         if (payload.len > max_payload_len) return error.MessageTooLong;
         if (!self.canEnqueue()) return error.WouldBlock;
 
