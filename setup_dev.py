@@ -83,7 +83,9 @@ def iter_target_directories(root: Path) -> Iterable[Path]:
 def get_source_protobuf_dir(root: Path) -> Path:
     src = root / PROTOS_DIR_NAME
     if not src.exists():
-        raise FileNotFoundError(f"Source '{PROTOS_DIR_NAME}' directory not found at {src}")
+        raise FileNotFoundError(
+            f"Source '{PROTOS_DIR_NAME}' directory not found at {src}"
+        )
     if not src.is_dir():
         raise NotADirectoryError(f"Expected '{src}' to be a directory")
     return src
@@ -126,9 +128,9 @@ def handle_symlink_error(exc: OSError, link_path: Path) -> None:
     is_windows = os.name == "nt"
 
     if is_windows and exc.errno in {
-        errno.EPERM,      # Operation not permitted
+        errno.EPERM,  # Operation not permitted
         getattr(errno, "EACCES", 13),  # Permission denied
-        1314,             # ERROR_PRIVILEGE_NOT_HELD (Win32 specific)
+        1314,  # ERROR_PRIVILEGE_NOT_HELD (Win32 specific)
     }:
         # Likely case: symlink privilege unavailable (Developer Mode off or
         # not running elevated, depending on Windows version/settings).
@@ -170,7 +172,9 @@ def load_config_from_jsonc(root: Path) -> Mapping[str, Any]:
         raise ValueError(f"Failed to parse {CONFIG_JSONC_NAME} as JSON: {exc}") from exc
 
     if not isinstance(data, dict):
-        raise ValueError(f"Expected top-level object in {CONFIG_JSONC_NAME}, got {type(data)!r}")
+        raise ValueError(
+            f"Expected top-level object in {CONFIG_JSONC_NAME}, got {type(data)!r}"
+        )
 
     return data
 
@@ -184,7 +188,7 @@ def write_config_py(target_dir: Path, config: Mapping[str, Any]) -> None:
     json_target_path = target_dir / "config.json"
 
     # 1. מעתיק את הנתונים לקובץ config.json נקי בתוך התיקייה
-    with open(json_target_path, 'w', encoding='utf-8') as f:
+    with open(json_target_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=4)
 
     # 2. כותב את הקוד הדינמי לתוך config.py
@@ -249,41 +253,39 @@ def refresh_windows_path() -> None:
     """
     if os.name != "nt":
         return
-    
+
     try:
         # Read PATH from both user and system registry
         user_path = ""
         system_path = ""
-        
+
         # User PATH
         try:
             with winreg.OpenKey(
-                winreg.HKEY_CURRENT_USER,
-                r"Environment",
-                access=winreg.KEY_READ
+                winreg.HKEY_CURRENT_USER, r"Environment", access=winreg.KEY_READ
             ) as key:
                 user_path = winreg.QueryValueEx(key, "Path")[0]
         except (FileNotFoundError, OSError):
             pass
-        
+
         # System PATH
         try:
             with winreg.OpenKey(
                 winreg.HKEY_LOCAL_MACHINE,
                 r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",
-                access=winreg.KEY_READ
+                access=winreg.KEY_READ,
             ) as key:
                 system_path = winreg.QueryValueEx(key, "Path")[0]
         except (FileNotFoundError, OSError):
             pass
-        
+
         # Combine and update os.environ (system PATH first, then user PATH)
         path_parts = []
         if system_path:
             path_parts.append(system_path)
         if user_path:
             path_parts.append(user_path)
-        
+
         if path_parts:
             combined_path = os.pathsep.join(path_parts)
             os.environ["PATH"] = combined_path
@@ -422,7 +424,10 @@ def compile_protobufs(source_protobuf_dir: Path) -> None:
 
     proto_files = sorted(source_protobuf_dir.glob("*.proto"))
     if not proto_files:
-        info("[INFO]", f"No .proto files found in {_rel(source_protobuf_dir)}; skipping compile.")
+        info(
+            "[INFO]",
+            f"No .proto files found in {_rel(source_protobuf_dir)}; skipping compile.",
+        )
         return
 
     cmd = [
@@ -456,7 +461,10 @@ def compile_protobufs(source_protobuf_dir: Path) -> None:
         )
         raise SystemExit(completed.returncode)
 
-    success("[CREATE]", f"Generated Python code from .proto files in {_rel(source_protobuf_dir)}")
+    success(
+        "[CREATE]",
+        f"Generated Python code from .proto files in {_rel(source_protobuf_dir)}",
+    )
 
 
 def main() -> None:
@@ -485,15 +493,21 @@ def main() -> None:
     for target_dir in iter_target_directories(root):
         any_processed = True
         ensure_symlink(target_dir, source_protobuf_dir)
+        if str(target_dir).endswith("region-server-zig"):
+            json_target_path = target_dir / "config.json"
+            with open(json_target_path, "w", encoding="utf-8") as f:
+                json.dump(config_mapping, f, indent=4)
+            success("[WRITE]", f"{_rel(json_target_path)}")
+
+            continue
         write_config_py(target_dir, config_mapping)
         copy_auth_crypto(root, target_dir)
 
     if not any_processed:
         info("[INFO]", "No eligible subdirectories found; nothing to do.")
-    
+
     info(f"{GREEN}[INFO]", f"Finished setup successfully!{RESET}")
 
 
 if __name__ == "__main__":
     main()
-
