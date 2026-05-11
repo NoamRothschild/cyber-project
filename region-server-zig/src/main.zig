@@ -9,5 +9,6 @@ pub fn main(init: std.process.Init) !void {
     try svr.init(init.gpa, init.io, 8826);
     defer svr.deinit(init.io);
 
+    std.debug.print("listening for new connections...\n", .{});
     _ = try svr.run();
 }

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package game.region;
+package game.chat;
 
 message ChatMessage {
   oneof mas {

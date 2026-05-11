@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package game.chat;
+package game.region;
 
 message RegionUpdate {
   oneof payload {
