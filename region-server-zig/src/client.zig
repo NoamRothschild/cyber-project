@@ -1,6 +1,15 @@
 const std = @import("std");
 const Io = std.Io;
 
+const grid = @import("node/grid.zig");
+
+const view_threshold = 1.5;
+pub const view_width_px: comptime_int = @floor(1500 * view_threshold);
+pub const view_height_px: comptime_int = @floor(750 * view_threshold);
+
+pub const view_width_cells = view_width_px / grid.cell_size;
+pub const view_height_cells = view_height_px / grid.cell_size;
+
 pub const ConnectionType = enum { tcp, udp };
 pub const outbound_queue_capacity: usize = 64;
 const max_payload_len = @import("net/protocol.zig").max_payload_len;
@@ -10,6 +19,8 @@ pub const OutboundView = struct {
     payload: []const u8,
 };
 
+pub const ClientId = usize;
+
 pub const Client = struct {
     const Self = @This();
     const OutboundMessage = struct {
@@ -18,13 +29,13 @@ pub const Client = struct {
         payload: [max_payload_len]u8,
     };
 
-    client_id: usize,
+    client_id: ClientId,
     udp_extension_joined: bool = false,
     outbound_head: usize = 0,
     outbound_len: usize = 0,
     outbound_queue: [outbound_queue_capacity]OutboundMessage = undefined,
 
-    pub fn init(cli_id: usize) Self {
+    pub fn init(cli_id: ClientId) Self {
         var self: Self = .{
             .client_id = cli_id,
         };
