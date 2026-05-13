@@ -111,6 +111,7 @@ const CellIterator = struct {
     grid: *Grid,
     curr_x: usize = 0,
     curr_y: usize = 0,
+    start_x: usize = 0,
     end_x: usize = 0,
     end_y: usize = 0,
 
@@ -129,14 +130,15 @@ const CellIterator = struct {
             .grid = grid,
             .curr_x = topleft_x,
             .curr_y = topleft_y,
-            .end_x = topleft_x + client.view_width_cells,
-            .end_y = topleft_y + client.view_height_cells,
+            .start_x = topleft_x,
+            .end_x = @min(topleft_x + client.view_width_cells, grid_width - 1),
+            .end_y = @min(topleft_y + client.view_height_cells, grid_height - 1),
         };
     }
 
     pub fn next(self: *CellIterator) ?*Set(CellField, GridCellContext) {
         if (self.curr_x > self.end_x) {
-            self.curr_x = self.end_x - client.view_width_cells;
+            self.curr_x = self.start_x;
             self.curr_y += 1;
         }
         if (self.curr_y > self.end_y)
@@ -181,6 +183,27 @@ test Grid {
     const uid = try grid.add(testing.allocator, .{ .dummy = .{ .some_field = 5 } }, 1, 1, null, null, null);
 
     var it = ViewIterator.init(&grid, 0, 0);
+    try testing.expect(it.next().?.obj == .dummy);
+    try testing.expect(it.next() == null);
+    try testing.expect(uid == 0);
+}
+
+test move {
+    var grid = Grid.init();
+    defer grid.deinit(testing.allocator);
+    const uid = try grid.add(testing.allocator, .{ .dummy = .{ .some_field = 5 } }, 1, 1, null, null, null);
+
+    try grid.move(testing.allocator, uid, 1, 1, 5, 5);
+    try testing.expect(grid.grid[grid.to_grid_index(1, 1)].size == 0);
+    try testing.expect(grid.grid[grid.to_grid_index(5, 5)].size == 1);
+}
+
+test "grid iterator edges" {
+    var grid = Grid.init();
+    defer grid.deinit(testing.allocator);
+    const uid = try grid.add(testing.allocator, .{ .dummy = .{ .some_field = 5 } }, grid_width - 1, grid_height - 1, null, null, null);
+
+    var it = ViewIterator.init(&grid, grid_width - 1, grid_height - 1);
     try testing.expect(it.next().?.obj == .dummy);
     try testing.expect(it.next() == null);
     try testing.expect(uid == 0);
