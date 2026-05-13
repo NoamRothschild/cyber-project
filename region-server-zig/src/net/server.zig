@@ -10,6 +10,7 @@ const Client = @import("../client.zig").Client;
 const ConnectionType = @import("../client.zig").ConnectionType;
 const ChannelManager = @import("channel_manager.zig").ChannelManager;
 const ClientContainer = @import("client_manager.zig").ClientContainer;
+const Node = @import("../node/node.zig");
 const protocol = @import("protocol.zig");
 
 const max_connected_clients = 1024;
@@ -25,6 +26,7 @@ pub const Server = struct {
     /// passed into io_uring_copy_cqes
     cqes: [cqes_capacity]linux.io_uring_cqe = undefined,
     gpa: std.mem.Allocator,
+    node: Node,
 
     pub fn init(self: *Server, alloc: std.mem.Allocator, io: Io, port: u16) !void {
         var tcp_server = try socket.socket(io, port, .ipv4, .tcp, 1024);
@@ -43,6 +45,7 @@ pub const Server = struct {
             .clients = .init,
             .udp_channel = undefined,
             .cqes = undefined,
+            .node = .init(alloc),
         };
 
         const udp_channel = try self.channel_manager.takeChannel();
@@ -224,7 +227,9 @@ pub const Server = struct {
         const slot = existing_slot orelse blk: {
             const user_id = try parseUserId(payload);
             const new_slot = try self.clients.takeClientSlot();
-            self.clients.at(new_slot).client = Client.init(user_id);
+            self.clients.at(new_slot).client = try Client.init(self.gpa, user_id, &self.node);
+            try self.node.clients.put(self.gpa, user_id, &self.clients.at(new_slot).client.?);
+
             channel.client_slot = new_slot;
             self.clients.at(new_slot).tcp_channel_idx = self.channel_manager.channelIndex(channel);
             break :blk new_slot;
@@ -235,7 +240,7 @@ pub const Server = struct {
         if (existing_slot == null)
             try client.handleHandshake(.tcp, payload)
         else {
-            client.onRecvMessage(io, .tcp, payload);
+            client.onRecvMessage(self.gpa, &self.node, io, .tcp, payload);
             try self.enqueueOutboundWithRetry(slot, .tcp, payload);
         }
         try self.kickClientWriter(slot);
@@ -267,7 +272,7 @@ pub const Server = struct {
         if (!client.hasUdp())
             try client.handleHandshake(.udp, payload)
         else {
-            client.onRecvMessage(io, .udp, payload);
+            client.onRecvMessage(self.gpa, &self.node, io, .udp, payload);
             try self.enqueueOutboundWithRetry(slot, .udp, payload);
         }
 

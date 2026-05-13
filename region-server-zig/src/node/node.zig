@@ -10,7 +10,7 @@ pub const width = 4600 * 17;
 pub const height = 2200 * 20;
 
 grid: Grid,
-clients: std.AutoHashMapUnmanaged(client.ClientId, client.Client),
+clients: std.AutoHashMapUnmanaged(client.ClientId, *client.Client),
 alloc: Allocator,
 // enemy_handler: EnemyHandler
 // projectle_handler: ProjectleHandler

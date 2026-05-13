@@ -1,7 +1,10 @@
 const std = @import("std");
+const proto = @import("proto/game/region.pb.zig");
 const Io = std.Io;
+const Allocator = std.mem.Allocator;
 
 const grid = @import("node/grid.zig");
+const Node = @import("node/node.zig");
 
 const view_threshold = 1.5;
 pub const view_width_px: comptime_int = @floor(1500 * view_threshold);
@@ -30,14 +33,17 @@ pub const Client = struct {
     };
 
     client_id: ClientId,
+    game_state: GameState,
+    grid_uid: usize = 0,
     udp_extension_joined: bool = false,
     outbound_head: usize = 0,
     outbound_len: usize = 0,
     outbound_queue: [outbound_queue_capacity]OutboundMessage = undefined,
 
-    pub fn init(cli_id: ClientId) Self {
+    pub fn init(alloc: Allocator, cli_id: ClientId, node: *Node) error{OutOfMemory}!Self {
         var self: Self = .{
             .client_id = cli_id,
+            .game_state = .{},
         };
         for (&self.outbound_queue) |*item| {
             item.* = .{
@@ -46,13 +52,64 @@ pub const Client = struct {
                 .payload = undefined,
             };
         }
+
+        self.grid_uid = try node.grid.add(
+            alloc,
+            .{ .client = .{ .cli_id = cli_id } },
+            self.game_state.cell_x(),
+            self.game_state.cell_y(),
+            null,
+            null,
+            null,
+        );
         return self;
     }
 
-    pub fn onRecvMessage(self: *Self, io: Io, conn_t: ConnectionType, data: []const u8) void {
-        std.debug.print("on {s} got: {s}\n", .{ @tagName(conn_t), data });
-        _ = self;
+    pub fn onRecvMessage(self: *Self, alloc: Allocator, node: *Node, io: Io, conn_t: ConnectionType, data: []const u8) void {
+        // std.debug.print("on {s} got: {s}\n", .{ @tagName(conn_t), data });
+        _ = conn_t;
         _ = io;
+        var reader = Io.Reader.fixed(data);
+        const update = proto.RegionUpdate.decode(&reader, alloc) catch |err| {
+            std.log.warn("failed to parse packet from client {d}: {s}\n", .{ self.client_id, @errorName(err) });
+            return;
+        };
+        if (update.payload == null) {
+            std.log.warn("failed to parse packet from client {d}: payload field not found\n", .{self.client_id});
+            return;
+        }
+        switch (update.payload.?) {
+            .location_block => |ev| {
+                if (self.game_state.moved_cell(toUsize(ev.x), toUsize(ev.y))) {
+                    const old_cx = self.game_state.cell_x();
+                    const old_cy = self.game_state.cell_y();
+                    self.game_state.x = toUsize(ev.x);
+                    self.game_state.y = toUsize(ev.y);
+                    node.grid.move(
+                        alloc,
+                        self.grid_uid,
+                        old_cx,
+                        old_cy,
+                        self.game_state.cell_x(),
+                        self.game_state.cell_y(),
+                    ) catch |err| switch (err) {
+                        error.NotFound => unreachable,
+                        else => @panic("moving client on grid failed."),
+                    };
+
+                    std.debug.print("moved cell\n", .{});
+                }
+                std.debug.print("got movement packet: {}\n", .{ev});
+            },
+            // .bullet_shot,
+            // .potion_use,
+            // .item_drop,
+            // .item_pickup,
+            // .shop_buy,
+            // .reload_act,
+            // .moved_server,
+            else => {},
+        }
     }
 
     pub fn handleHandshake(self: *Self, conn_t: ConnectionType, data: []const u8) !void {
@@ -124,3 +181,26 @@ pub const Client = struct {
         return self.udp_extension_joined;
     }
 };
+
+pub const GameState = struct {
+    x: usize = 350, // FIXME: TEMPORARY VALUE
+    y: usize = 350, // FIXME: TEMPORARY VALUE
+    hp: usize = 100,
+    money: usize = 100,
+
+    pub inline fn cell_x(self: *const GameState) usize {
+        return self.x / grid.cell_size;
+    }
+
+    pub inline fn cell_y(self: *const GameState) usize {
+        return self.y / grid.cell_size;
+    }
+
+    pub fn moved_cell(self: *const GameState, new_x: usize, new_y: usize) bool {
+        return ((new_x / grid.cell_size) != self.cell_x() or (new_y / grid.cell_size) != self.cell_y());
+    }
+};
+
+fn toUsize(v: i32) usize {
+    return @as(usize, @as(u32, @bitCast(v)));
+}

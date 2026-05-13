@@ -1,5 +1,6 @@
 import socket
 import os
+import protobuf.region_net_pb2 as region_net
 
 HOST = ("127.0.0.1", 8826)
 MAX_PAYLOAD_LEN = 512
@@ -24,7 +25,7 @@ class Connections:
     def read_udp(self) -> bytes:
         datagram, _ = self.udp_s.recvfrom(MAX_FRAME_LEN)
         payload_len = int.from_bytes(datagram[:4], "little")
-        return datagram[4:4 + min(payload_len, MAX_PAYLOAD_LEN)]
+        return datagram[4 : 4 + min(payload_len, MAX_PAYLOAD_LEN)]
 
     def read_tcp(self) -> bytes:
         hdr = self._read_exact(self.tcp_s, 4)
@@ -57,14 +58,14 @@ conn = Connections()
 try:
     conn.do_handshake()
 
-    conn.write_udp(b"udp-event")
-    udp_resp = conn.read_udp()
-    print("udp", udp_resp)
+    pkt = region_net.RegionUpdate(
+        location_block=region_net.LocationBlock(x=5, y=5), sender_id=1
+    )
+    conn.write_tcp(pkt.SerializeToString())
+    pkt.location_block.x += 300
+    conn.write_udp(pkt.SerializeToString())
 
-    conn.write_tcp(b"example payload")
-    for i in range(10):
-        resp = conn.read_tcp()
-        print(resp)
+
 finally:
     # will remove the client object from the server, also means close udp tunnel if was opened
     conn.tcp_s.close()
