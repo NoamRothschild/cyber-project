@@ -87,20 +87,14 @@ pub const Server = struct {
             },
             .tcp_read => {
                 if (cqe.res <= 0) {
-                    std.debug.print("client disconnected.\n", .{});
-                    if (channel.client_slot) |slot| self.clients.returnClientSlot(slot);
-                    _ = linux.close(channel.sock_fd);
-                    self.channel_manager.returnChannel(channel);
+                    try self.handleDisconnect(channel);
                     return;
                 }
                 try self.handleTcpRecv(io, channel, @intCast(cqe.res));
             },
             .tcp_write => {
-                if (cqe.res < 0) {
-                    std.debug.print("client disconnected.\n", .{});
-                    if (channel.client_slot) |slot| self.clients.returnClientSlot(slot);
-                    _ = linux.close(channel.sock_fd);
-                    self.channel_manager.returnChannel(channel);
+                if (cqe.res <= 0) {
+                    try self.handleDisconnect(channel);
                     return;
                 }
                 const written: usize = @intCast(cqe.res);
@@ -171,6 +165,20 @@ pub const Server = struct {
         if (channel.type == .tcp_read) {
             try self.submitTcpRecv(channel);
         }
+    }
+
+    pub fn handleDisconnect(self: *Server, channel: *Channel) !void {
+        std.debug.print("client disconnected.\n", .{});
+        if (channel.client_slot) |slot| {
+            if (self.clients.at(slot).client) |cli| {
+                self.node.grid.remove(cli.grid_uid, cli.game_state.cell_x(), cli.game_state.cell_y()) catch {};
+                _ = self.node.clients.remove(cli.client_id);
+            }
+            self.clients.returnClientSlot(slot);
+        }
+        _ = linux.close(channel.sock_fd);
+        self.channel_manager.returnChannel(channel);
+        return;
     }
 
     pub fn submitAccept(self: *Server) !void {

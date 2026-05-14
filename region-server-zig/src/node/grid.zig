@@ -98,6 +98,7 @@ pub fn add(self: *Grid, allocator: Allocator, obj: Object, cell_x: usize, cell_y
     return uid;
 }
 
+// TODO: all 3 params are subfields of Client. make another utility that only takes client as an input
 pub fn remove(self: *Grid, uid: usize, cell_x: usize, cell_y: usize) error{NotFound}!void {
     if (!self.grid[self.to_grid_index(cell_x, cell_y)].remove(.{ .uid = uid, .obj = undefined, .seen = undefined, .ever_seen = undefined }))
         return error.NotFound;

@@ -5,6 +5,8 @@ const Allocator = std.mem.Allocator;
 
 const grid = @import("node/grid.zig");
 const Node = @import("node/node.zig");
+const buildHandshakePayload = @import("net/protocol.zig").buildHandshakePayload;
+const buildServerResponsePayload = @import("net/protocol.zig").buildServerResponsePayload;
 
 const view_threshold = 1.5;
 pub const view_width_px: comptime_int = @floor(1500 * view_threshold);
@@ -67,7 +69,8 @@ pub const Client = struct {
 
     pub fn initTcp(alloc: Allocator, node: *Node, payload: []const u8) !Self {
         var reader = Io.Reader.fixed(payload);
-        const hs = try proto.HandshakeStart.decode(&reader, alloc);
+        var hs = try proto.HandshakeStart.decode(&reader, alloc);
+        defer hs.deinit(alloc);
         const cli_id = hs.session_id ^ 0xDEADBEEF;
         var self = try Self.init(alloc, toUsize(cli_id), node);
         std.debug.print("user {d} joined\n", .{self.client_id});
@@ -77,12 +80,9 @@ pub const Client = struct {
             .user_id = @as(i32, @truncate(cli_id)),
         };
 
-        var list = std.ArrayList(u8).empty;
-        defer list.deinit(alloc);
-        var aw = Io.Writer.Allocating.fromArrayList(alloc, &list);
-        defer aw.deinit();
-        try resp.encode(&aw.writer, alloc);
-        try self.enqueueOutbound(.tcp, try aw.toOwnedSlice()); // FIXME: leaks memory when using toOwnedSlice
+        const resp_encoded = try buildHandshakePayload(alloc, &resp);
+        defer alloc.free(resp_encoded);
+        try self.enqueueOutbound(.tcp, resp_encoded);
 
         return self;
     }
@@ -90,7 +90,8 @@ pub const Client = struct {
     /// handles the handshake, if succeeds returns the user id and sends the OK packet back to client
     pub fn initUdp(server: *@import("net/server.zig").Server, payload: []const u8) !ClientId {
         var reader = Io.Reader.fixed(payload);
-        const hs = try proto.HandshakeStart.decode(&reader, server.gpa);
+        var hs = try proto.HandshakeStart.decode(&reader, server.gpa);
+        defer hs.deinit(server.gpa);
         const cli_id = hs.session_id ^ 0xDEADBEEF;
         if (server.node.clients.get(toUsize(cli_id))) |cli| {
             std.debug.print("user {d} connected with Udp\n", .{cli_id});
@@ -102,12 +103,9 @@ pub const Client = struct {
                 .user_id = @as(i32, @truncate(cli_id)),
             };
 
-            var list = std.ArrayList(u8).empty;
-            defer list.deinit(server.gpa);
-            var aw = Io.Writer.Allocating.fromArrayList(server.gpa, &list);
-            defer aw.deinit();
-            try resp.encode(&aw.writer, server.gpa);
-            try cli.enqueueOutbound(.udp, try aw.toOwnedSlice()); // FIXME: leaks memory when using toOwnedSlice
+            const resp_encoded = try buildHandshakePayload(server.gpa, &resp);
+            defer server.gpa.free(resp_encoded);
+            try cli.enqueueOutbound(.udp, resp_encoded);
 
             return toUsize(cli_id);
         } else return error.NoSuchClient;
