@@ -65,19 +65,64 @@ pub const Client = struct {
         return self;
     }
 
+    pub fn initTcp(alloc: Allocator, node: *Node, payload: []const u8) !Self {
+        var reader = Io.Reader.fixed(payload);
+        const hs = try proto.HandshakeStart.decode(&reader, alloc);
+        const cli_id = hs.session_id ^ 0xDEADBEEF;
+        var self = try Self.init(alloc, toUsize(cli_id), node);
+        std.debug.print("user {d} joined\n", .{self.client_id});
+
+        const resp = proto.HandshakeStart{
+            .kind = .SERVER_OK,
+            .user_id = @as(i32, @truncate(cli_id)),
+        };
+
+        var list = std.ArrayList(u8).empty;
+        defer list.deinit(alloc);
+        var aw = Io.Writer.Allocating.fromArrayList(alloc, &list);
+        defer aw.deinit();
+        try resp.encode(&aw.writer, alloc);
+        try self.enqueueOutbound(.tcp, try aw.toOwnedSlice()); // FIXME: leaks memory when using toOwnedSlice
+
+        return self;
+    }
+
+    /// handles the handshake, if succeeds returns the user id and sends the OK packet back to client
+    pub fn initUdp(server: *@import("net/server.zig").Server, payload: []const u8) !ClientId {
+        var reader = Io.Reader.fixed(payload);
+        const hs = try proto.HandshakeStart.decode(&reader, server.gpa);
+        const cli_id = hs.session_id ^ 0xDEADBEEF;
+        if (server.node.clients.get(toUsize(cli_id))) |cli| {
+            std.debug.print("user {d} connected with Udp\n", .{cli_id});
+            cli.udp_extension_joined = true;
+            errdefer cli.udp_extension_joined = false;
+
+            const resp = proto.HandshakeStart{
+                .kind = .SERVER_OK,
+                .user_id = @as(i32, @truncate(cli_id)),
+            };
+
+            var list = std.ArrayList(u8).empty;
+            defer list.deinit(server.gpa);
+            var aw = Io.Writer.Allocating.fromArrayList(server.gpa, &list);
+            defer aw.deinit();
+            try resp.encode(&aw.writer, server.gpa);
+            try cli.enqueueOutbound(.udp, try aw.toOwnedSlice()); // FIXME: leaks memory when using toOwnedSlice
+
+            return toUsize(cli_id);
+        } else return error.NoSuchClient;
+    }
+
     pub fn onRecvMessage(self: *Self, alloc: Allocator, node: *Node, io: Io, conn_t: ConnectionType, data: []const u8) void {
         // std.debug.print("on {s} got: {s}\n", .{ @tagName(conn_t), data });
         _ = conn_t;
         _ = io;
-        var reader = Io.Reader.fixed(data);
-        const update = proto.RegionUpdate.decode(&reader, alloc) catch |err| {
+        const update = readUpdate(alloc, data) catch |err| {
             std.log.warn("failed to parse packet from client {d}: {s}\n", .{ self.client_id, @errorName(err) });
             return;
         };
-        if (update.payload == null) {
-            std.log.warn("failed to parse packet from client {d}: payload field not found\n", .{self.client_id});
-            return;
-        }
+        std.debug.print("from {d}: {}\n", .{ self.client_id, update });
+
         switch (update.payload.?) {
             .location_block => |ev| {
                 if (self.game_state.moved_cell(toUsize(ev.x), toUsize(ev.y))) {
@@ -99,7 +144,6 @@ pub const Client = struct {
 
                     std.debug.print("moved cell\n", .{});
                 }
-                std.debug.print("got movement packet: {}\n", .{ev});
             },
             // .bullet_shot,
             // .potion_use,
@@ -109,33 +153,6 @@ pub const Client = struct {
             // .reload_act,
             // .moved_server,
             else => {},
-        }
-    }
-
-    pub fn handleHandshake(self: *Self, conn_t: ConnectionType, data: []const u8) !void {
-        if (conn_t == .udp and self.udp_extension_joined) return error.AlreadyJoined;
-        _ = data;
-        const suffix = switch (conn_t) {
-            .tcp => "OK",
-            .udp => "JOIN_OK",
-        };
-        var payload: [max_payload_len]u8 = undefined;
-        const payload_len: usize = 4 + suffix.len;
-        if (payload_len > payload.len) return error.MessageTooLong;
-        @memset(payload[0..4], 0);
-        @memcpy(payload[4 .. 4 + suffix.len], suffix);
-
-        switch (conn_t) {
-            .tcp => {
-                std.debug.print("user {d} joined\n", .{self.client_id});
-                self.udp_extension_joined = false;
-                try self.enqueueOutbound(.tcp, payload[0..payload_len]);
-            },
-            .udp => {
-                self.udp_extension_joined = true;
-                errdefer self.udp_extension_joined = false;
-                try self.enqueueOutbound(.udp, payload[0..payload_len]);
-            },
         }
     }
 
@@ -201,6 +218,17 @@ pub const GameState = struct {
     }
 };
 
-fn toUsize(v: i32) usize {
-    return @as(usize, @as(u32, @bitCast(v)));
+fn toUsize(v: i64) usize {
+    return @as(usize, @as(u64, @bitCast(v)));
+}
+
+/// TODO: find a better name for this
+/// returns the RegionUpdate in data, or err. ensures update.payload != null
+fn readUpdate(alloc: Allocator, data: []const u8) !proto.RegionUpdate {
+    var reader = Io.Reader.fixed(data);
+    const update = try proto.RegionUpdate.decode(&reader, alloc);
+    if (update.payload == null) {
+        return error.NoPayloadField;
+    }
+    return update;
 }

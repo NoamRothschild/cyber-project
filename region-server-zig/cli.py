@@ -44,14 +44,25 @@ class Connections:
         return bytes(chunks)
 
     def do_handshake(self):
-        user_id = os.getpid()
+        session_id = os.getpid()
+        pkt = region_net.HandshakeStart(session_id=session_id)
+        print(f"sent: {pkt}")
+
         # will create the entry for the client in the server
-        self.write_tcp(str(user_id).encode())
-        assert self.read_tcp()[4:] == b"OK"
+        self.write_tcp(pkt.SerializeToString())
+        tc = self.read_tcp()
+        resp = region_net.HandshakeStart.FromString(tc)
+        print(f"tcp got ({len(tc)}): {resp}")
+        user_id = resp.user_id
+        assert user_id != 0
+        assert resp.kind == region_net.HandshakeStart.SERVER_OK
 
         # will extend with another capability to the client, adding the option to use udp
-        self.write_udp(str(user_id).encode())
-        assert self.read_udp()[4:] == b"JOIN_OK"
+        self.write_udp(pkt.SerializeToString())
+        print(f"udp got: {resp}")
+        resp = region_net.HandshakeStart.FromString(self.read_udp())
+        assert resp.user_id == user_id
+        assert resp.kind == region_net.HandshakeStart.SERVER_OK
 
 
 conn = Connections()

@@ -223,26 +223,23 @@ pub const Server = struct {
     }
 
     fn handleTcpMessage(self: *Server, io: Io, channel: *Channel, payload: []const u8) !void {
-        const existing_slot = channel.client_slot;
-        const slot = existing_slot orelse blk: {
-            const user_id = try parseUserId(payload);
+        const slot = channel.client_slot orelse {
+            const cli = try Client.initTcp(self.gpa, &self.node, payload);
             const new_slot = try self.clients.takeClientSlot();
-            self.clients.at(new_slot).client = try Client.init(self.gpa, user_id, &self.node);
-            try self.node.clients.put(self.gpa, user_id, &self.clients.at(new_slot).client.?);
+            self.clients.at(new_slot).client = cli;
+            try self.node.clients.put(self.gpa, cli.client_id, &self.clients.at(new_slot).client.?);
 
             channel.client_slot = new_slot;
             self.clients.at(new_slot).tcp_channel_idx = self.channel_manager.channelIndex(channel);
-            break :blk new_slot;
+
+            try self.kickClientWriter(new_slot);
+            return;
         };
 
         const client = &(self.clients.at(slot).client orelse return);
 
-        if (existing_slot == null)
-            try client.handleHandshake(.tcp, payload)
-        else {
-            client.onRecvMessage(self.gpa, &self.node, io, .tcp, payload);
-            try self.enqueueOutboundWithRetry(slot, .tcp, payload);
-        }
+        client.onRecvMessage(self.gpa, &self.node, io, .tcp, payload);
+        try self.enqueueOutboundWithRetry(slot, .tcp, payload);
         try self.kickClientWriter(slot);
     }
 
@@ -258,23 +255,21 @@ pub const Server = struct {
         const payload = datagram[protocol.frame_header_len..total];
         const slot = if (self.clients.findClientByUdpPeer(&channel.udp_peer_addr, channel.udp_peer_addr_len)) |bound_slot|
             bound_slot
-        else blk: { // handshake
-            const user_id = parseUserId(payload) catch return;
+        else { // handshake
+            const user_id = try Client.initUdp(self, payload);
             const join_slot = self.clients.findClientByUserId(user_id) orelse return;
             self.clients.at(join_slot).udp_peer_known = true;
             self.clients.at(join_slot).udp_peer_addr = channel.udp_peer_addr;
             self.clients.at(join_slot).udp_peer_len = channel.udp_peer_addr_len;
-            break :blk join_slot;
+
+            try self.kickClientWriter(join_slot);
+            return;
         };
 
         const client = &(self.clients.at(slot).client orelse return);
 
-        if (!client.hasUdp())
-            try client.handleHandshake(.udp, payload)
-        else {
-            client.onRecvMessage(self.gpa, &self.node, io, .udp, payload);
-            try self.enqueueOutboundWithRetry(slot, .udp, payload);
-        }
+        client.onRecvMessage(self.gpa, &self.node, io, .udp, payload);
+        try self.enqueueOutboundWithRetry(slot, .udp, payload);
 
         try self.kickClientWriter(slot);
     }
