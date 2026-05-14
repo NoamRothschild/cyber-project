@@ -125,16 +125,6 @@ const CellIterator = struct {
     end_x: usize = 0,
     end_y: usize = 0,
 
-    // TODO: take actual player pos instead of topleft
-    // x0 = self.x_range[0]
-    // y0 = self.y_range[0]
-    // cs = RegionNode.CELL_SIZE
-    // w = RegionNode._grid_w
-    // cell_x_min = max(0, (pos[0] - self._VIEW_HALF_W - x0) // cs)
-    // cell_x_max = min(w - 1, (pos[0] + self._VIEW_HALF_W - 1 - x0) // cs)
-    // cell_y_min = max(0, (pos[1] - self._VIEW_HALF_H - y0) // cs)
-    // cell_y_max = min(RegionNode._grid_h - 1, (pos[1] + self._VIEW_HALF_H - 1 - y0) // cs)
-
     pub fn init(grid: *Grid, topleft_x: usize, topleft_y: usize) CellIterator {
         return .{
             .grid = grid,
@@ -164,7 +154,14 @@ pub const ViewIterator = struct {
     cell_it: CellIterator,
     field_it: ?Set(CellField, GridCellContext).Iterator,
 
-    pub fn init(grid: *Grid, topleft_x: usize, topleft_y: usize) ViewIterator {
+    pub fn init(grid: *Grid, x: usize, y: usize, x_y_are: enum { topleft, player_cell_pos }) ViewIterator {
+        const topleft_x, const topleft_y = switch (x_y_are) {
+            .topleft => struct { usize, usize }{ x, y },
+            .player_cell_pos => struct { usize, usize }{
+                if (client.view_width_cells / 2 > x) 0 else x - client.view_width_cells / 2,
+                if (client.view_height_cells / 2 > y) 0 else y - client.view_height_cells / 2,
+            },
+        };
         return .{
             .cell_it = .init(grid, topleft_x, topleft_y),
             .field_it = null,
@@ -192,7 +189,7 @@ test Grid {
     defer grid.deinit(testing.allocator);
     const uid = try grid.add(testing.allocator, .{ .dummy = .{ .some_field = 5 } }, 1, 1, null, null, null);
 
-    var it = ViewIterator.init(&grid, 0, 0);
+    var it = ViewIterator.init(&grid, 0, 0, .player_cell_pos);
     try testing.expect(it.next().?.obj == .dummy);
     try testing.expect(it.next() == null);
     try testing.expect(uid == 0);
@@ -213,7 +210,7 @@ test "grid iterator edges" {
     defer grid.deinit(testing.allocator);
     const uid = try grid.add(testing.allocator, .{ .dummy = .{ .some_field = 5 } }, grid_width - 1, grid_height - 1, null, null, null);
 
-    var it = ViewIterator.init(&grid, grid_width - 1, grid_height - 1);
+    var it = ViewIterator.init(&grid, grid_width - 1, grid_height - 1, .topleft);
     try testing.expect(it.next().?.obj == .dummy);
     try testing.expect(it.next() == null);
     try testing.expect(uid == 0);
