@@ -37,15 +37,17 @@ pub const Client = struct {
     client_id: ClientId,
     game_state: GameState,
     grid_uid: usize = 0,
+    slot: usize,
     udp_extension_joined: bool = false,
     outbound_head: usize = 0,
     outbound_len: usize = 0,
     outbound_queue: [outbound_queue_capacity]OutboundMessage = undefined,
 
-    pub fn init(alloc: Allocator, cli_id: ClientId, node: *Node) error{OutOfMemory}!Self {
+    pub fn init(alloc: Allocator, cli_id: ClientId, slot: usize, node: *Node) error{OutOfMemory}!Self {
         var self: Self = .{
             .client_id = cli_id,
             .game_state = .{},
+            .slot = slot,
         };
         for (&self.outbound_queue) |*item| {
             item.* = .{
@@ -57,7 +59,7 @@ pub const Client = struct {
 
         self.grid_uid = try node.grid.add(
             alloc,
-            .{ .client = .{ .cli_id = cli_id } },
+            .{ .client = @ptrCast(&node.server.clients.at(slot).client) }, // FIXME: VERY DANGEROUS!!! placing on grid an uninitialized object
             self.game_state.cell_x(),
             self.game_state.cell_y(),
             null,
@@ -67,12 +69,12 @@ pub const Client = struct {
         return self;
     }
 
-    pub fn initTcp(alloc: Allocator, node: *Node, payload: []const u8) !Self {
+    pub fn initTcp(alloc: Allocator, node: *Node, slot: usize, payload: []const u8) !Self {
         var reader = Io.Reader.fixed(payload);
         var hs = try proto.HandshakeStart.decode(&reader, alloc);
         defer hs.deinit(alloc);
         const cli_id = hs.session_id ^ 0xDEADBEEF;
-        var self = try Self.init(alloc, toUsize(cli_id), node);
+        var self = try Self.init(alloc, toUsize(cli_id), slot, node);
         std.debug.print("user {d} joined\n", .{self.client_id});
 
         const resp = proto.HandshakeStart{
@@ -123,11 +125,12 @@ pub const Client = struct {
 
         switch (update.payload.?) {
             .location_block => |ev| {
+                self.game_state.x = toUsize(ev.x);
+                self.game_state.y = toUsize(ev.y);
+
                 if (self.game_state.moved_cell(toUsize(ev.x), toUsize(ev.y))) {
                     const old_cx = self.game_state.cell_x();
                     const old_cy = self.game_state.cell_y();
-                    self.game_state.x = toUsize(ev.x);
-                    self.game_state.y = toUsize(ev.y);
                     node.grid.move(
                         alloc,
                         self.grid_uid,
@@ -142,6 +145,34 @@ pub const Client = struct {
 
                     std.debug.print("moved cell\n", .{});
                 }
+
+                const msg = proto.ServerResponse{
+                    .sender_id = toI32(self.client_id),
+                    .payload = .{
+                        .other_data = .{ .payload = .{
+                            .new_location = .{
+                                .x = ev.x,
+                                .y = ev.y,
+                            },
+                        }, .player_id = toI32(self.client_id) },
+                    },
+                };
+
+                node.notifyAll(self.client_id, &msg) catch @panic("todo");
+
+                // const moved_pkt = buildServerResponsePayload(alloc, &msg) catch @panic("todo");
+                // defer alloc.free(moved_pkt);
+                //
+                // var it: grid.ViewIterator = .init(&node.grid, self.game_state.cell_x(), self.game_state.cell_y(), .player_cell_pos);
+                // while (it.next()) |o| {
+                //     std.debug.print("found a client obj nearby", .{});
+                //     if (o.obj != .client)
+                //         continue;
+                //     const client = o.obj.client;
+                //
+                //     client.enqueueOutbound(.tcp, moved_pkt) catch {};
+                //     node.server.kickClientWriter(client.slot) catch {};
+                // }
             },
             // .bullet_shot,
             // .potion_use,
@@ -218,6 +249,10 @@ pub const GameState = struct {
 
 fn toUsize(v: i64) usize {
     return @as(usize, @as(u64, @bitCast(v)));
+}
+
+fn toI32(v: usize) i32 {
+    return @bitCast(@as(u32, @truncate(v)));
 }
 
 /// TODO: find a better name for this

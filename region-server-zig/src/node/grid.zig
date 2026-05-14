@@ -2,21 +2,23 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const testing = std.testing;
 const client = @import("../client.zig");
+const Client = client.Client;
 const Node = @import("node.zig");
 const Grid = @This();
 
 /// an object that can exist on the grid
 pub const Object = union(enum) {
     dummy: struct { some_field: u32 },
-    client: struct {
-        cli_id: usize,
-
-        pub fn hp(self: *const @This(), node: *const Node) usize {
-            if (node.clients.get(self.cli_id)) |cli|
-                return cli.game_state.hp;
-            @panic("node.clients should have had that client");
-        }
-    },
+    // client: struct {
+    //     cli_id: usize,
+    //
+    //     pub fn hp(self: *const @This(), node: *const Node) usize {
+    //         if (node.clients.get(self.cli_id)) |cli|
+    //             return cli.game_state.hp;
+    //         @panic("node.clients should have had that client");
+    //     }
+    // },
+    client: *Client,
 };
 
 // NOTE: optimization: replace with std.DynamicBitSetUnmanaged for a lower constant on lookup.

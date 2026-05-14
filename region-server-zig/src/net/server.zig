@@ -29,9 +29,10 @@ pub const Server = struct {
     node: Node,
 
     pub fn init(self: *Server, alloc: std.mem.Allocator, io: Io, port: u16) !void {
-        var tcp_server = try socket.socket(io, port, .ipv4, .tcp, 1024);
+        _ = port;
+        var tcp_server = try socket.socket(io, 8085, .ipv4, .tcp, 1024);
         errdefer tcp_server.deinit(io);
-        var udp_server = try socket.socket(io, port, .ipv4, .udp, null);
+        var udp_server = try socket.socket(io, 8086, .ipv4, .udp, null);
         errdefer udp_server.close(io);
         var ring = try iouring_helpers.init_ring(cqes_capacity);
         errdefer ring.deinit();
@@ -45,7 +46,7 @@ pub const Server = struct {
             .clients = .init,
             .udp_channel = undefined,
             .cqes = undefined,
-            .node = .init(alloc),
+            .node = .init(alloc, self),
         };
 
         const udp_channel = try self.channel_manager.takeChannel();
@@ -57,6 +58,7 @@ pub const Server = struct {
         self.tcp_server.deinit(io);
         self.udp_server.close(io);
         self.ring.deinit();
+        self.node.deinit();
     }
 
     pub fn run(self: *Server, io: Io) !void {
@@ -232,8 +234,8 @@ pub const Server = struct {
 
     fn handleTcpMessage(self: *Server, io: Io, channel: *Channel, payload: []const u8) !void {
         const slot = channel.client_slot orelse {
-            const cli = try Client.initTcp(self.gpa, &self.node, payload);
             const new_slot = try self.clients.takeClientSlot();
+            const cli = try Client.initTcp(self.gpa, &self.node, new_slot, payload);
             self.clients.at(new_slot).client = cli;
             try self.node.clients.put(self.gpa, cli.client_id, &self.clients.at(new_slot).client.?);
 
@@ -301,13 +303,13 @@ pub const Server = struct {
         }
     }
 
-    fn kickPendingWriters(self: *Server) !void {
+    pub fn kickPendingWriters(self: *Server) !void {
         for (self.clients.raw, 0..) |slot_state, slot| {
             if (slot_state.client != null) try self.kickClientWriter(slot);
         }
     }
 
-    fn kickClientWriter(self: *Server, slot: usize) !void {
+    pub fn kickClientWriter(self: *Server, slot: usize) !void {
         if (self.clients.at(slot).in_flight) return;
         const client = &(self.clients.at(slot).client orelse return);
         const next = client.peekOutbound() orelse return;
