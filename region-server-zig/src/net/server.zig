@@ -88,6 +88,7 @@ pub const Server = struct {
                 try self.submitTcpRecv(cli_channel);
             },
             .tcp_read => {
+                if (channel.sock_fd < 0) return;
                 if (cqe.res <= 0) {
                     try self.handleDisconnect(channel);
                     return;
@@ -95,6 +96,7 @@ pub const Server = struct {
                 try self.handleTcpRecv(io, channel, @intCast(cqe.res));
             },
             .tcp_write => {
+                if (channel.sock_fd < 0) return;
                 if (cqe.res <= 0) {
                     try self.handleDisconnect(channel);
                     return;
@@ -170,6 +172,7 @@ pub const Server = struct {
     }
 
     pub fn handleDisconnect(self: *Server, channel: *Channel) !void {
+        if (channel.sock_fd < 0) return;
         std.debug.print("client disconnected.\n", .{});
         if (channel.client_slot) |slot| {
             if (self.clients.at(slot).client) |cli| {
@@ -179,8 +182,10 @@ pub const Server = struct {
             self.clients.returnClientSlot(slot);
         }
         _ = linux.close(channel.sock_fd);
+        channel.sock_fd = -1;
+        channel.client_slot = null;
+        channel.write_client_slot = null;
         self.channel_manager.returnChannel(channel);
-        return;
     }
 
     pub fn submitAccept(self: *Server) !void {
@@ -235,8 +240,8 @@ pub const Server = struct {
     fn handleTcpMessage(self: *Server, io: Io, channel: *Channel, payload: []const u8) !void {
         const slot = channel.client_slot orelse {
             const new_slot = try self.clients.takeClientSlot();
-            const cli = try Client.initTcp(self.gpa, new_slot, payload);
-            self.clients.at(new_slot).client = cli;
+            self.clients.at(new_slot).client = try Client.initTcp(self.gpa, new_slot, payload);
+            const cli: *Client = &self.clients.at(new_slot).client.?;
 
             try self.node.clients.put(self.gpa, cli.client_id, &self.clients.at(new_slot).client.?);
             cli.grid_uid = try self.node.grid.add(

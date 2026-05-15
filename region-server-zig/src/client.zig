@@ -115,12 +115,12 @@ pub const Client = struct {
 
         switch (update.payload.?) {
             .location_block => |ev| {
-                self.game_state.x = toUsize(ev.x);
-                self.game_state.y = toUsize(ev.y);
-
                 if (self.game_state.moved_cell(toUsize(ev.x), toUsize(ev.y))) {
                     const old_cx = self.game_state.cell_x();
                     const old_cy = self.game_state.cell_y();
+                    self.game_state.x = toUsize(ev.x);
+                    self.game_state.y = toUsize(ev.y);
+
                     node.grid.move(
                         alloc,
                         self.grid_uid,
@@ -134,6 +134,9 @@ pub const Client = struct {
                     };
 
                     std.debug.print("moved cell\n", .{});
+                } else {
+                    self.game_state.x = toUsize(ev.x);
+                    self.game_state.y = toUsize(ev.y);
                 }
 
                 const msg = proto.ServerResponse{
@@ -148,21 +151,22 @@ pub const Client = struct {
                     },
                 };
 
-                node.notifyAll(self.client_id, &msg) catch @panic("todo");
+                // node.notifyAll(self.client_id, &msg) catch @panic("todo");
 
-                // const moved_pkt = buildServerResponsePayload(alloc, &msg) catch @panic("todo");
-                // defer alloc.free(moved_pkt);
-                //
-                // var it: grid.ViewIterator = .init(&node.grid, self.game_state.cell_x(), self.game_state.cell_y(), .player_cell_pos);
-                // while (it.next()) |o| {
-                //     std.debug.print("found a client obj nearby", .{});
-                //     if (o.obj != .client)
-                //         continue;
-                //     const client = o.obj.client;
-                //
-                //     client.enqueueOutbound(.tcp, moved_pkt) catch {};
-                //     node.server.kickClientWriter(client.slot) catch {};
-                // }
+                const moved_pkt = buildServerResponsePayload(alloc, &msg) catch @panic("todo");
+                defer alloc.free(moved_pkt);
+
+                var it: grid.ViewIterator = .init(&node.grid, self.game_state.cell_x(), self.game_state.cell_y(), .player_cell_pos);
+                while (it.next()) |o| {
+                    if (o.obj != .client)
+                        continue;
+                    const client = o.obj.client;
+                    if (client.client_id == self.client_id)
+                        continue;
+
+                    client.enqueueOutbound(.tcp, moved_pkt) catch {};
+                    node.server.kickClientWriter(client.slot) catch {};
+                }
             },
             // .bullet_shot,
             // .potion_use,
