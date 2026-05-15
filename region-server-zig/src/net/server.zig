@@ -235,9 +235,19 @@ pub const Server = struct {
     fn handleTcpMessage(self: *Server, io: Io, channel: *Channel, payload: []const u8) !void {
         const slot = channel.client_slot orelse {
             const new_slot = try self.clients.takeClientSlot();
-            const cli = try Client.initTcp(self.gpa, &self.node, new_slot, payload);
+            const cli = try Client.initTcp(self.gpa, new_slot, payload);
             self.clients.at(new_slot).client = cli;
+
             try self.node.clients.put(self.gpa, cli.client_id, &self.clients.at(new_slot).client.?);
+            cli.grid_uid = try self.node.grid.add(
+                self.gpa,
+                .{ .client = @ptrCast(&self.clients.at(new_slot).client) },
+                cli.game_state.cell_x(),
+                cli.game_state.cell_y(),
+                null,
+                null,
+                null,
+            );
 
             channel.client_slot = new_slot;
             self.clients.at(new_slot).tcp_channel_idx = self.channel_manager.channelIndex(channel);

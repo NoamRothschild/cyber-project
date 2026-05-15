@@ -43,7 +43,7 @@ pub const Client = struct {
     outbound_len: usize = 0,
     outbound_queue: [outbound_queue_capacity]OutboundMessage = undefined,
 
-    pub fn init(alloc: Allocator, cli_id: ClientId, slot: usize, node: *Node) error{OutOfMemory}!Self {
+    pub fn init(cli_id: ClientId, slot: usize) Self {
         var self: Self = .{
             .client_id = cli_id,
             .game_state = .{},
@@ -56,25 +56,15 @@ pub const Client = struct {
                 .payload = undefined,
             };
         }
-
-        self.grid_uid = try node.grid.add(
-            alloc,
-            .{ .client = @ptrCast(&node.server.clients.at(slot).client) }, // FIXME: VERY DANGEROUS!!! placing on grid an uninitialized object
-            self.game_state.cell_x(),
-            self.game_state.cell_y(),
-            null,
-            null,
-            null,
-        );
         return self;
     }
 
-    pub fn initTcp(alloc: Allocator, node: *Node, slot: usize, payload: []const u8) !Self {
+    pub fn initTcp(alloc: Allocator, slot: usize, payload: []const u8) !Self {
         var reader = Io.Reader.fixed(payload);
         var hs = try proto.HandshakeStart.decode(&reader, alloc);
         defer hs.deinit(alloc);
         const cli_id = hs.session_id ^ 0xDEADBEEF;
-        var self = try Self.init(alloc, toUsize(cli_id), slot, node);
+        var self = Self.init(toUsize(cli_id), slot);
         std.debug.print("user {d} joined\n", .{self.client_id});
 
         const resp = proto.HandshakeStart{
